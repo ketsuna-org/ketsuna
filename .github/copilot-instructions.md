@@ -51,7 +51,7 @@ Ketsuna is a modern web application built with **SvelteKit**, deployed to **Clou
 - Use `bun` for script execution.
 
 ### Commands
-- **Dev Server**: `bun run dev`
+- **Dev Server**: `bun run dev --open`
 - **Build**: `bun run build`
 - **Type Check**: `bun run check`
 - **Lint**: `bun run lint`
