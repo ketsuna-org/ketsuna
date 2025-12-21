@@ -5,18 +5,19 @@
     import pb from "$lib/pocketbase";
     import Footer from "$lib/components/Footer.svelte";
     import Navigation from "$lib/components/Navigation.svelte";
-    import CompanyList from "$lib/components/companies/CompanyList.svelte";
-    import CompanyRead from "$lib/components/companies/CompanyRead.svelte";
-    import CompanyCreate from "$lib/components/companies/CompanyCreate.svelte";
-    import CompanyUpdate from "$lib/components/companies/CompanyUpdate.svelte";
+    import FinancialList from "$lib/components/financial/FinancialList.svelte";
+    import FinancialRead from "$lib/components/financial/FinancialRead.svelte";
+    import FinancialCreate from "$lib/components/financial/FinancialCreate.svelte";
+    import FinancialUpdate from "$lib/components/financial/FinancialUpdate.svelte";
 
-    let companies: any[] = [];
-    let selectedCompany: any = null;
+    let reports: any[] = [];
+    let selectedReport: any = null;
     let loading = true;
     let error = "";
 
     $: state = $page.url.searchParams.get("state") || "list";
-    $: companyId = $page.url.searchParams.get("id");
+    $: companyId = $page.url.searchParams.get("company");
+    $: reportId = $page.url.searchParams.get("id");
 
     onMount(async () => {
         if (!pb.authStore.isValid) {
@@ -27,13 +28,13 @@
         await loadData();
     });
 
-    // Réagir aux changements de state et companyId
-    $: if (state === "read" && companyId) {
-        loadCompanyDetail(companyId);
-    } else if (state === "update" && companyId) {
-        loadCompanyDetail(companyId);
+    // Réagir aux changements de state et reportId
+    $: if (state === "read" && reportId) {
+        loadReportDetail(reportId);
+    } else if (state === "update" && reportId) {
+        loadReportDetail(reportId);
     } else {
-        selectedCompany = null;
+        selectedReport = null;
     }
 
     async function loadData() {
@@ -41,14 +42,31 @@
         error = "";
 
         try {
-            if ((state === "read" || state === "update") && companyId) {
-                await loadCompanyDetail(companyId);
+            if ((state === "read" || state === "update") && reportId) {
+                await loadReportDetail(reportId);
             } else {
-                const records = await pb.collection("companies").getFullList({
-                    filter: `owner = "${pb.authStore.model?.id}"`,
-                    sort: "-created",
-                });
-                companies = records;
+                // Charger les rapports financiers de toutes les compagnies de l'utilisateur
+                const userCompanies = await pb
+                    .collection("companies")
+                    .getFullList({
+                        filter: `owner = "${pb.authStore.model?.id}"`,
+                    });
+
+                if (userCompanies.length === 0) {
+                    reports = [];
+                } else {
+                    const companyIds = userCompanies.map((c) => c.id);
+                    const records = await pb
+                        .collection("financial_reports")
+                        .getFullList({
+                            filter: companyIds
+                                .map((id) => `company = "${id}"`)
+                                .join(" || "),
+                            sort: "-period_year,-period_month",
+                            expand: "company",
+                        });
+                    reports = records;
+                }
             }
         } catch (err: any) {
             error = err.message || "Erreur lors du chargement";
@@ -57,21 +75,25 @@
         }
     }
 
-    async function loadCompanyDetail(id: string) {
+    async function loadReportDetail(id: string) {
         if (!id) return;
 
         try {
-            selectedCompany = await pb.collection("companies").getOne(id);
+            selectedReport = await pb
+                .collection("financial_reports")
+                .getOne(id, {
+                    expand: "company",
+                });
 
-            // Vérifier que l'utilisateur est propriétaire
-            if (selectedCompany.owner !== pb.authStore.model?.id) {
-                error = "Vous n'avez pas accès à cette compagnie";
-                selectedCompany = null;
+            // Vérifier que l'utilisateur possède la compagnie de ce rapport
+            if (selectedReport.company?.owner !== pb.authStore.model?.id) {
+                error = "Vous n'avez pas accès à ce rapport";
+                selectedReport = null;
                 return;
             }
         } catch (err: any) {
-            error = err.message || "Erreur lors du chargement de la compagnie";
-            selectedCompany = null;
+            error = err.message || "Erreur lors du chargement du rapport";
+            selectedReport = null;
         }
     }
 
@@ -81,13 +103,13 @@
 
         switch (type) {
             case "view":
-                goto(`/compagnies?state=read&id=${detail.companyId}`);
+                goto(`/rapports?state=read&id=${detail.reportId}`);
                 break;
             case "delete":
-                deleteCompany(detail.companyId);
+                deleteReport(detail.reportId);
                 break;
             case "create":
-                goto("/compagnies?state=create");
+                goto("/rapports?state=create");
                 break;
         }
     }
@@ -97,22 +119,10 @@
 
         switch (type) {
             case "update":
-                goto(`/compagnies?state=update&id=${detail.companyId}`);
+                goto(`/rapports?state=update&id=${detail.reportId}`);
                 break;
             case "delete":
-                deleteCompany(detail.companyId);
-                break;
-            case "manageEmployees":
-                // TODO: Implémenter la gestion des employés
-                console.log("Gérer les employés pour", detail.companyId);
-                break;
-            case "investInStock":
-                // TODO: Implémenter l'investissement en bourse
-                console.log("Investir en bourse pour", detail.companyId);
-                break;
-            case "acquireCompany":
-                // TODO: Implémenter l'acquisition d'entreprise
-                console.log("Acquérir une entreprise depuis", detail.companyId);
+                deleteReport(detail.reportId);
                 break;
         }
     }
@@ -122,10 +132,10 @@
 
         switch (type) {
             case "create":
-                createCompany(detail);
+                createReport(detail.data);
                 break;
             case "cancel":
-                goto("/compagnies");
+                goto("/rapports");
                 break;
         }
     }
@@ -135,50 +145,49 @@
 
         switch (type) {
             case "update":
-                updateCompany(detail.companyId, detail.data);
+                updateReport(detail.reportId, detail.data);
                 break;
             case "cancel":
-                goto(`/compagnies?state=read&id=${companyId}`);
+                goto(`/rapports?state=read&id=${reportId}`);
                 break;
         }
     }
 
-    async function createCompany(data: any) {
+    async function createReport(data: any) {
         try {
-            const newCompany = await pb.collection("companies").create({
-                ...data,
-                owner: pb.authStore.model?.id,
-                cash: 10000, // Capital de départ
-                reputation: 50, // Réputation initiale
-                status: "active",
-            });
-
-            goto(`/compagnies?state=read&id=${newCompany.id}`);
+            const newReport = await pb
+                .collection("financial_reports")
+                .create(data);
+            goto(`/rapports?state=read&id=${newReport.id}`);
         } catch (err: any) {
-            error = err.message || "Erreur lors de la création de la compagnie";
+            error = err.message || "Erreur lors de la création";
         }
     }
 
-    async function updateCompany(companyId: string, data: any) {
+    async function updateReport(reportId: string, data: any) {
         try {
-            await pb.collection("companies").update(companyId, data);
+            await pb.collection("financial_reports").update(reportId, data);
             // Recharger les données
-            await loadCompanyDetail(companyId);
-            goto(`/compagnies?state=read&id=${companyId}`);
+            await loadReportDetail(reportId);
+            goto(`/rapports?state=read&id=${reportId}`);
         } catch (err: any) {
             error = err.message || "Erreur lors de la mise à jour";
         }
     }
 
-    async function deleteCompany(companyId: string) {
-        if (!confirm("Êtes-vous sûr de vouloir supprimer cette compagnie ?"))
+    async function deleteReport(reportId: string) {
+        if (
+            !confirm(
+                "Êtes-vous sûr de vouloir supprimer ce rapport financier ? Cette action est irréversible.",
+            )
+        )
             return;
 
         try {
-            await pb.collection("companies").delete(companyId);
-            if (selectedCompany && selectedCompany.id === companyId) {
-                // Si on était sur le détail de cette compagnie, revenir à la liste
-                goto("/compagnies");
+            await pb.collection("financial_reports").delete(reportId);
+            if (selectedReport && selectedReport.id === reportId) {
+                // Si on était sur le détail de ce rapport, revenir à la liste
+                goto("/rapports");
             } else {
                 // Recharger la liste
                 await loadData();
@@ -190,14 +199,14 @@
 
     function goBack() {
         if (state === "read" || state === "update") {
-            goto("/compagnies");
+            goto("/rapports");
         } else {
-            goto("/compagnies");
+            goto("/rapports");
         }
     }
 
-    function createNewCompany() {
-        goto("/compagnies?state=create");
+    function createNewReport() {
+        goto("/rapports?state=create");
     }
 
     function logout() {
@@ -223,23 +232,23 @@
                 {/if}
                 <h1 class="text-3xl font-bold">
                     {#if state === "create"}
-                        Créer une Compagnie
+                        Nouveau Rapport Financier
                     {:else if state === "update"}
-                        Modifier la Compagnie
-                    {:else if state === "read" && selectedCompany}
-                        {selectedCompany.name}
+                        Modifier le Rapport
+                    {:else if state === "read" && selectedReport}
+                        Rapport {selectedReport.period_month}/{selectedReport.period_year}
                     {:else}
-                        Mes Compagnies
+                        Rapports Financiers
                     {/if}
                 </h1>
             </div>
             <div class="flex gap-4">
                 {#if state === "list"}
                     <button
-                        on:click={createNewCompany}
+                        on:click={createNewReport}
                         class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded transition duration-300"
                     >
-                        Créer une Compagnie
+                        Nouveau Rapport
                     </button>
                 {/if}
                 <button
@@ -252,14 +261,14 @@
         </div>
     </header>
 
-    <Navigation currentPage="companies" />
+    <Navigation currentPage="financial" />
 
     <!-- Main Content -->
     <main class="px-4 pb-20">
         <div class="max-w-6xl mx-auto">
             {#if state === "list"}
-                <CompanyList
-                    {companies}
+                <FinancialList
+                    {reports}
                     {loading}
                     {error}
                     on:view={handleListEvents}
@@ -267,24 +276,21 @@
                     on:create={handleListEvents}
                 />
             {:else if state === "read"}
-                <CompanyRead
-                    company={selectedCompany}
+                <FinancialRead
+                    report={selectedReport}
                     {loading}
                     {error}
                     on:update={handleReadEvents}
                     on:delete={handleReadEvents}
-                    on:manageEmployees={handleReadEvents}
-                    on:investInStock={handleReadEvents}
-                    on:acquireCompany={handleReadEvents}
                 />
             {:else if state === "create"}
-                <CompanyCreate
+                <FinancialCreate
                     on:create={handleCreateEvents}
                     on:cancel={handleCreateEvents}
                 />
             {:else if state === "update"}
-                <CompanyUpdate
-                    company={selectedCompany}
+                <FinancialUpdate
+                    report={selectedReport}
                     on:update={handleUpdateEvents}
                     on:cancel={handleUpdateEvents}
                 />

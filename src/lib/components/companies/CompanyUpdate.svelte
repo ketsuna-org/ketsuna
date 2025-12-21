@@ -61,7 +61,7 @@
                     id="name"
                     type="text"
                     bind:value={name}
-                    class="w-full px-4 py-3 bg-white/20 border border-white/30 rounded-lg text-white placeholder-white/70 focus:outline-none focus:border-white"
+                    class="w-full px-4 py-3 bg-gray-800 border border-white/30 rounded-lg text-white placeholder-white/70 focus:outline-none focus:border-white"
                     placeholder="Entrez le nom de votre entreprise"
                     required
                 />
@@ -78,7 +78,7 @@
                     id="description"
                     bind:value={description}
                     rows="4"
-                    class="w-full px-4 py-3 bg-white/20 border border-white/30 rounded-lg text-white placeholder-white/70 focus:outline-none focus:border-white resize-vertical"
+                    class="w-full px-4 py-3 bg-gray-800 border border-white/30 rounded-lg text-white placeholder-white/70 focus:outline-none focus:border-white resize-vertical"
                     placeholder="Décrivez votre entreprise (secteur d'activité, objectifs, etc.)"
                 ></textarea>
             </div>
@@ -94,7 +94,7 @@
                     id="location"
                     type="text"
                     bind:value={headquarters_location}
-                    class="w-full px-4 py-3 bg-white/20 border border-white/30 rounded-lg text-white placeholder-white/70 focus:outline-none focus:border-white"
+                    class="w-full px-4 py-3 bg-gray-800 border border-white/30 rounded-lg text-white placeholder-white/70 focus:outline-none focus:border-white"
                     placeholder="Ville, Pays"
                 />
             </div>

@@ -85,7 +85,7 @@
                         id="username"
                         type="text"
                         bind:value={username}
-                        class="w-full px-3 py-2 bg-white/20 border border-white/30 rounded text-white placeholder-white/70 focus:outline-none focus:border-white"
+                        class="w-full px-3 py-2 bg-gray-800 border border-white/30 rounded text-white placeholder-white/70 focus:outline-none focus:border-white"
                         placeholder="Votre nom d'utilisateur"
                         required
                     />
@@ -98,7 +98,7 @@
                     id="email"
                     type="email"
                     bind:value={email}
-                    class="w-full px-3 py-2 bg-white/20 border border-white/30 rounded text-white placeholder-white/70 focus:outline-none focus:border-white"
+                    class="w-full px-3 py-2 bg-gray-800 border border-white/30 rounded text-white placeholder-white/70 focus:outline-none focus:border-white"
                     placeholder="votre@email.com"
                     required
                 />
@@ -112,7 +112,7 @@
                     id="password"
                     type="password"
                     bind:value={password}
-                    class="w-full px-3 py-2 bg-white/20 border border-white/30 rounded text-white placeholder-white/70 focus:outline-none focus:border-white"
+                    class="w-full px-3 py-2 bg-gray-800 border border-white/30 rounded text-white placeholder-white/70 focus:outline-none focus:border-white"
                     placeholder="Votre mot de passe"
                     required
                 />

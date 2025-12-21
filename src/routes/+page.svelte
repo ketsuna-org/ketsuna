@@ -5,7 +5,7 @@
 
     function startPlaying() {
         if (pb.authStore.isValid) {
-            goto("/compagnies");
+            goto("/dashboard");
         } else {
             goto("/login");
         }
@@ -50,7 +50,7 @@
             <h2 class="text-4xl font-bold text-center mb-16">
                 Fonctionnalités Principales
             </h2>
-            <div class="grid md:grid-cols-3 gap-8">
+            <div class="grid md:grid-cols-2 lg:grid-cols-5 gap-8">
                 <div
                     class="bg-white/10 backdrop-blur-sm rounded-lg p-6 text-center"
                 >
@@ -61,6 +61,31 @@
                     <p class="text-gray-300">
                         Lancez votre propre entreprise, choisissez votre secteur
                         d'activité et développez-la de zéro à multinationale.
+                    </p>
+                </div>
+                <div
+                    class="bg-white/10 backdrop-blur-sm rounded-lg p-6 text-center"
+                >
+                    <div class="text-6xl mb-4">👥</div>
+                    <h3 class="text-2xl font-semibold mb-4">
+                        Gestion des Employés
+                    </h3>
+                    <p class="text-gray-300">
+                        Recrutez, formez et gérez une équipe talentueuse pour
+                        booster la productivité de vos entreprises.
+                    </p>
+                </div>
+                <div
+                    class="bg-white/10 backdrop-blur-sm rounded-lg p-6 text-center"
+                >
+                    <div class="text-6xl mb-4">📊</div>
+                    <h3 class="text-2xl font-semibold mb-4">
+                        Rapports Financiers
+                    </h3>
+                    <p class="text-gray-300">
+                        Suivez vos performances financières, analysez vos
+                        revenus et dépenses pour prendre des décisions
+                        stratégiques.
                     </p>
                 </div>
                 <div
