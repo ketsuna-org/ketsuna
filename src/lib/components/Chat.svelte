@@ -199,10 +199,10 @@
         }
 
         // Si c'est l'utilisateur courant, utiliser les infos du authStore
-        if (userId === pb.authStore.model?.id) {
+        if (userId === pb.authStore.record?.id) {
             return (
-                pb.authStore.model?.username ||
-                pb.authStore.model?.email ||
+                pb.authStore.record?.username ||
+                pb.authStore.record?.email ||
                 "Utilisateur"
             );
         }
