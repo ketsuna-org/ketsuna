@@ -42,31 +42,23 @@
         error = "";
 
         try {
-            if ((state === "read" || state === "update") && employeeId) {
-                await loadEmployeeDetail(employeeId);
-            } else {
-                // Charger les employés de toutes les compagnies de l'utilisateur
-                const userCompanies = await pb
-                    .collection("companies")
-                    .getFullList({
-                        filter: `owner = "${pb.authStore.model?.id}"`,
-                    });
+            // Charger les employés de toutes les compagnies de l'utilisateur
+            const userCompanies = await pb.collection("companies").getFullList({
+                filter: `owner = "${pb.authStore.model?.id}"`,
+            });
 
-                if (userCompanies.length === 0) {
-                    employees = [];
-                } else {
-                    const companyIds = userCompanies.map((c) => c.id);
-                    const records = await pb
-                        .collection("employees")
-                        .getFullList({
-                            filter: companyIds
-                                .map((id) => `company = "${id}"`)
-                                .join(" || "),
-                            sort: "-created",
-                            expand: "company",
-                        });
-                    employees = records;
-                }
+            if (userCompanies.length === 0) {
+                employees = [];
+            } else {
+                const companyIds = userCompanies.map((c) => c.id);
+                const records = await pb.collection("employees").getFullList({
+                    filter: companyIds
+                        .map((id) => `company = "${id}"`)
+                        .join(" || "),
+                    sort: "-created",
+                    expand: "company",
+                });
+                employees = records;
             }
         } catch (err: any) {
             error = err.message || "Erreur lors du chargement";

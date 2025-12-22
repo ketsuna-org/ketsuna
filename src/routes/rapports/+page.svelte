@@ -42,31 +42,25 @@
         error = "";
 
         try {
-            if ((state === "read" || state === "update") && reportId) {
-                await loadReportDetail(reportId);
-            } else {
-                // Charger les rapports financiers de toutes les compagnies de l'utilisateur
-                const userCompanies = await pb
-                    .collection("companies")
-                    .getFullList({
-                        filter: `owner = "${pb.authStore.model?.id}"`,
-                    });
+            // Charger les rapports financiers de toutes les compagnies de l'utilisateur
+            const userCompanies = await pb.collection("companies").getFullList({
+                filter: `owner = "${pb.authStore.model?.id}"`,
+            });
 
-                if (userCompanies.length === 0) {
-                    reports = [];
-                } else {
-                    const companyIds = userCompanies.map((c) => c.id);
-                    const records = await pb
-                        .collection("financial_reports")
-                        .getFullList({
-                            filter: companyIds
-                                .map((id) => `company = "${id}"`)
-                                .join(" || "),
-                            sort: "-period_year,-period_month",
-                            expand: "company",
-                        });
-                    reports = records;
-                }
+            if (userCompanies.length === 0) {
+                reports = [];
+            } else {
+                const companyIds = userCompanies.map((c) => c.id);
+                const records = await pb
+                    .collection("financial_reports")
+                    .getFullList({
+                        filter: companyIds
+                            .map((id) => `company = "${id}"`)
+                            .join(" || "),
+                        sort: "-period_year,-period_month",
+                        expand: "company",
+                    });
+                reports = records;
             }
         } catch (err: any) {
             error = err.message || "Erreur lors du chargement";

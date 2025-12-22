@@ -41,15 +41,11 @@
         error = "";
 
         try {
-            if ((state === "read" || state === "update") && companyId) {
-                await loadCompanyDetail(companyId);
-            } else {
-                const records = await pb.collection("companies").getFullList({
-                    filter: `owner = "${pb.authStore.model?.id}"`,
-                    sort: "-created",
-                });
-                companies = records;
-            }
+            const records = await pb.collection("companies").getFullList({
+                filter: `owner = "${pb.authStore.model?.id}"`,
+                sort: "-created",
+            });
+            companies = records;
         } catch (err: any) {
             error = err.message || "Erreur lors du chargement";
         } finally {

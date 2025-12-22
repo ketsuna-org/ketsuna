@@ -47,24 +47,20 @@
                 filter: `owner = "${pb.authStore.model?.id}"`,
             });
 
-            if ((state === "read" || state === "update") && reportId) {
-                await loadReportDetail(reportId);
+            // Charger les rapports financiers de toutes les entreprises de l'utilisateur
+            if (companies.length === 0) {
+                reports = [];
             } else {
-                // Charger les rapports financiers de toutes les entreprises de l'utilisateur
-                if (companies.length === 0) {
-                    reports = [];
-                } else {
-                    const companyIds = companies.map((c) => c.id);
-                    const records = await pb
-                        .collection("financial_reports")
-                        .getFullList({
-                            filter: companyIds
-                                .map((id) => `company = "${id}"`)
-                                .join(" || "),
-                            sort: "-period_year,-period_month",
-                        });
-                    reports = records;
-                }
+                const companyIds = companies.map((c) => c.id);
+                const records = await pb
+                    .collection("financial_reports")
+                    .getFullList({
+                        filter: companyIds
+                            .map((id) => `company = "${id}"`)
+                            .join(" || "),
+                        sort: "-period_year,-period_month",
+                    });
+                reports = records;
             }
         } catch (err: any) {
             error = err.message || "Erreur lors du chargement";
