@@ -274,6 +274,7 @@
                             : ""}
                     </p>
                 </div>
+                <!-- svelte-ignore a11y_consider_explicit_label -->
                 <button
                     on:click={toggleChat}
                     class="text-white hover:bg-white/20 rounded p-1 transition"
