@@ -15,6 +15,7 @@
     let typingTimeout: number | null = null;
     let isTyping = false;
     let unsubscribe: (() => void) | null = null;
+    let userNames: Map<string, string> = new Map(); // Cache des noms d'utilisateurs
 
     // Charger l'historique des messages
     async function loadMessages() {
@@ -27,6 +28,18 @@
                 expand: "user",
             });
             messages = records.items.reverse();
+
+            // Charger les noms d'utilisateurs pour chaque message
+            for (const msg of messages) {
+                if (!userNames.has(msg.user)) {
+                    const userName = await getUserName(
+                        msg.user,
+                        msg.expand?.user,
+                    );
+                    userNames.set(msg.user, userName);
+                }
+            }
+
             scrollToBottom();
         } catch (err: any) {
             error = err.message || "Erreur lors du chargement des messages";
@@ -48,6 +61,16 @@
                             .getOne(e.record.id, {
                                 expand: "user",
                             });
+
+                        // Charger le nom d'utilisateur
+                        if (!userNames.has(fullMessage.user)) {
+                            const userName = await getUserName(
+                                fullMessage.user,
+                                fullMessage.expand?.user,
+                            );
+                            userNames.set(fullMessage.user, userName);
+                        }
+
                         messages = [...messages, fullMessage];
                         scrollToBottom();
                     } else if (e.action === "update") {
@@ -56,6 +79,16 @@
                             .getOne(e.record.id, {
                                 expand: "user",
                             });
+
+                        // Charger le nom d'utilisateur
+                        if (!userNames.has(fullMessage.user)) {
+                            const userName = await getUserName(
+                                fullMessage.user,
+                                fullMessage.expand?.user,
+                            );
+                            userNames.set(fullMessage.user, userName);
+                        }
+
                         messages = messages.map((m) =>
                             m.id === e.record.id ? fullMessage : m,
                         );
@@ -153,6 +186,35 @@
                 messagesContainer.scrollTop = messagesContainer.scrollHeight;
             }
         }, 100);
+    }
+
+    // Récupérer le nom d'utilisateur avec fallback
+    async function getUserName(userId: string, expandedUser: any) {
+        // Si l'expand contient le user, utiliser ses infos
+        if (expandedUser?.username) {
+            return expandedUser.username;
+        }
+        if (expandedUser?.email) {
+            return expandedUser.email;
+        }
+
+        // Si c'est l'utilisateur courant, utiliser les infos du authStore
+        if (userId === pb.authStore.model?.id) {
+            return (
+                pb.authStore.model?.username ||
+                pb.authStore.model?.email ||
+                "Utilisateur"
+            );
+        }
+
+        // Sinon, essayer de récupérer l'utilisateur directement
+        try {
+            const user = await pb.collection("users").getOne(userId);
+            return user.username || user.email || "Utilisateur";
+        } catch (err) {
+            console.error("Erreur récupération user:", err);
+            return "Utilisateur";
+        }
     }
 
     // Formater la date
@@ -336,9 +398,7 @@
                                         ? 'text-blue-200'
                                         : 'text-gray-400'} mb-1 font-medium"
                                 >
-                                    {msg.expand?.user?.username ||
-                                        msg.expand?.user?.email ||
-                                        "Utilisateur"}
+                                    {userNames.get(msg.user) || "Chargement..."}
                                 </div>
 
                                 <!-- Message ou édition -->
