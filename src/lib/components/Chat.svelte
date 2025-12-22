@@ -16,6 +16,8 @@
     let isTyping = false;
     let unsubscribe: (() => void) | null = null;
     let userNames: Map<string, string> = new Map(); // Cache des noms d'utilisateurs
+    let userAvatars: Map<string, string> = new Map(); // Cache des avatars
+    let audioContext: AudioContext | null = null; // Pour générer le son
 
     // Charger l'historique des messages
     async function loadMessages() {
@@ -37,6 +39,11 @@
                         msg.expand?.user,
                     );
                     userNames.set(msg.user, userName);
+                }
+
+                // Charger les avatars
+                if (msg.expand?.user?.avatar) {
+                    getAvatarUrl(msg.user, msg.expand.user);
                 }
             }
 
@@ -71,7 +78,21 @@
                             userNames.set(fullMessage.user, userName);
                         }
 
+                        // Charger l'avatar
+                        if (fullMessage.expand?.user?.avatar) {
+                            getAvatarUrl(
+                                fullMessage.user,
+                                fullMessage.expand.user,
+                            );
+                        }
+
                         messages = [...messages, fullMessage];
+
+                        // Jouer notification sonore si ce n'est pas de nous
+                        if (fullMessage.user !== pb.authStore.model?.id) {
+                            playNotificationSound();
+                        }
+
                         scrollToBottom();
                     } else if (e.action === "update") {
                         const fullMessage = await pb
@@ -188,7 +209,80 @@
         }, 100);
     }
 
-    // Récupérer le nom d'utilisateur avec fallback
+    // Jouer une notification sonore
+    function playNotificationSound() {
+        try {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext ||
+                    (window as any).webkitAudioContext)();
+            }
+
+            const ctx = audioContext;
+            const now = ctx.currentTime;
+
+            // Créer un petit beep mélodique
+            const oscillator1 = ctx.createOscillator();
+            const oscillator2 = ctx.createOscillator();
+            const gainNode = ctx.createGain();
+
+            oscillator1.connect(gainNode);
+            oscillator2.connect(gainNode);
+            gainNode.connect(ctx.destination);
+
+            // Deux notes: Do (261.63 Hz) et Mi (329.63 Hz)
+            oscillator1.frequency.value = 261.63;
+            oscillator2.frequency.setValueAtTime(261.63, now);
+            oscillator2.frequency.setTargetAtTime(329.63, now, 0.05);
+
+            gainNode.gain.setValueAtTime(0.3, now);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+
+            oscillator1.start(now);
+            oscillator2.start(now);
+            oscillator1.stop(now + 0.15);
+            oscillator2.stop(now + 0.3);
+        } catch (err) {
+            console.error("Erreur lors de la lecture du son:", err);
+        }
+    }
+
+    // Récupérer l'URL de l'avatar
+    function getAvatarUrl(userId: string, user: any): string {
+        if (userAvatars.has(userId)) {
+            return userAvatars.get(userId) || "";
+        }
+
+        if (user?.avatar) {
+            try {
+                // Construire l'URL correctement avec PocketBase
+                const baseUrl = pb.baseUrl;
+                const collection = "_pb_users_auth_";
+                const recordId = user.id;
+                const fileName = user.avatar;
+
+                // Format: /api/files/{collection}/{recordId}/{fileName}
+                const url = `${baseUrl}/api/files/${collection}/${recordId}/${fileName}`;
+                userAvatars.set(userId, url);
+                return url;
+            } catch (err) {
+                console.error("Erreur récupération avatar:", err);
+            }
+        }
+
+        return "";
+    }
+
+    // Obtenir les initiales de l'utilisateur
+    function getInitials(name: string): string {
+        return name
+            .split(" ")
+            .map((word) => word[0])
+            .join("")
+            .toUpperCase()
+            .slice(0, 2);
+    }
+
+    // Jouer une notification sonore
     async function getUserName(userId: string, expandedUser: any) {
         // Si l'expand contient le user, utiliser ses infos
         if (expandedUser?.username) {
@@ -391,14 +485,46 @@
                                     ? 'bg-blue-600'
                                     : 'bg-gray-700'} rounded-lg p-3"
                             >
-                                <!-- Nom de l'utilisateur -->
-                                <div
-                                    class="text-xs {msg.user ===
-                                    pb.authStore.model?.id
-                                        ? 'text-blue-200'
-                                        : 'text-gray-400'} mb-1 font-medium"
-                                >
-                                    {userNames.get(msg.user) || "Chargement..."}
+                                <!-- Nom et Avatar de l'utilisateur -->
+                                <div class="flex items-center gap-2 mb-1">
+                                    <!-- Avatar avec fallback sur initiales -->
+                                    <div class="relative w-6 h-6 flex-shrink-0">
+                                        {#if getAvatarUrl(msg.user, msg.expand?.user)}
+                                            <img
+                                                src={getAvatarUrl(
+                                                    msg.user,
+                                                    msg.expand?.user,
+                                                )}
+                                                alt="Avatar"
+                                                class="w-6 h-6 rounded-full object-cover"
+                                                on:error={(e) => {
+                                                    // Masquer l'image si elle ne charge pas
+                                                    (
+                                                        e.target as HTMLImageElement
+                                                    ).style.display = "none";
+                                                }}
+                                            />
+                                        {/if}
+                                        <!-- Fallback toujours visible si pas d'avatar ou erreur de chargement -->
+                                        <div
+                                            class="absolute inset-0 w-6 h-6 rounded-full bg-gradient-to-br from-purple-400 to-blue-500 flex items-center justify-center text-xs font-bold text-white"
+                                        >
+                                            {getInitials(
+                                                userNames.get(msg.user) || "U",
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <!-- Nom de l'utilisateur -->
+                                    <div
+                                        class="text-xs {msg.user ===
+                                        pb.authStore.model?.id
+                                            ? 'text-blue-200'
+                                            : 'text-gray-400'} font-medium"
+                                    >
+                                        {userNames.get(msg.user) ||
+                                            "Chargement..."}
+                                    </div>
                                 </div>
 
                                 <!-- Message ou édition -->
