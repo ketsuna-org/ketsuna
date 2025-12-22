@@ -20,6 +20,7 @@
     let audioContext: AudioContext | null = null; // Pour générer le son
     let notificationPending = false; // Flag pour batch les notifications sonores
     let notificationTimeout: number | null = null; // Timeout pour le batching
+    let failedAvatars: Set<string> = new Set(); // Avatars ayant échoué au chargement
 
     // Charger l'historique des messages
     async function loadMessages() {
@@ -278,7 +279,8 @@
             try {
                 // Construire l'URL correctement avec PocketBase
                 const baseUrl = pb.baseUrl;
-                const collection = "_pb_users_auth_";
+                // Utiliser la collection réelle si disponible (ex: "users"), sinon fallback auth
+                const collection = user.collectionName || "_pb_users_auth_";
                 const recordId = user.id;
                 const fileName = user.avatar;
 
@@ -519,30 +521,32 @@
                                 <div class="flex items-center gap-2 mb-1">
                                     <!-- Avatar avec fallback sur initiales -->
                                     <div class="relative w-6 h-6 flex-shrink-0">
-                                        {#if getAvatarUrl(msg.user, msg.expand?.user)}
+                                        {#if msg.expand?.user?.avatar && !failedAvatars.has(msg.user)}
                                             <img
                                                 src={getAvatarUrl(
                                                     msg.user,
                                                     msg.expand?.user,
                                                 )}
                                                 alt="Avatar"
-                                                class="w-6 h-6 rounded-full object-cover"
+                                                class="w-6 h-6 rounded-full object-cover relative z-10"
+                                                loading="lazy"
                                                 on:error={(e) => {
-                                                    // Masquer l'image si elle ne charge pas
                                                     (
                                                         e.target as HTMLImageElement
                                                     ).style.display = "none";
+                                                    failedAvatars.add(msg.user);
                                                 }}
                                             />
+                                        {:else}
+                                            <div
+                                                class="absolute inset-0 w-6 h-6 rounded-full bg-gradient-to-br from-purple-400 to-blue-500 flex items-center justify-center text-xs font-bold text-white z-0"
+                                            >
+                                                {getInitials(
+                                                    userNames.get(msg.user) ||
+                                                        "U",
+                                                )}
+                                            </div>
                                         {/if}
-                                        <!-- Fallback toujours visible si pas d'avatar ou erreur de chargement -->
-                                        <div
-                                            class="absolute inset-0 w-6 h-6 rounded-full bg-gradient-to-br from-purple-400 to-blue-500 flex items-center justify-center text-xs font-bold text-white"
-                                        >
-                                            {getInitials(
-                                                userNames.get(msg.user) || "U",
-                                            )}
-                                        </div>
                                     </div>
 
                                     <!-- Nom de l'utilisateur -->
