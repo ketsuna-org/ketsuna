@@ -240,18 +240,20 @@
     class="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 text-white"
 >
     <!-- Header -->
-    <header class="py-6 px-4">
-        <div class="max-w-6xl mx-auto flex justify-between items-center">
-            <div class="flex items-center gap-4">
+    <header class="py-4 md:py-6 px-4">
+        <div
+            class="max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4"
+        >
+            <div class="flex flex-col sm:flex-row items-center gap-2 sm:gap-4">
                 {#if state !== "list"}
                     <button
                         on:click={goBack}
-                        class="text-white hover:text-gray-300 transition duration-300 flex items-center gap-2"
+                        class="text-white hover:text-gray-300 transition duration-300 flex items-center gap-2 text-sm md:text-base"
                     >
                         ← Retour à la liste
                     </button>
                 {/if}
-                <h1 class="text-3xl font-bold">
+                <h1 class="text-2xl md:text-3xl font-bold">
                     {#if state === "create"}
                         Embaucher un Employé
                     {:else if state === "update"}
@@ -274,7 +276,7 @@
                 {/if}
                 <button
                     on:click={logout}
-                    class="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded transition duration-300"
+                    class="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded transition duration-300 w-full sm:w-auto"
                 >
                     Déconnexion
                 </button>

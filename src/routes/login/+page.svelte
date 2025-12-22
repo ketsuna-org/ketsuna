@@ -62,10 +62,14 @@
 </script>
 
 <div
-    class="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 flex items-center justify-center px-4"
+    class="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 flex items-center justify-center px-4 py-8"
 >
-    <div class="bg-white/10 backdrop-blur-sm rounded-lg p-8 max-w-md w-full">
-        <h1 class="text-3xl font-bold text-center mb-8 text-white">
+    <div
+        class="bg-white/10 backdrop-blur-sm rounded-lg p-6 md:p-8 max-w-md w-full"
+    >
+        <h1
+            class="text-2xl md:text-3xl font-bold text-center mb-6 md:mb-8 text-white"
+        >
             {isLogin ? "Connexion" : "Inscription"}
         </h1>
 

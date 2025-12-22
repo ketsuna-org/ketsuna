@@ -89,12 +89,14 @@
     class="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 text-white"
 >
     <!-- Header -->
-    <header class="py-6 px-4">
-        <div class="max-w-6xl mx-auto flex justify-between items-center">
-            <h1 class="text-3xl font-bold">Tableau de Bord</h1>
+    <header class="py-4 md:py-6 px-4">
+        <div
+            class="max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4"
+        >
+            <h1 class="text-2xl md:text-3xl font-bold">Tableau de Bord</h1>
             <button
                 on:click={logout}
-                class="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded transition duration-300"
+                class="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded transition duration-300 w-full sm:w-auto"
             >
                 Déconnexion
             </button>
@@ -121,78 +123,100 @@
                 </div>
             {:else}
                 <!-- Statistiques principales -->
-                <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                <div
+                    class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-8"
+                >
                     <div
-                        class="bg-white/10 backdrop-blur-sm rounded-lg p-6 text-center"
+                        class="bg-white/10 backdrop-blur-sm rounded-lg p-4 md:p-6 text-center"
                     >
-                        <div class="text-4xl mb-2">🏢</div>
-                        <div class="text-3xl font-bold">{stats.companies}</div>
-                        <div class="text-gray-300">Compagnies</div>
+                        <div class="text-3xl md:text-4xl mb-2">🏢</div>
+                        <div class="text-2xl md:text-3xl font-bold">
+                            {stats.companies}
+                        </div>
+                        <div class="text-sm md:text-base text-gray-300">
+                            Compagnies
+                        </div>
                     </div>
                     <div
-                        class="bg-white/10 backdrop-blur-sm rounded-lg p-6 text-center"
+                        class="bg-white/10 backdrop-blur-sm rounded-lg p-4 md:p-6 text-center"
                     >
-                        <div class="text-4xl mb-2">👥</div>
-                        <div class="text-3xl font-bold">{stats.employees}</div>
-                        <div class="text-gray-300">Employés</div>
+                        <div class="text-3xl md:text-4xl mb-2">👥</div>
+                        <div class="text-2xl md:text-3xl font-bold">
+                            {stats.employees}
+                        </div>
+                        <div class="text-sm md:text-base text-gray-300">
+                            Employés
+                        </div>
                     </div>
                     <div
-                        class="bg-white/10 backdrop-blur-sm rounded-lg p-6 text-center"
+                        class="bg-white/10 backdrop-blur-sm rounded-lg p-4 md:p-6 text-center"
                     >
-                        <div class="text-4xl mb-2">💰</div>
-                        <div class="text-3xl font-bold">
+                        <div class="text-3xl md:text-4xl mb-2">💰</div>
+                        <div class="text-2xl md:text-3xl font-bold">
                             ${stats.totalCash.toLocaleString()}
                         </div>
-                        <div class="text-gray-300">Trésorerie Totale</div>
+                        <div class="text-sm md:text-base text-gray-300">
+                            Trésorerie Totale
+                        </div>
                     </div>
                     <div
-                        class="bg-white/10 backdrop-blur-sm rounded-lg p-6 text-center"
+                        class="bg-white/10 backdrop-blur-sm rounded-lg p-4 md:p-6 text-center"
                     >
-                        <div class="text-4xl mb-2">📊</div>
-                        <div class="text-3xl font-bold">
+                        <div class="text-3xl md:text-4xl mb-2">📊</div>
+                        <div class="text-2xl md:text-3xl font-bold">
                             {stats.financialReports}
                         </div>
-                        <div class="text-gray-300">Rapports Financiers</div>
+                        <div class="text-sm md:text-base text-gray-300">
+                            Rapports Financiers
+                        </div>
                     </div>
                     <div
-                        class="bg-white/10 backdrop-blur-sm rounded-lg p-6 text-center"
+                        class="bg-white/10 backdrop-blur-sm rounded-lg p-4 md:p-6 text-center"
                     >
-                        <div class="text-4xl mb-2">📈</div>
-                        <div class="text-3xl font-bold text-green-400">
+                        <div class="text-3xl md:text-4xl mb-2">📈</div>
+                        <div
+                            class="text-2xl md:text-3xl font-bold text-green-400"
+                        >
                             ${stats.totalProfit.toLocaleString()}
                         </div>
-                        <div class="text-gray-300">Profit Total</div>
+                        <div class="text-sm md:text-base text-gray-300">
+                            Profit Total
+                        </div>
                     </div>
                     <div
-                        class="bg-white/10 backdrop-blur-sm rounded-lg p-6 text-center"
+                        class="bg-white/10 backdrop-blur-sm rounded-lg p-4 md:p-6 text-center"
                     >
-                        <div class="text-4xl mb-2">📊</div>
-                        <div class="text-3xl font-bold">
+                        <div class="text-3xl md:text-4xl mb-2">📊</div>
+                        <div class="text-2xl md:text-3xl font-bold">
                             ${stats.totalRevenue.toLocaleString()}
                         </div>
-                        <div class="text-gray-300">Revenus Totaux</div>
+                        <div class="text-sm md:text-base text-gray-300">
+                            Revenus Totaux
+                        </div>
                     </div>
                 </div>
 
                 <!-- Actions rapides -->
-                <div class="bg-white/10 backdrop-blur-sm rounded-lg p-6">
-                    <h2 class="text-2xl font-bold mb-4">Actions Rapides</h2>
-                    <div class="grid md:grid-cols-3 gap-4">
+                <div class="bg-white/10 backdrop-blur-sm rounded-lg p-4 md:p-6">
+                    <h2 class="text-xl md:text-2xl font-bold mb-4">
+                        Actions Rapides
+                    </h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <button
                             on:click={() => goto("/compagnies?state=create")}
-                            class="bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-6 rounded transition duration-300 text-left"
+                            class="bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-4 md:px-6 rounded transition duration-300 text-left text-sm md:text-base"
                         >
                             🏢 Créer une Nouvelle Compagnie
                         </button>
                         <button
                             on:click={() => goto("/employes?state=create")}
-                            class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-6 rounded transition duration-300 text-left"
+                            class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-4 md:px-6 rounded transition duration-300 text-left text-sm md:text-base"
                         >
                             👥 Embaucher un Nouvel Employé
                         </button>
                         <button
                             on:click={() => goto("/rapports?state=create")}
-                            class="bg-purple-500 hover:bg-purple-600 text-white font-semibold py-3 px-6 rounded transition duration-300 text-left"
+                            class="bg-purple-500 hover:bg-purple-600 text-white font-semibold py-3 px-4 md:px-6 rounded transition duration-300 text-left text-sm md:text-base"
                         >
                             📊 Créer un Rapport Financier
                         </button>

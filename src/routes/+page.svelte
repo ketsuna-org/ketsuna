@@ -19,11 +19,11 @@
     <section class="flex items-center justify-center min-h-screen px-4">
         <div class="text-center max-w-4xl">
             <h1
-                class="text-6xl font-bold mb-6 bg-gradient-to-r from-green-400 to-blue-500 bg-clip-text text-transparent"
+                class="text-4xl sm:text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-green-400 to-blue-500 bg-clip-text text-transparent"
             >
                 Ketsuna Business
             </h1>
-            <p class="text-xl mb-8 text-gray-300">
+            <p class="text-base sm:text-lg md:text-xl mb-8 text-gray-300 px-4">
                 Devenez un magnat des affaires dans ce jeu de gestion
                 d'entreprise multi-joueur où vous créez des sociétés innovantes,
                 investissez en bourse et dominez le marché mondial.
@@ -47,7 +47,7 @@
     <!-- Features Section -->
     <section class="py-20 px-4">
         <div class="max-w-6xl mx-auto">
-            <h2 class="text-4xl font-bold text-center mb-16">
+            <h2 class="text-3xl md:text-4xl font-bold text-center mb-16">
                 Fonctionnalités Principales
             </h2>
             <div class="grid md:grid-cols-2 lg:grid-cols-5 gap-8">
