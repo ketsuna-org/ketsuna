@@ -18,6 +18,8 @@
     let userNames: Map<string, string> = new Map(); // Cache des noms d'utilisateurs
     let userAvatars: Map<string, string> = new Map(); // Cache des avatars
     let audioContext: AudioContext | null = null; // Pour générer le son
+    let notificationPending = false; // Flag pour batch les notifications sonores
+    let notificationTimeout: number | null = null; // Timeout pour le batching
 
     // Charger l'historique des messages
     async function loadMessages() {
@@ -88,9 +90,9 @@
 
                         messages = [...messages, fullMessage];
 
-                        // Jouer notification sonore si ce n'est pas de nous
+                        // Jouer notification sonore si ce n'est pas de nous (avec batch)
                         if (fullMessage.user !== pb.authStore.model?.id) {
-                            playNotificationSound();
+                            scheduleNotificationSound();
                         }
 
                         scrollToBottom();
@@ -207,6 +209,26 @@
                 messagesContainer.scrollTop = messagesContainer.scrollHeight;
             }
         }, 100);
+    }
+
+    // Jouer une notification sonore avec batch et vérification de focus
+    function scheduleNotificationSound() {
+        // Ne jouer le son que si la page n'est pas en focus
+        if (document.hidden) {
+            // Si pas de notification déjà planifiée, en créer une
+            if (!notificationPending) {
+                notificationPending = true;
+
+                // Attendre 500ms avant de jouer le son
+                // Si d'autres messages arrivent, ils n'ajouteront pas de son supplémentaire
+                notificationTimeout = setTimeout(() => {
+                    playNotificationSound();
+                    notificationPending = false;
+                    notificationTimeout = null;
+                }, 500) as unknown as number;
+            }
+            // Sinon ignorer (notification déjà en attente)
+        }
     }
 
     // Jouer une notification sonore
@@ -365,11 +387,19 @@
         if (typingTimeout) {
             clearTimeout(typingTimeout);
         }
+        if (notificationTimeout) {
+            clearTimeout(notificationTimeout);
+        }
     });
 
     // Charger les messages quand le chat s'ouvre
     $: if (isOpen && messages.length === 0 && pb.authStore.isValid) {
         loadMessages();
+    }
+
+    // Scroller vers le bas quand le chat s'ouvre
+    $: if (isOpen && messages.length > 0) {
+        scrollToBottom();
     }
 </script>
 
