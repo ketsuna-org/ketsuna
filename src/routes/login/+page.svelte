@@ -36,7 +36,7 @@
                 });
                 await pb.collection("users").authWithPassword(email, password);
             }
-            goto("/compagnies");
+            goto("/dashboard");
         } catch (err: any) {
             error = err.message || "Une erreur est survenue";
         } finally {
