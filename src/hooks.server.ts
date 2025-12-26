@@ -2,12 +2,15 @@ import type { Handle } from '@sveltejs/kit';
 
 const CSP = [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com",
-    "connect-src 'self' https://www.google-analytics.com https://region1.google-analytics.com https://region1.analytics.google.com https://www.googletagmanager.com https://*.firebasedatabase.app https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com",
+    // GTM, GA, Cloudflare Insights, CMP (ConsentManager), gstatic (Firebase)
+    "script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com https://static.cloudflareinsights.com https://cdn.consentmanager.net https://www.gstatic.com",
+    // API/collect & Firebase endpoints & backend
+    "connect-src 'self' https://www.googletagmanager.com https://www.google-analytics.com https://region1.google-analytics.com https://region1.analytics.google.com https://cloudflareinsights.com https://static.cloudflareinsights.com https://*.firebasedatabase.app https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firebase.googleapis.com https://firebaseinstallations.googleapis.com https://www.googleapis.com https://api.ketsuna.com wss://api.ketsuna.com",
     "img-src 'self' https: data:",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com data:",
-    "frame-src https://www.googletagmanager.com",
+    // GTM iframe + CMP au besoin
+    "frame-src https://www.googletagmanager.com https://cdn.consentmanager.net",
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'"
