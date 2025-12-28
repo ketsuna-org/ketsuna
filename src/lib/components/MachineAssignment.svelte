@@ -107,21 +107,24 @@
         >
             Recette à produire
         </label>
-        <select
-            id="recipe-{machine.id}"
-            bind:value={selectedRecipeId}
-            disabled={availableRecipes.length === 0}
-            class="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-white text-sm focus:border-indigo-500 focus:outline-none disabled:opacity-50"
-        >
-            <option value="">-- Sélectionner une recette --</option>
-            {#each availableRecipes as recipe (recipe.id)}
-                <option value={recipe.id}>
-                    {recipe.expand?.output_item?.name || "Item"} ({recipe.production_time}s)
-                </option>
-            {/each}
-        </select>
-        {#if availableRecipes.length === 0}
-            <p class="text-xs text-slate-400 mt-1">Aucune recette disponible</p>
+
+        {#if availableRecipes.length > 0}
+            <select
+                id="recipe-{machine.id}"
+                bind:value={selectedRecipeId}
+                class="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-white text-sm focus:border-indigo-500 focus:outline-none"
+            >
+                <option value="">-- Sélectionner une recette --</option>
+                {#each availableRecipes as recipe (recipe.id)}
+                    <option value={recipe.id}>
+                        {recipe.expand?.output_item?.name || "Item"} ({recipe.production_time}s)
+                    </option>
+                {/each}
+            </select>
+        {:else}
+            <p class="text-xs text-slate-400">
+                Aucune recette disponible pour cette machine.
+            </p>
         {/if}
     </div>
 

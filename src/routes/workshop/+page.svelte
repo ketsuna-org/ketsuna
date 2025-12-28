@@ -16,6 +16,7 @@
     let machines: Machine[] = $state([]);
     let employees: Employee[] = $state([]);
     let inventory: InventoryItem[] = $state([]);
+    let availableMachineStock: InventoryItem[] = $state([]);
     let dashboardData: DashboardData | null = $state(null);
     let loading = $state(true);
     let error = $state("");
@@ -64,6 +65,11 @@
             machines = machinesData;
             employees = employeesData;
             inventory = inventoryData;
+            availableMachineStock = inventoryData.filter(
+                (inv) =>
+                    inv.expand?.item?.type === "Machine" &&
+                    (inv.quantity || 0) > 0,
+            );
             dashboardData = dashData;
         } catch (err: any) {
             error = err.message;
@@ -79,6 +85,22 @@
 
     function handleMachineUpdate() {
         loadData();
+    }
+
+    // Création d'une assignation de machine depuis le stock
+    async function assignMachineFromStock(itemId: string) {
+        if (!itemId || !$activeCompany?.id) return;
+        try {
+            await pb.collection("machines").create({
+                company: $activeCompany.id,
+                machine: itemId,
+                employees: [],
+            });
+            notifications.success("Machine assignée depuis le stock");
+            await loadData();
+        } catch (err: any) {
+            notifications.error(err?.message || "Erreur lors de l'assignation");
+        }
     }
 </script>
 
@@ -224,6 +246,39 @@
                                 à produire automatiquement.
                             </p>
                         </div>
+
+                        {#if availableMachineStock.length > 0}
+                            <div
+                                class="mb-4 p-3 bg-slate-800/50 border border-slate-700 rounded-lg"
+                            >
+                                <div
+                                    class="flex items-center justify-between mb-2"
+                                >
+                                    <div
+                                        class="text-sm text-slate-300 font-medium"
+                                    >
+                                        Machines en stock ({availableMachineStock.length})
+                                    </div>
+                                    <div class="text-xs text-slate-400">
+                                        Sélectionnez pour créer une assignation
+                                    </div>
+                                </div>
+                                <div class="flex flex-wrap gap-2">
+                                    {#each availableMachineStock as inv (inv.id)}
+                                        <button
+                                            class="px-3 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm rounded border border-indigo-500/60 transition"
+                                            onclick={() =>
+                                                assignMachineFromStock(
+                                                    inv.item,
+                                                )}
+                                        >
+                                            {inv.expand?.item?.name ||
+                                                "Machine"} × {inv.quantity}
+                                        </button>
+                                    {/each}
+                                </div>
+                            </div>
+                        {/if}
 
                         {#if machines.length === 0}
                             <div
