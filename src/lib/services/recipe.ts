@@ -1,5 +1,5 @@
 import pb from "$lib/pocketbase";
-import type { Recipe, RecipeInput, Item, InventoryItem } from "$lib/types";
+import type { Recipe, InventoryItem } from "$lib/types";
 
 /**
  * Récupère toutes les recettes disponibles pour une entreprise
@@ -10,9 +10,9 @@ import type { Recipe, RecipeInput, Item, InventoryItem } from "$lib/types";
  */
 export async function fetchAvailableRecipes(companyId: string): Promise<Recipe[]> {
     try {
-        // Récupérer toutes les recettes avec expand sur output_item et required_tech
+        // Récupérer toutes les recettes avec expand sur output_item, required_tech et inputs_items
         const allRecipes = await pb.collection("recipes").getFullList<Recipe>({
-            expand: "output_item,required_tech",
+            expand: "output_item,required_tech,inputs_items",
             requestKey: null,
         });
 
@@ -35,7 +35,7 @@ export async function fetchAvailableRecipes(companyId: string): Promise<Recipe[]
             return ownedTechIds.has(recipe.required_tech);
         });
 
-        return availableRecipes;
+        return availableRecipes as Recipe[];
     } catch (err: any) {
         console.error("[RECIPE] Erreur lors de la récupération des recettes:", err);
         throw new Error(err.message || "Impossible de récupérer les recettes");
@@ -57,7 +57,8 @@ export async function checkRecipeRequirements(
     shortages: Array<{ itemId: string; itemName: string; needed: number; available: number }>;
 }> {
     try {
-        const inputs = recipe.inputs_json as RecipeInput[];
+        const inputIds = Array.from(new Set(recipe.inputs_items || []));
+        const unitQty = recipe.input_quantity || 1;
 
         // Récupérer l'inventaire actuel
         const inventory = await pb.collection("inventory").getFullList<InventoryItem>({
@@ -77,15 +78,19 @@ export async function checkRecipeRequirements(
         const shortages: Array<{ itemId: string; itemName: string; needed: number; available: number }> = [];
 
         // Vérifier chaque input
-        for (const input of inputs) {
-            const current = inventoryMap.get(input.item_id);
+        for (const itemId of inputIds) {
+            const current = inventoryMap.get(itemId);
             const available = current?.quantity ?? 0;
 
-            if (available < input.quantity) {
+            if (available < unitQty) {
+                // Essayer de trouver le nom dans l'expansion de la recette si absent de l'inventaire
+                const expandedItem = recipe.expand?.inputs_items?.find(i => i.id === itemId);
+                const itemName = current?.name || expandedItem?.name || "Item inconnu";
+
                 shortages.push({
-                    itemId: input.item_id,
-                    itemName: current?.name || "Item inconnu",
-                    needed: input.quantity,
+                    itemId: itemId,
+                    itemName: itemName,
+                    needed: unitQty,
                     available,
                 });
             }
@@ -129,17 +134,18 @@ export async function produceFromRecipe(
             throw new Error(`Stock insuffisant: ${shortageMsg}`);
         }
 
-        const inputs = recipe.inputs_json as RecipeInput[];
+        const inputIds = Array.from(new Set(recipe.inputs_items || []));
+        const unitQty = recipe.input_quantity || 1;
         const outputItemId = recipe.output_item;
         const inputsConsumed: Array<{ itemId: string; quantity: number }> = [];
 
         // Étape 1: Décrementer les inputs
-        for (const input of inputs) {
-            const totalToConsume = input.quantity * quantity;
+        for (const itemId of inputIds) {
+            const totalToConsume = unitQty * quantity;
 
             // Récupérer le record d'inventaire
             const invRecord = await pb.collection("inventory").getFirstListItem(
-                `company="${companyId}" && item="${input.item_id}"`,
+                `company="${companyId}" && item="${itemId}"`,
                 { requestKey: null }
             );
 
@@ -150,13 +156,13 @@ export async function produceFromRecipe(
             });
 
             inputsConsumed.push({
-                itemId: input.item_id,
+                itemId: itemId,
                 quantity: totalToConsume,
             });
         }
 
         // Étape 2: Incrémenter l'output
-        let outputRecord = await pb.collection("inventory").getFirstListItem(
+        const outputRecord = await pb.collection("inventory").getFirstListItem(
             `company="${companyId}" && item="${outputItemId}"`,
             { requestKey: null }
         ).catch(() => null);

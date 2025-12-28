@@ -43,6 +43,7 @@ export interface Item {
     volatility: number;
     product?: string; // Relation to item (for machines)
     product_quantity?: number; // Quantity produced per time unit
+    use_recipe?: string; // Relation to recipe
 }
 
 export interface InventoryItem {
@@ -84,12 +85,15 @@ export interface RecipeInput {
 
 export interface Recipe {
     id: string;
+    name: string;
     output_item: string; // Relation to Item
-    inputs_json: RecipeInput[];
+    inputs_items: string[]; // Relation to Items
+    input_quantity: number;
     production_time: number; // in seconds
     required_tech?: string; // Relation to Technology (optional)
     expand?: {
         output_item?: Item;
+        inputs_items?: Item[];
         required_tech?: Technology;
     };
 }
@@ -99,6 +103,7 @@ export interface Machine {
     company: string;
     machine: string; // Relation to Item (type: Machine)
     employees: string[]; // Relation to Employees
+    production_started_at?: string; // ISO date string
     expand?: {
         machine?: Item;
         employees?: Employee[];

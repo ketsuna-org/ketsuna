@@ -707,8 +707,8 @@
         "id": "pbc_3573984430",
         "listRule": "  @request.auth.id = company.ceo.id",
         "viewRule": "  @request.auth.id = company.ceo.id",
-        "createRule": null,
-        "updateRule": null,
+        "createRule": "  @request.auth.id = company.ceo.id",
+        "updateRule": "  @request.auth.id = company.ceo.id",
         "deleteRule": null,
         "name": "inventory",
         "type": "base",
@@ -893,31 +893,6 @@
                 "type": "number"
             },
             {
-                "hidden": false,
-                "id": "number3529535109",
-                "max": null,
-                "min": null,
-                "name": "sell_price",
-                "onlyInt": false,
-                "presentable": false,
-                "required": false,
-                "system": false,
-                "type": "number"
-            },
-            {
-                "cascadeDelete": false,
-                "collectionId": "pbc_710432678",
-                "hidden": false,
-                "id": "relation2296548748",
-                "maxSelect": 999,
-                "minSelect": 0,
-                "name": "need_for_product",
-                "presentable": false,
-                "required": false,
-                "system": false,
-                "type": "relation"
-            },
-            {
                 "cascadeDelete": false,
                 "collectionId": "pbc_842702175",
                 "hidden": false,
@@ -951,9 +926,9 @@
                 "type": "autodate"
             }
         ],
-        "indexes": [],
-        "created": "2025-12-25 22:12:10.135Z",
-        "updated": "2025-12-28 17:13:56.061Z",
+        "indexes": [
+            "CREATE UNIQUE INDEX `idx_2KIYSSKtvs` ON `items` (`name`)"
+        ],
         "system": false
     },
     {
@@ -1007,7 +982,7 @@
                 "type": "relation"
             },
             {
-                "cascadeDelete": false,
+                "cascadeDelete": true,
                 "collectionId": "pbc_3866053794",
                 "hidden": false,
                 "id": "relation1337919823",
@@ -1018,6 +993,17 @@
                 "required": false,
                 "system": false,
                 "type": "relation"
+            },
+            {
+                "hidden": false,
+                "id": "date1810321528",
+                "max": "",
+                "min": "",
+                "name": "production_started_at",
+                "presentable": false,
+                "required": false,
+                "system": false,
+                "type": "date"
             },
             {
                 "hidden": false,
@@ -1143,6 +1129,20 @@
                 "type": "text"
             },
             {
+                "autogeneratePattern": "",
+                "hidden": false,
+                "id": "text1579384326",
+                "max": 0,
+                "min": 0,
+                "name": "name",
+                "pattern": "",
+                "presentable": false,
+                "primaryKey": false,
+                "required": false,
+                "system": false,
+                "type": "text"
+            },
+            {
                 "cascadeDelete": false,
                 "collectionId": "pbc_710432678",
                 "hidden": false,
@@ -1227,8 +1227,6 @@
             }
         ],
         "indexes": [],
-        "created": "2025-12-25 22:13:47.767Z",
-        "updated": "2025-12-28 17:11:24.245Z",
         "system": false
     },
     {
