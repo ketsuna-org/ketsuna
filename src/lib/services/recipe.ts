@@ -36,9 +36,10 @@ export async function fetchAvailableRecipes(companyId: string): Promise<Recipe[]
         });
 
         return availableRecipes as Recipe[];
-    } catch (err: any) {
-        console.error("[RECIPE] Erreur lors de la récupération des recettes:", err);
-        throw new Error(err.message || "Impossible de récupérer les recettes");
+    } catch (err: unknown) {
+        const error = err as Error;
+        console.error("[RECIPE] Erreur lors de la récupération des recettes:", error);
+        throw new Error(error.message || "Impossible de récupérer les recettes");
     }
 }
 
@@ -100,22 +101,23 @@ export async function checkRecipeRequirements(
             canProduce: shortages.length === 0,
             shortages,
         };
-    } catch (err: any) {
-        console.error("[RECIPE] Erreur lors de la vérification des requis:", err);
-        throw new Error(err.message || "Impossible de vérifier les requis de la recette");
+    } catch (err: unknown) {
+        const error = err as Error;
+        console.error("[RECIPE] Erreur lors de la vérification des requis:", error);
+        throw new Error(error.message || "Impossible de vérifier les requis de la recette");
     }
 }
 
 /**
- * Produit un item à partir d'une recette (décrémenter inputs, incrémenter output)
+ * Produit un item à partir d'une recette via l'endpoint custom
  * 
- * @param companyId - ID de l'entreprise
+ * @param companyId - ID de l'entreprise (optionnel, récupéré via l'utilisateur côté backend)
  * @param recipe - La recette à produire
  * @param quantity - Nombre de fois à produire (par défaut 1)
  * @returns Les résultats de la production
  */
 export async function produceFromRecipe(
-    companyId: string,
+    _companyId: string,
     recipe: Recipe,
     quantity: number = 1
 ): Promise<{
@@ -125,81 +127,39 @@ export async function produceFromRecipe(
     inputsConsumed: Array<{ itemId: string; quantity: number }>;
 }> {
     try {
-        // Vérifier d'abord que on peut produire
-        const requirements = await checkRecipeRequirements(companyId, recipe);
-        if (!requirements.canProduce && quantity > 0) {
-            const shortageMsg = requirements.shortages
-                .map(s => `${s.itemName}: besoin ${s.needed}, disponible ${s.available}`)
-                .join("; ");
-            throw new Error(`Stock insuffisant: ${shortageMsg}`);
-        }
-
-        const inputIds = Array.from(new Set(recipe.inputs_items || []));
-        const unitQty = recipe.input_quantity || 1;
-        const outputItemId = recipe.output_item;
-        const inputsConsumed: Array<{ itemId: string; quantity: number }> = [];
-
-        // Étape 1: Décrementer les inputs
-        for (const itemId of inputIds) {
-            const totalToConsume = unitQty * quantity;
-
-            // Récupérer le record d'inventaire
-            const invRecord = await pb.collection("inventory").getFirstListItem(
-                `company="${companyId}" && item="${itemId}"`,
-                { requestKey: null }
-            );
-
-            const newQuantity = Math.max(0, invRecord.quantity - totalToConsume);
-
-            await pb.collection("inventory").update(invRecord.id, {
-                quantity: newQuantity,
-            });
-
-            inputsConsumed.push({
-                itemId: itemId,
-                quantity: totalToConsume,
-            });
-        }
-
-        // Étape 2: Incrémenter l'output
-        const outputRecord = await pb.collection("inventory").getFirstListItem(
-            `company="${companyId}" && item="${outputItemId}"`,
-            { requestKey: null }
-        ).catch(() => null);
-
-        if (outputRecord) {
-            // Mettre à jour la quantité existante
-            await pb.collection("inventory").update(outputRecord.id, {
-                quantity: outputRecord.quantity + quantity,
-            });
-        } else {
-            // Créer un nouveau record d'inventaire
-            await pb.collection("inventory").create({
-                company: companyId,
-                item: outputItemId,
-                quantity: quantity,
-            });
-        }
-
-        // Étape 3: Augmenter la réputation de l'entreprise
-        const company = await pb.collection("companies").getOne(companyId);
-        await pb.collection("companies").update(companyId, {
-            reputation: (company.reputation || 0) + quantity,
+        // Appeler l'endpoint custom pour une production atomique et sécurisée
+        const response = await fetch(`${pb.baseUrl}/api/workshop/produce`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": pb.authStore.token
+            },
+            body: JSON.stringify({
+                recipeId: recipe.id,
+                quantity: quantity
+            })
         });
 
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(result.error || "Erreur lors de la production");
+        }
+
         console.log(
-            `[RECIPE] Produit: ${recipe.expand?.output_item?.name || outputItemId} x${quantity}`
+            `[RECIPE] Production réussie: ${result.itemName} x${quantity}`
         );
 
         return {
             success: true,
-            outputItemId,
+            outputItemId: recipe.output_item,
             outputQuantity: quantity,
-            inputsConsumed,
+            inputsConsumed: [] // Non renvoyé par le backend actuellement ou format différent
         };
-    } catch (err: any) {
-        console.error("[RECIPE] Erreur lors de la production:", err);
-        throw new Error(err.message || "Erreur lors de la production");
+    } catch (err: unknown) {
+        const error = err as Error;
+        console.error("[RECIPE] Erreur lors de la production:", error);
+        throw new Error(error.message || "Erreur lors de la production");
     }
 }
 
@@ -217,8 +177,9 @@ export async function getRecipeDetails(recipeId: string): Promise<Recipe> {
         });
 
         return recipe;
-    } catch (err: any) {
-        console.error("[RECIPE] Erreur lors de la récupération des détails:", err);
-        throw new Error(err.message || "Impossible de récupérer la recette");
+    } catch (err: unknown) {
+        const error = err as Error;
+        console.error("[RECIPE] Erreur lors de la récupération des détails:", error);
+        throw new Error(error.message || "Impossible de récupérer la recette");
     }
 }
