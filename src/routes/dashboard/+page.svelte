@@ -11,6 +11,10 @@
   let loading = $state(true);
   let error = $state("");
   let isRevenueModalOpen = $state(false);
+  let revenueBreakdown: any = null;
+  let revenueMonthly: number = 0;
+  let revenueLoading = $state(false);
+  let revenueError = $state("");
 
   function logout() {
     pb.authStore.clear();
@@ -203,11 +207,28 @@
               >
             </p>
             <div class="relative group/tooltip">
-              <button
-                class="text-primary-400/50 hover:text-primary-400 transition-colors p-1"
-                aria-label="Voir le détail des revenus"
-                onclick={() => (isRevenueModalOpen = true)}
-              >
+                <button
+                  class="text-primary-400/50 hover:text-primary-400 transition-colors p-1"
+                  aria-label="Voir le détail des revenus"
+                  on:click={async () => {
+                    isRevenueModalOpen = true;
+                    // fetch breakdown from hooks API
+                    revenueLoading = true;
+                    revenueError = "";
+                    try {
+                      const res = await fetch('/api/company/finance', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+                      if (!res.ok) throw new Error(await res.text());
+                      const json = await res.json();
+                      revenueBreakdown = json.breakdown;
+                      revenueMonthly = json.monthly_net || (json.daily_net ? json.daily_net * 30 : 0);
+                    } catch (err: any) {
+                      console.error('Erreur fetching finance:', err);
+                      revenueError = err?.message || String(err);
+                    } finally {
+                      revenueLoading = false;
+                    }
+                  }}
+                >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   width="14"
@@ -326,11 +347,27 @@
               >
             </p>
             <div class="relative group/tooltip">
-              <button
-                class="text-primary-400/50 hover:text-primary-400 transition-colors p-1"
-                aria-label="Voir le détail des revenus"
-                onclick={() => (isRevenueModalOpen = true)}
-              >
+                <button
+                  class="text-primary-400/50 hover:text-primary-400 transition-colors p-1"
+                  aria-label="Voir le détail des revenus"
+                  on:click={async () => {
+                    isRevenueModalOpen = true;
+                    revenueLoading = true;
+                    revenueError = "";
+                    try {
+                      const res = await fetch('/api/company/finance', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+                      if (!res.ok) throw new Error(await res.text());
+                      const json = await res.json();
+                      revenueBreakdown = json.breakdown;
+                      revenueMonthly = json.monthly_net || (json.daily_net ? json.daily_net * 30 : 0);
+                    } catch (err: any) {
+                      console.error('Erreur fetching finance:', err);
+                      revenueError = err?.message || String(err);
+                    } finally {
+                      revenueLoading = false;
+                    }
+                  }}
+                >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   width="14"
@@ -605,19 +642,11 @@
     </section>
   {/if}
 
-  {#if dashboardData}
+  {#if isRevenueModalOpen}
     <RevenueDetailModal
       isOpen={isRevenueModalOpen}
       onClose={() => (isRevenueModalOpen = false)}
-      breakdown={dashboardData.financials.profit_breakdown}
-      monthlyProfit={dashboardData.financials.monthly_net_profit}
-      {formatCurrency}
-    />
-  {:else}
-    <RevenueDetailModal
-      isOpen={isRevenueModalOpen}
-      onClose={() => (isRevenueModalOpen = false)}
-      breakdown={{
+      breakdown={revenueBreakdown ?? dashboardData?.financials?.profit_breakdown ?? {
         base_hourly_revenue: 10000 / 1440,
         reputation_hourly_bonus: 2400 / 1440,
         employees_hourly_revenue: 0,
@@ -625,7 +654,7 @@
         premium_multiplier: 1,
         machine_production_count: 0,
       }}
-      monthlyProfit={12400}
+      monthlyProfit={revenueMonthly || dashboardData?.financials?.monthly_net_profit || 12400}
       {formatCurrency}
     />
   {/if}

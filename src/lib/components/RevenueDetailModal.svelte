@@ -10,6 +10,8 @@
       reputation_hourly_bonus: number;
       employees_hourly_revenue: number;
       hourly_costs: number;
+      payroll_hourly?: number;
+      maintenance_hourly?: number;
       premium_multiplier: number;
       machine_production_count: number;
     };
@@ -196,19 +198,50 @@
             >
           </div>
 
-          <div
-            class="flex justify-between items-center pt-2 border-t border-white/5"
-          >
-            <div class="flex flex-col">
-              <span class="text-slate-400 text-sm">Coûts Opérationnels</span>
-              <span class="text-[10px] text-slate-500 italic"
-                >Salaires & Maintenance</span
+          {#if breakdown.payroll_hourly !== undefined || breakdown.maintenance_hourly !== undefined}
+            <div class="pt-2 border-t border-white/5 space-y-2">
+              {#if breakdown.payroll_hourly !== undefined}
+                <div class="flex justify-between items-center">
+                  <div class="flex flex-col">
+                    <span class="text-slate-400 text-sm">Salaires</span>
+                    <span class="text-[10px] text-slate-500 italic">par 24h</span>
+                  </div>
+                  <span class="text-red-400 font-mono font-bold">-{formatCurrency(breakdown.payroll_hourly * 24)}</span>
+                </div>
+              {/if}
+
+              {#if breakdown.maintenance_hourly !== undefined}
+                <div class="flex justify-between items-center">
+                  <div class="flex flex-col">
+                    <span class="text-slate-400 text-sm">Maintenance</span>
+                    <span class="text-[10px] text-slate-500 italic">par 24h</span>
+                  </div>
+                  <span class="text-red-400 font-mono font-bold">-{formatCurrency(breakdown.maintenance_hourly * 24)}</span>
+                </div>
+              {/if}
+
+              <div class="flex justify-between items-center">
+                <div class="flex flex-col">
+                  <span class="text-slate-400 text-sm font-medium">Total Coûts Opérationnels</span>
+                </div>
+                <span class="text-red-400 font-mono font-bold">-{formatCurrency(breakdown.hourly_costs * 24)}</span>
+              </div>
+            </div>
+          {:else}
+            <div
+              class="flex justify-between items-center pt-2 border-t border-white/5"
+            >
+              <div class="flex flex-col">
+                <span class="text-slate-400 text-sm">Coûts Opérationnels</span>
+                <span class="text-[10px] text-slate-500 italic"
+                  >Salaires & Maintenance</span
+                >
+              </div>
+              <span class="text-red-400 font-mono font-bold"
+                >-{formatCurrency(breakdown.hourly_costs * 24)}</span
               >
             </div>
-            <span class="text-red-400 font-mono font-bold"
-              >-{formatCurrency(breakdown.hourly_costs * 24)}</span
-            >
-          </div>
+          {/if}
 
           {#if breakdown.machine_production_count > 0}
             <div
