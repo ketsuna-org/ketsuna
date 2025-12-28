@@ -67,6 +67,14 @@ interface PBStock {
     total_shares: number;
 }
 
+interface PBMachine {
+    id: string;
+    machine: string;
+    expand?: {
+        machine?: PBItem;
+    };
+}
+
 interface PBEmployee {
     id: string;
     company: string;
@@ -118,7 +126,7 @@ export async function fetchDashboardData(userId: string): Promise<DashboardData>
         const companyId = company.id;
 
         // Étape 2: Requêtes parallèles pour toutes les données liées à l'entreprise
-        const [stockData, employeesData, inventoryData] = await Promise.all([
+        const [stockData, employeesData, inventoryData, assignedMachines] = await Promise.all([
             // Récupérer les actions de l'entreprise (devrait retourner 1 seul résultat)
             pb.collection("stocks").getFirstListItem<PBStock>(
                 `company="${companyId}"`,
@@ -135,6 +143,13 @@ export async function fetchDashboardData(userId: string): Promise<DashboardData>
             pb.collection("inventory").getFullList<PBInventoryItem>({
                 filter: `company="${companyId}"`,
                 expand: "item",
+                requestKey: null,
+            }),
+
+            // Récupérer les machines installées
+            pb.collection("machines").getFullList<PBMachine>({
+                filter: `company="${companyId}"`,
+                expand: "machine",
                 requestKey: null,
             }),
         ]);
@@ -167,9 +182,9 @@ export async function fetchDashboardData(userId: string): Promise<DashboardData>
 
         // Calculer la production des machines
         let machineProductionCount = 0;
-        inventoryData.forEach((inv) => {
-            if (inv.expand?.item?.type === "Machine") {
-                machineProductionCount += (inv.quantity || 0) * (inv.expand.item.product_quantity || 0);
+        assignedMachines.forEach((assignment) => {
+            if (assignment.expand?.machine) {
+                machineProductionCount += assignment.expand.machine.product_quantity || 0;
             }
         });
 
