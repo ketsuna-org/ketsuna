@@ -14,6 +14,7 @@
       maintenance_hourly?: number;
       premium_multiplier: number;
       machine_production_count: number;
+      daily_payroll?: number;
     };
     monthlyProfit: number;
     formatCurrency: (value: number) => string;
@@ -235,7 +236,10 @@
                   >
                 </div>
                 <span class="text-red-400 font-mono font-bold"
-                  >-{formatCurrency(breakdown.hourly_costs * 24)}</span
+                  >-{formatCurrency(
+                    breakdown.hourly_costs * 24 +
+                      (breakdown.daily_payroll || 0),
+                  )}</span
                 >
               </div>
             </div>
@@ -250,7 +254,9 @@
                 >
               </div>
               <span class="text-red-400 font-mono font-bold"
-                >-{formatCurrency(breakdown.hourly_costs * 24)}</span
+                >-{formatCurrency(
+                  breakdown.hourly_costs * 24 + (breakdown.daily_payroll || 0),
+                )}</span
               >
             </div>
           {/if}

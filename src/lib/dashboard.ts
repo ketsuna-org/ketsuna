@@ -24,6 +24,7 @@ export interface DashboardData {
             hourly_costs: number;
             premium_multiplier: number;
             machine_production_count: number;
+            daily_payroll?: number;
         };
     };
     resources: {
@@ -195,12 +196,13 @@ export async function fetchDashboardData(userId: string): Promise<DashboardData>
         // (employés + produits finis en stock)
         let hourlyCost = 0;
         if (employeesData.length > 0 && hasFinishedProducts) {
-            hourlyCost = (dailyPayroll / 24) + ((company.level || 1) * 5);
+            hourlyCost = (company.level || 1) * 5; // Only maintenance, payroll is daily
         }
 
         const netHourlyProfit = hourlyRevenue - hourlyCost;
         // 1 month = 30 days * 24 hours = 720 game hours
-        const monthlyNetProfit = netHourlyProfit * 720;
+        // Subtract daily payroll for 30 days
+        const monthlyNetProfit = netHourlyProfit * 720 - dailyPayroll * 30;
 
         // Financials
         const cash = company.balance || 0;
@@ -265,7 +267,8 @@ export async function fetchDashboardData(userId: string): Promise<DashboardData>
                     employees_hourly_revenue: employeesRevenue,
                     hourly_costs: hourlyCost,
                     premium_multiplier: premiumMultiplier,
-                    machine_production_count: machineProductionCount
+                    machine_production_count: machineProductionCount,
+                    daily_payroll: dailyPayroll
                 }
             },
             resources: {
@@ -311,7 +314,8 @@ export async function fetchFinancialsOnly(companyId: string): Promise<DashboardD
                 employees_hourly_revenue: 0,
                 hourly_costs: 0,
                 premium_multiplier: 1,
-                machine_production_count: 0
+                machine_production_count: 0,
+                daily_payroll: 0
             }
         };
     } catch (error: unknown) {
