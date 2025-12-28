@@ -49,7 +49,7 @@
             <p
               class="text-xs text-indigo-400 font-medium uppercase tracking-widest mt-1"
             >
-              Projection Mensuelle (24h)
+              Projection Journalière (24h)
             </p>
           </div>
           <button
@@ -146,7 +146,7 @@
               >
             </div>
             <span class="text-white font-mono font-bold"
-              >{formatCurrency(breakdown.base_hourly_revenue * 1440)}</span
+              >{formatCurrency(breakdown.base_hourly_revenue * 24)}</span
             >
           </div>
 
@@ -154,11 +154,11 @@
             <div class="flex flex-col">
               <span class="text-slate-400 text-sm">Bonus Réputation</span>
               <span class="text-[10px] text-slate-500 italic"
-                >+{breakdown.reputation_hourly_bonus * 1440} points/mois</span
+                >+{breakdown.reputation_hourly_bonus * 24} points/jour</span
               >
             </div>
             <span class="text-white font-mono font-bold"
-              >+{formatCurrency(breakdown.reputation_hourly_bonus * 1440)}</span
+              >+{formatCurrency(breakdown.reputation_hourly_bonus * 24)}</span
             >
           </div>
 
@@ -192,9 +192,7 @@
               >
             </div>
             <span class="text-emerald-400 font-mono font-bold"
-              >+{formatCurrency(
-                breakdown.employees_hourly_revenue * 1440
-              )}</span
+              >+{formatCurrency(breakdown.employees_hourly_revenue * 24)}</span
             >
           </div>
 
@@ -208,7 +206,7 @@
               >
             </div>
             <span class="text-red-400 font-mono font-bold"
-              >-{formatCurrency(breakdown.hourly_costs * 1440)}</span
+              >-{formatCurrency(breakdown.hourly_costs * 24)}</span
             >
           </div>
 
@@ -225,7 +223,7 @@
                 >
               </div>
               <span class="text-cyan-400 font-mono font-bold"
-                >+{breakdown.machine_production_count * 1440} unités/mois</span
+                >+{breakdown.machine_production_count * 24} unités/jour</span
               >
             </div>
           {/if}
