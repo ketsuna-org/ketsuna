@@ -10,6 +10,7 @@
   import HireSuccessModal from "$lib/components/HireSuccessModal.svelte";
   import { page } from "$app/stores";
   import { goto } from "$app/navigation";
+  import { notifications } from "$lib/notifications";
 
   let employees = $state<Employee[]>([]);
   let loading = $state(true);
@@ -35,8 +36,11 @@
         .getOne<Company>($activeCompany.id);
       activeCompany.set(updated);
       newlyHired = newEmp;
+      notifications.success(
+        `Nouvelle recrue : ${newEmp.name} a rejoint vos rangs !`
+      );
     } catch (e: any) {
-      alert(e.message);
+      notifications.error(e.message);
     } finally {
       hiring = false;
     }
@@ -64,8 +68,9 @@
       activeCompany.set(updated);
 
       goto("/employees");
+      notifications.success("Contrat résilié avec succès.");
     } catch (e: any) {
-      alert("Erreur lors du licenciement: " + e.message);
+      notifications.error("Erreur lors du licenciement: " + e.message);
     }
   }
 
@@ -143,9 +148,9 @@
 {#if showDeleteModal && employeeToDelete}
   <DeleteConfirmation
     title="Licenciement"
-    message={`Voulez-vous vraiment licencier ${employeeToDelete.name} ? Cette action est irréversible.`}
+    message={`Voulez-vous vraiment licencier <strong>${employeeToDelete.name}</strong> ? Cette action est irréversible.`}
     confirmText="Licencier"
-    onconfirm={confirmFire}
-    oncancel={cancelFire}
+    onConfirm={confirmFire}
+    onCancel={cancelFire}
   />
 {/if}

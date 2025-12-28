@@ -3,15 +3,21 @@
   import { fade } from "svelte/transition";
   import StatCard from "$lib/components/StatCard.svelte";
   import CreateCompanyForm from "$lib/components/CreateCompanyForm.svelte";
+  import DeleteConfirmation from "$lib/components/DeleteConfirmation.svelte";
   import { levelUpCompany } from "$lib/services/company";
   import pb from "$lib/pocketbase";
   import type { Company } from "$lib/types";
+  import { page } from "$app/stores";
+  import { goto } from "$app/navigation";
+  import { deleteCompany } from "$lib/services/company";
+  import { notifications } from "$lib/notifications";
 
   let levelUpLoading = $state(false);
 
-  // Level Up Config (could be moved to a shared config)
-  // Cost = Base * (Level^1.5)
-  // Rep Req = Level * 10
+  // Read view state from URL
+  let viewState = $derived($page.url.searchParams.get("state"));
+
+  // Level Up Config
   const getLevelCost = (lvl: number) => Math.floor(1000 * Math.pow(lvl, 1.5));
   const getRepReq = (lvl: number) => lvl * 10;
 
@@ -22,53 +28,74 @@
     const repReq = getRepReq($activeCompany.level);
 
     if ($activeCompany.balance < cost) {
-      alert(`Not enough funds. Need $${cost}`);
+      notifications.error(
+        `Fonds insuffisants. Besoin de $${cost.toLocaleString()}`
+      );
       return;
     }
     if ($activeCompany.reputation < repReq) {
-      alert(`Reputation too low. Need ${repReq}`);
+      notifications.warning(
+        `Réputation trop basse. Besoin de ${repReq} points`
+      );
       return;
     }
 
     levelUpLoading = true;
     try {
       await levelUpCompany($activeCompany, cost);
-      // Refresh state
       const updated = await pb
         .collection("companies")
         .getOne<Company>($activeCompany.id);
       activeCompany.set(updated);
+      notifications.success(
+        "Expansion réussie ! Votre entreprise a gagné un niveau."
+      );
     } catch (e: any) {
-      alert(e.message);
+      notifications.error(e.message);
     } finally {
       levelUpLoading = false;
     }
   }
 
-  async function grantTestingFunds() {
-    if (!$activeCompany) return;
-    try {
-      const updated = await pb
-        .collection("companies")
-        .update<Company>($activeCompany.id, {
-          balance: $activeCompany.balance + 1_000_000,
-        });
-      activeCompany.set(updated);
-    } catch (e: any) {
-      alert("Erreur subvention: " + e.message);
-    }
+  function openDelete() {
+    goto("?state=delete");
+  }
+
+  function closeDelete() {
+    goto("?");
+  }
+
+  async function performDeletion() {
+    if (!$activeCompany || !$currentUser) return;
+    await deleteCompany($activeCompany.id, $currentUser.id);
+    activeCompany.set(null);
+    const freshUser = await pb.collection("users").getOne($currentUser.id);
+    currentUser.set(freshUser);
+    await goto("/company", { replaceState: true });
   }
 </script>
 
 <div class="container mx-auto p-4 max-w-6xl">
   {#if $currentUser}
-    <div class="mb-6">
+    <div class="mb-6 flex justify-between items-center">
       <a
         href="/dashboard"
         class="text-indigo-400 hover:text-indigo-300 flex items-center gap-2 text-sm transition-colors"
       >
         ← Retour au Dashboard
       </a>
+
+      {#if $activeCompany}
+        <button
+          onclick={openDelete}
+          class="text-xs text-red-500/60 hover:text-red-400 flex items-center gap-1 transition-colors group"
+        >
+          <span class="opacity-0 group-hover:opacity-100 transition-opacity"
+            >Destruction irréversible •</span
+          >
+          Supprimer l'entreprise
+        </button>
+      {/if}
     </div>
     {#if $activeCompany}
       <!-- Header -->
@@ -84,16 +111,12 @@
           >
         </div>
 
-        <div class="flex items-center gap-4">
-          <button
-            onclick={grantTestingFunds}
-            class="text-xs text-slate-500 hover:text-slate-300 border border-slate-700 px-3 py-1 rounded transition-colors"
-          >
-            Subvention (+1M$)
-          </button>
+        <div class="flex items-center gap-6">
           <div class="text-right">
-            <p class="text-slate-400 text-xs uppercase">Next Level Cost</p>
-            <p class="text-emerald-400 font-mono text-sm">
+            <p class="text-slate-400 text-xs uppercase tracking-wider mb-1">
+              Prochain Niveau
+            </p>
+            <p class="text-emerald-400 font-mono text-lg">
               ${getLevelCost($activeCompany.level).toLocaleString()}
             </p>
           </div>
@@ -102,16 +125,21 @@
             disabled={levelUpLoading ||
               $activeCompany.balance < getLevelCost($activeCompany.level) ||
               $activeCompany.reputation < getRepReq($activeCompany.level)}
-            class="bg-linear-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-2 px-6 rounded-full shadow-lg border border-orange-400/20 transition-all transform hover:scale-105 min-w-40"
+            class="bg-linear-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed text-white font-bold py-3 px-8 rounded-2xl shadow-lg border border-orange-400/20 transition-all transform hover:scale-105 active:scale-95 min-w-50"
           >
             {#if levelUpLoading}
-              Upgrading...
+              <span class="flex items-center justify-center gap-2">
+                <div
+                  class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"
+                ></div>
+                Expansion...
+              </span>
             {:else if $activeCompany.balance < getLevelCost($activeCompany.level)}
               Fonds insuffisants
             {:else if $activeCompany.reputation < getRepReq($activeCompany.level)}
               Manque de réputation
             {:else}
-              Level Up (to ${$activeCompany.level + 1})
+              Level Up (to {$activeCompany.level + 1})
             {/if}
           </button>
         </div>
@@ -142,21 +170,25 @@
       </div>
 
       <!-- Departments -->
-      <h2 class="text-2xl font-bold text-white mb-4">Départements</h2>
+      <h2 class="text-2xl font-bold text-white mb-6">Départements</h2>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
         <a
           href="/employees"
-          class="block p-6 bg-slate-800 rounded-lg border border-slate-700 hover:border-indigo-500 hover:bg-slate-800/80 transition-all group"
+          class="block p-6 bg-slate-800/50 rounded-2xl border border-slate-700 hover:border-indigo-500/50 hover:bg-slate-800/80 transition-all group"
         >
-          <div class="flex items-center gap-4 mb-2">
-            <div class="text-3xl">👥</div>
+          <div class="flex items-center gap-4 mb-3">
+            <div
+              class="w-12 h-12 bg-indigo-500/10 rounded-xl flex items-center justify-center text-2xl group-hover:scale-110 transition-transform"
+            >
+              👥
+            </div>
             <h3
-              class="text-xl font-bold text-white group-hover:text-indigo-400"
+              class="text-xl font-bold text-white group-hover:text-indigo-400 transition-colors"
             >
               Ressources Humaines
             </h3>
           </div>
-          <p class="text-slate-400 text-sm">
+          <p class="text-slate-400 text-sm leading-relaxed">
             Gérez vos employés, recrutements et licenciements pour optimiser
             votre productivité.
           </p>
@@ -164,39 +196,74 @@
 
         <a
           href="/inventory"
-          class="block p-6 bg-slate-800 rounded-lg border border-slate-700 hover:border-emerald-500 hover:bg-slate-800/80 transition-all group"
+          class="block p-6 bg-slate-800/50 rounded-2xl border border-slate-700 hover:border-emerald-500/50 hover:bg-slate-800/80 transition-all group"
         >
-          <div class="flex items-center gap-4 mb-2">
-            <div class="text-3xl">📦</div>
+          <div class="flex items-center gap-4 mb-3">
+            <div
+              class="w-12 h-12 bg-emerald-500/10 rounded-xl flex items-center justify-center text-2xl group-hover:scale-110 transition-transform"
+            >
+              📦
+            </div>
             <h3
-              class="text-xl font-bold text-white group-hover:text-emerald-400"
+              class="text-xl font-bold text-white group-hover:text-emerald-400 transition-colors"
             >
               Inventaire & Logistique
             </h3>
           </div>
-          <p class="text-slate-400 text-sm">
+          <p class="text-slate-400 text-sm leading-relaxed">
             Visualisez vos stocks de ressources brutes, composants et produits
             finis.
           </p>
         </a>
       </div>
+
+      {#if viewState === "delete"}
+        <DeleteConfirmation
+          title="Supprimer l'entreprise"
+          message={`Êtes-vous sûr de vouloir supprimer <strong>${$activeCompany.name}</strong> ? Cette action est irréversible et toutes les données associées seront perdues.`}
+          confirmText="Supprimer"
+          onConfirm={performDeletion}
+          onCancel={closeDelete}
+        />
+      {/if}
     {:else}
       <div
-        class="flex flex-col items-center justify-center min-h-[60vh]"
+        class="flex flex-col items-center justify-center min-h-[60vh] space-y-8"
         in:fade
       >
+        <div class="text-center space-y-2">
+          <h2 class="text-3xl font-bold text-white">
+            Aucune entreprise active
+          </h2>
+          <p class="text-slate-400">
+            Prêt à bâtir votre empire ? Commencez par créer votre première
+            société.
+          </p>
+        </div>
         <CreateCompanyForm />
       </div>
     {/if}
   {:else}
     <div
-      class="flex flex-col justify-center items-center h-[60vh] text-center space-y-4"
+      class="flex flex-col justify-center items-center h-[60vh] text-center space-y-6"
     >
-      <h2 class="text-2xl font-bold text-white">Access Restricted</h2>
-      <p class="text-slate-400">Please log in to manage your company.</p>
-      <a href="/login" class="text-indigo-400 hover:text-indigo-300 underline"
-        >Go to Login</a
+      <div
+        class="w-20 h-20 bg-slate-800 rounded-3xl flex items-center justify-center text-4xl"
       >
+        🔒
+      </div>
+      <div class="space-y-2">
+        <h2 class="text-2xl font-bold text-white">Accès Restreint</h2>
+        <p class="text-slate-400 max-w-xs">
+          Veuillez vous connecter pour gérer votre entreprise et vos actifs.
+        </p>
+      </div>
+      <a
+        href="/login"
+        class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-8 rounded-xl transition-all shadow-lg shadow-indigo-600/20"
+      >
+        Se connecter
+      </a>
     </div>
   {/if}
 </div>

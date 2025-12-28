@@ -29,3 +29,28 @@ export async function levelUpCompany(company: Company, cost: number): Promise<vo
         // Optional: Add tech points or reputation gain here if designed
     });
 }
+
+/**
+ * Deletes a company and resets the user's active company if it was the one deleted.
+ * @param companyId The ID of the company to delete
+ * @param userId The ID of the user who owns the company
+ */
+export async function deleteCompany(companyId: string, userId: string): Promise<void> {
+    // 1. Delete the company (PocketBase hooks will check for employees/stock)
+    await pb.collection('companies').delete(companyId);
+
+    // 2. Fetch fresh user data to update the local owned_companies and active_company
+    const user = await pb.collection('users').getOne(userId);
+    
+    const updatedOwned = (user.owned_companies || []).filter((id: string) => id !== companyId);
+    let updatedActive = user.active_company;
+
+    if (updatedActive === companyId) {
+        updatedActive = updatedOwned.length > 0 ? updatedOwned[0] : "";
+    }
+
+    await pb.collection('users').update(userId, {
+        owned_companies: updatedOwned,
+        active_company: updatedActive
+    });
+}

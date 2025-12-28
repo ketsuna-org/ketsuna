@@ -21,11 +21,6 @@
       const newCompany = await pb.collection("companies").create<Company>({
         name: name,
         ceo: user.id,
-        balance: 1000, // Starting bonus
-        level: 1,
-        tech_points: 0,
-        reputation: 1,
-        payroll_daily_cost: 0,
         is_npc: false,
       });
 
