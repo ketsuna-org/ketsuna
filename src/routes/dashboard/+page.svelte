@@ -11,8 +11,8 @@
   let loading = $state(true);
   let error = $state("");
   let isRevenueModalOpen = $state(false);
-  let revenueBreakdown: any = null;
-  let revenueMonthly: number = 0;
+  let revenueBreakdown = $state<any>(null);
+  let revenueMonthly = $state<number>(0);
   let revenueLoading = $state(false);
   let revenueError = $state("");
 
@@ -207,28 +207,33 @@
               >
             </p>
             <div class="relative group/tooltip">
-                <button
-                  class="text-primary-400/50 hover:text-primary-400 transition-colors p-1"
-                  aria-label="Voir le détail des revenus"
-                  on:click={async () => {
-                    isRevenueModalOpen = true;
-                    // fetch breakdown from hooks API
-                    revenueLoading = true;
-                    revenueError = "";
-                    try {
-                      const res = await fetch('/api/company/finance', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
-                      if (!res.ok) throw new Error(await res.text());
-                      const json = await res.json();
-                      revenueBreakdown = json.breakdown;
-                      revenueMonthly = json.monthly_net || (json.daily_net ? json.daily_net * 30 : 0);
-                    } catch (err: any) {
-                      console.error('Erreur fetching finance:', err);
-                      revenueError = err?.message || String(err);
-                    } finally {
-                      revenueLoading = false;
-                    }
-                  }}
-                >
+              <button
+                class="text-primary-400/50 hover:text-primary-400 transition-colors p-1"
+                aria-label="Voir le détail des revenus"
+                onclick={async () => {
+                  isRevenueModalOpen = true;
+                  // fetch breakdown from hooks API
+                  revenueLoading = true;
+                  revenueError = "";
+                  try {
+                    const json = await pb.send("/api/company/finance", {
+                      method: "POST",
+                      body: {
+                        companyId: dashboardData?.company.id,
+                      },
+                    });
+                    revenueBreakdown = json.breakdown;
+                    revenueMonthly =
+                      json.monthly_net ||
+                      (json.daily_net ? json.daily_net * 30 : 0);
+                  } catch (err: any) {
+                    console.error("Erreur fetching finance:", err);
+                    revenueError = err?.message || String(err);
+                  } finally {
+                    revenueLoading = false;
+                  }
+                }}
+              >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   width="14"
@@ -347,27 +352,32 @@
               >
             </p>
             <div class="relative group/tooltip">
-                <button
-                  class="text-primary-400/50 hover:text-primary-400 transition-colors p-1"
-                  aria-label="Voir le détail des revenus"
-                  on:click={async () => {
-                    isRevenueModalOpen = true;
-                    revenueLoading = true;
-                    revenueError = "";
-                    try {
-                      const res = await fetch('/api/company/finance', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
-                      if (!res.ok) throw new Error(await res.text());
-                      const json = await res.json();
-                      revenueBreakdown = json.breakdown;
-                      revenueMonthly = json.monthly_net || (json.daily_net ? json.daily_net * 30 : 0);
-                    } catch (err: any) {
-                      console.error('Erreur fetching finance:', err);
-                      revenueError = err?.message || String(err);
-                    } finally {
-                      revenueLoading = false;
-                    }
-                  }}
-                >
+              <button
+                class="text-primary-400/50 hover:text-primary-400 transition-colors p-1"
+                aria-label="Voir le détail des revenus"
+                onclick={async () => {
+                  isRevenueModalOpen = true;
+                  revenueLoading = true;
+                  revenueError = "";
+                  try {
+                    const json = await pb.send("/api/company/finance", {
+                      method: "POST",
+                      body: {
+                        companyId: dashboardData?.company.id,
+                      },
+                    });
+                    revenueBreakdown = json.breakdown;
+                    revenueMonthly =
+                      json.monthly_net ||
+                      (json.daily_net ? json.daily_net * 30 : 0);
+                  } catch (err: any) {
+                    console.error("Erreur fetching finance:", err);
+                    revenueError = err?.message || String(err);
+                  } finally {
+                    revenueLoading = false;
+                  }
+                }}
+              >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   width="14"
@@ -401,7 +411,7 @@
                     <span class="text-white font-mono"
                       >{formatCurrency(
                         dashboardData.financials.profit_breakdown
-                          .base_hourly_revenue * 1440
+                          .base_hourly_revenue * 1440,
                       )}</span
                     >
                   </div>
@@ -410,7 +420,7 @@
                     <span class="text-white font-mono"
                       >+{formatCurrency(
                         dashboardData.financials.profit_breakdown
-                          .reputation_hourly_bonus * 1440
+                          .reputation_hourly_bonus * 1440,
                       )}</span
                     >
                   </div>
@@ -430,7 +440,7 @@
                     <span class="text-white font-mono"
                       >+{formatCurrency(
                         dashboardData.financials.profit_breakdown
-                          .employees_hourly_revenue * 1440
+                          .employees_hourly_revenue * 1440,
                       )}</span
                     >
                   </div>
@@ -441,7 +451,7 @@
                     <span class="font-mono"
                       >-{formatCurrency(
                         dashboardData.financials.profit_breakdown.hourly_costs *
-                          1440
+                          1440,
                       )}</span
                     >
                   </div>
@@ -453,7 +463,7 @@
                     >
                     <span class="text-primary-400 font-bold text-[12px]"
                       >{formatCurrency(
-                        dashboardData.financials.monthly_net_profit
+                        dashboardData.financials.monthly_net_profit,
                       )}</span
                     >
                   </div>
@@ -646,15 +656,18 @@
     <RevenueDetailModal
       isOpen={isRevenueModalOpen}
       onClose={() => (isRevenueModalOpen = false)}
-      breakdown={revenueBreakdown ?? dashboardData?.financials?.profit_breakdown ?? {
-        base_hourly_revenue: 10000 / 1440,
-        reputation_hourly_bonus: 2400 / 1440,
-        employees_hourly_revenue: 0,
-        hourly_costs: 0,
-        premium_multiplier: 1,
-        machine_production_count: 0,
-      }}
-      monthlyProfit={revenueMonthly || dashboardData?.financials?.monthly_net_profit || 12400}
+      breakdown={revenueBreakdown ??
+        dashboardData?.financials?.profit_breakdown ?? {
+          base_hourly_revenue: 10000 / 1440,
+          reputation_hourly_bonus: 2400 / 1440,
+          employees_hourly_revenue: 0,
+          hourly_costs: 0,
+          premium_multiplier: 1,
+          machine_production_count: 0,
+        }}
+      monthlyProfit={revenueMonthly ||
+        dashboardData?.financials?.monthly_net_profit ||
+        12400}
       {formatCurrency}
     />
   {/if}

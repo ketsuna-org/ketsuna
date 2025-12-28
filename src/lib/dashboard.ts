@@ -8,6 +8,7 @@ export interface DashboardData {
         prestige: number;
         ceo: string;
         tech_points: number;
+        id: string;
     };
     financials: {
         cash: number;
@@ -168,8 +169,8 @@ export async function fetchDashboardData(userId: string): Promise<DashboardData>
         );
 
         if (employeesData.length > 0 && hasFinishedProducts) {
-            baseRevenue = (company.level || 1) * 100;
-            reputationBonus = (company.reputation || 0) * 10;
+            baseRevenue = (company.level || 1) * (2000 / 24);
+            reputationBonus = (company.reputation || 0) / 24;
 
             employeesData.forEach((emp) => {
                 const efficiency = emp.efficiency || 1.0;
@@ -198,8 +199,8 @@ export async function fetchDashboardData(userId: string): Promise<DashboardData>
         }
 
         const netHourlyProfit = hourlyRevenue - hourlyCost;
-        // User definition: 1 month = 24h real = 1440 game hours (assuming 1min=1h)
-        const monthlyNetProfit = netHourlyProfit * 1440;
+        // 1 month = 30 days * 24 hours = 720 game hours
+        const monthlyNetProfit = netHourlyProfit * 720;
 
         // Financials
         const cash = company.balance || 0;

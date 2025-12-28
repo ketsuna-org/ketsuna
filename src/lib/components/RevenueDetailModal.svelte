@@ -204,9 +204,13 @@
                 <div class="flex justify-between items-center">
                   <div class="flex flex-col">
                     <span class="text-slate-400 text-sm">Salaires</span>
-                    <span class="text-[10px] text-slate-500 italic">par 24h</span>
+                    <span class="text-[10px] text-slate-500 italic"
+                      >par 24h</span
+                    >
                   </div>
-                  <span class="text-red-400 font-mono font-bold">-{formatCurrency(breakdown.payroll_hourly * 24)}</span>
+                  <span class="text-red-400 font-mono font-bold"
+                    >-{formatCurrency(breakdown.payroll_hourly * 24)}</span
+                  >
                 </div>
               {/if}
 
@@ -214,17 +218,25 @@
                 <div class="flex justify-between items-center">
                   <div class="flex flex-col">
                     <span class="text-slate-400 text-sm">Maintenance</span>
-                    <span class="text-[10px] text-slate-500 italic">par 24h</span>
+                    <span class="text-[10px] text-slate-500 italic"
+                      >par 24h</span
+                    >
                   </div>
-                  <span class="text-red-400 font-mono font-bold">-{formatCurrency(breakdown.maintenance_hourly * 24)}</span>
+                  <span class="text-red-400 font-mono font-bold"
+                    >-{formatCurrency(breakdown.maintenance_hourly * 24)}</span
+                  >
                 </div>
               {/if}
 
               <div class="flex justify-between items-center">
                 <div class="flex flex-col">
-                  <span class="text-slate-400 text-sm font-medium">Total Coûts Opérationnels</span>
+                  <span class="text-slate-400 text-sm font-medium"
+                    >Total Coûts Opérationnels</span
+                  >
                 </div>
-                <span class="text-red-400 font-mono font-bold">-{formatCurrency(breakdown.hourly_costs * 24)}</span>
+                <span class="text-red-400 font-mono font-bold"
+                  >-{formatCurrency(breakdown.hourly_costs * 24)}</span
+                >
               </div>
             </div>
           {:else}
