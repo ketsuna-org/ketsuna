@@ -41,6 +41,7 @@
     try {
       const r = await pb.collection("recipes").getOne<Recipe>(id, {
         expand: "output_item",
+        requestKey: null,
       });
       machineRecipe = r;
     } catch (error) {

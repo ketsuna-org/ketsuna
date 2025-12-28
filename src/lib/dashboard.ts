@@ -124,6 +124,7 @@ export async function fetchDashboardData(userId: string): Promise<DashboardData>
         // 1. Récupération User & Company ID
         const user = await pb.collection("users").getOne<PBUser>(userId, {
             expand: "active_company",
+            requestKey: null,
         });
 
         if (!user.active_company || !user.expand?.active_company) {
@@ -242,8 +243,8 @@ export async function fetchDashboardData(userId: string): Promise<DashboardData>
 export async function fetchFinancialsOnly(companyId: string): Promise<DashboardData["financials"]> {
     try {
         const [company, stockData, financeData] = await Promise.all([
-            pb.collection("companies").getOne<PBCompany>(companyId),
-            pb.collection("stocks").getFirstListItem<PBStock>(`company="${companyId}"`).catch(() => null),
+            pb.collection("companies").getOne<PBCompany>(companyId, { requestKey: null }),
+            pb.collection("stocks").getFirstListItem<PBStock>(`company="${companyId}"`, { requestKey: null }).catch(() => null),
             pb.send<ApiFinanceResponse>("/api/company/finance", {
                 method: "POST",
                 body: { companyId },

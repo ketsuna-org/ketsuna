@@ -24,6 +24,7 @@
       // Fetch user with expanded active_company relation
       const fullUser = await pb.collection("users").getOne(user.id, {
         expand: "active_company",
+        requestKey: null,
       });
 
       if (fullUser.expand?.active_company) {
@@ -70,7 +71,7 @@
       await levelUpCompany($activeCompany, cost);
       const updated = await pb
         .collection("companies")
-        .getOne<Company>($activeCompany.id);
+        .getOne<Company>($activeCompany.id, { requestKey: null });
       activeCompany.set(updated);
       notifications.success(
         "Expansion réussie ! Votre entreprise a gagné un niveau."
@@ -97,7 +98,9 @@
     if (!$activeCompany || !$currentUser) return;
     await deleteCompany($activeCompany.id, $currentUser.id);
     activeCompany.set(null);
-    const freshUser = await pb.collection("users").getOne($currentUser.id);
+    const freshUser = await pb
+      .collection("users")
+      .getOne($currentUser.id, { requestKey: null });
     currentUser.set(freshUser);
     await goto("/company", { replaceState: true });
   }

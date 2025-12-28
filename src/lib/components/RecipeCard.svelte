@@ -75,7 +75,9 @@
     try {
       const result = await produceFromRecipe(companyId, recipe, quantity);
       // Refresh activeCompany store to reflect reputation/balance changes
-      const updated = await pb.collection("companies").getOne(companyId);
+      const updated = await pb
+        .collection("companies")
+        .getOne(companyId, { requestKey: null });
       activeCompany.set(updated as unknown as Company);
       notifications.success(
         `✨ Production réussie: ${recipe.expand?.output_item?.name || "Item"} x${result.outputQuantity}`

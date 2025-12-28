@@ -7,7 +7,7 @@ import type { Technology } from "$lib/types";
 export async function unlockTechnology(companyId: string, technology: Technology): Promise<void> {
     try {
         // 1. Récupérer l'entreprise pour vérifier les points
-        const company = await pb.collection("companies").getOne(companyId);
+        const company = await pb.collection("companies").getOne(companyId, { requestKey: null });
 
         if (company.tech_points < technology.cost) {
             throw new Error(`Points de technologie insuffisants. Besoin: ${technology.cost.toFixed(2)}, Actuel: ${company.tech_points.toFixed(2)}`);
@@ -29,9 +29,10 @@ export async function unlockTechnology(companyId: string, technology: Technology
         // Néanmoins, pour la réactivité UI, on pourrait mettre à jour le store local.
 
         console.log(`[TECH] Technologie débloquée: ${technology.name}`);
-    } catch (err: any) {
-        console.error("[TECH] Erreur déblocage:", err);
-        throw new Error(err.message || "Erreur lors du déblocage de la technologie.");
+    } catch (err: unknown) {
+        const error = err as Error;
+        console.error("[TECH] Erreur déblocage:", error);
+        throw new Error(error.message || "Erreur lors du déblocage de la technologie.");
     }
 }
 

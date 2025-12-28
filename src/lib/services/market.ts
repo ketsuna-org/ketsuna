@@ -48,9 +48,10 @@ export async function buyItem(companyId: string, item: Item, quantity: number): 
 
         const totalCost = item.base_price * quantity;
         console.log(`[MARKET] Achat réussi: ${quantity}x ${item.name} pour €${totalCost}`);
-    } catch (err: any) {
-        console.error("[MARKET] Erreur lors de l'achat:", err);
-        throw new Error(err.message || "Une erreur est survenue lors de l'achat.");
+    } catch (err: unknown) {
+        const error = err as Error;
+        console.error("[MARKET] Erreur lors de l'achat:", error);
+        throw new Error(error.message || "Une erreur est survenue lors de l'achat.");
     }
 }
 
@@ -60,6 +61,7 @@ export async function buyItem(companyId: string, item: Item, quantity: number): 
 export async function fetchMarketItems(): Promise<Item[]> {
     return await pb.collection("items").getFullList<Item>({
         sort: "name",
-        filter: 'type != "Produit Fini"' // Le marché vend des matières et machines
+        filter: 'type != "Produit Fini"', // Le marché vend des matières et machines
+        requestKey: null
     });
 }
