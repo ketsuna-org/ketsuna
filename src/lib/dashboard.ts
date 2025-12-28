@@ -7,6 +7,7 @@ export interface DashboardData {
         level: number;
         prestige: number;
         ceo: string;
+        tech_points: number;
     };
     financials: {
         cash: number;
@@ -14,6 +15,15 @@ export interface DashboardData {
         daily_payroll: number;
         stock_ticker: string;
         stock_price: number;
+        monthly_net_profit: number; 
+        profit_breakdown: {
+            base_hourly_revenue: number;
+            reputation_hourly_bonus: number;
+            employees_hourly_revenue: number;
+            hourly_costs: number;
+            premium_multiplier: number;
+            machine_production_count: number;
+        };
     };
     resources: {
         inventory_count: number;
@@ -33,6 +43,7 @@ interface PBUser {
     id: string;
     username: string;
     prestige?: number;
+    is_premium?: boolean;
     active_company: string;
     expand?: {
         active_company?: PBCompany;
@@ -44,6 +55,7 @@ interface PBCompany {
     name: string;
     balance: number;
     level: number;
+    reputation: number;
     tech_points?: number;
 }
 
@@ -59,6 +71,7 @@ interface PBEmployee {
     id: string;
     company: string;
     salary: number;
+    rarity: number;
     efficiency?: number;
 }
 
@@ -76,6 +89,9 @@ interface PBItem {
     id: string;
     name: string;
     base_price: number;
+    type: string;
+    product?: string;
+    product_quantity?: number;
 }
 
 /**
@@ -125,12 +141,50 @@ export async function fetchDashboardData(userId: string): Promise<DashboardData>
 
         // Étape 3: Calculs et agrégations côté client
 
+        let hourlyRevenue = 0;
+        let baseRevenue = 0;
+        let reputationBonus = 0;
+        let employeesRevenue = 0;
+        const premiumMultiplier = user.is_premium ? 1.5 : 1.0;
+
+        // Vérifier si nous avons des produits finis en stock
+        const hasFinishedProducts = inventoryData.some(inv => 
+            inv.expand?.item?.type === "Produit Fini" && inv.quantity > 0
+        );
+
+        if (employeesData.length > 0 && hasFinishedProducts) {
+            baseRevenue = (company.level || 1) * 100;
+            reputationBonus = (company.reputation || 0) * 10;
+            
+            employeesData.forEach((emp) => {
+                const efficiency = emp.efficiency || 1.0;
+                const rarity = emp.rarity || 0;
+                employeesRevenue += efficiency * (rarity + 1) * 50;
+            });
+
+            hourlyRevenue = (baseRevenue + reputationBonus) * premiumMultiplier + employeesRevenue;
+        }
+
+        // Calculer la production des machines
+        let machineProductionCount = 0;
+        inventoryData.forEach((inv) => {
+            if (inv.expand?.item?.type === "Machine") {
+                machineProductionCount += (inv.quantity || 0) * (inv.expand.item.product_quantity || 0);
+            }
+        });
+
+        const dailyPayroll = employeesData.reduce((sum, emp) => sum + (emp.salary || 0), 0);
+        const hourlyCost = (dailyPayroll / 24) + ((company.level || 1) * 5);
+        
+        const netHourlyProfit = hourlyRevenue - hourlyCost;
+        // User definition: 1 month = 24h real = 1440 game hours (assuming 1min=1h)
+        const monthlyNetProfit = netHourlyProfit * 1440;
+
         // Financials
         const cash = company.balance || 0;
         const stockPrice = stockData?.current_price || 0;
         const totalShares = stockData?.total_shares || 0;
         const valuation = stockPrice * totalShares;
-        const dailyPayroll = employeesData.reduce((sum, emp) => sum + (emp.salary || 0), 0);
 
         // Resources - Calculer l'inventaire total et top 5 items
         const inventoryCount = inventoryData.reduce((sum, inv) => sum + (inv.quantity || 0), 0);
@@ -174,6 +228,7 @@ export async function fetchDashboardData(userId: string): Promise<DashboardData>
                 level: company.level || 1,
                 prestige: user.prestige || 0,
                 ceo: user.username || "Anonyme",
+                tech_points: Math.round((company.tech_points || 0) * 100) / 100,
             },
             financials: {
                 cash,
@@ -181,6 +236,15 @@ export async function fetchDashboardData(userId: string): Promise<DashboardData>
                 daily_payroll: dailyPayroll,
                 stock_ticker: stockData?.ticker || "N/A",
                 stock_price: stockPrice,
+                monthly_net_profit: monthlyNetProfit,
+                profit_breakdown: {
+                    base_hourly_revenue: baseRevenue,
+                    reputation_hourly_bonus: reputationBonus,
+                    employees_hourly_revenue: employeesRevenue,
+                    hourly_costs: hourlyCost,
+                    premium_multiplier: premiumMultiplier,
+                    machine_production_count: machineProductionCount
+                }
             },
             resources: {
                 inventory_count: inventoryCount,
@@ -191,11 +255,10 @@ export async function fetchDashboardData(userId: string): Promise<DashboardData>
                 average_efficiency: parseFloat(averageEfficiency.toFixed(1)),
             },
         };
-    } catch (error: Error | any) {
+    } catch (error: unknown) {
         console.error("Erreur lors de la récupération des données du dashboard:", error);
-        throw new Error(
-            error.message || "Impossible de récupérer les données du dashboard"
-        );
+        const message = error instanceof Error ? error.message : "Impossible de récupérer les données du dashboard";
+        throw new Error(message);
     }
 }
 
@@ -219,8 +282,17 @@ export async function fetchFinancialsOnly(companyId: string): Promise<DashboardD
             daily_payroll: employees.reduce((sum, emp) => sum + (emp.salary || 0), 0),
             stock_ticker: stockData?.ticker || "N/A",
             stock_price: stockData?.current_price || 0,
+            monthly_net_profit: 0,
+            profit_breakdown: {
+                base_hourly_revenue: 0,
+                reputation_hourly_bonus: 0,
+                employees_hourly_revenue: 0,
+                hourly_costs: 0,
+                premium_multiplier: 1,
+                machine_production_count: 0
+            }
         };
-    } catch (error) {
+    } catch (error: unknown) {
         console.error("Error fetching financials:", error);
         throw error;
     }

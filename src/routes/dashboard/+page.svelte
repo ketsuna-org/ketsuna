@@ -3,12 +3,14 @@
   import { onMount } from "svelte";
   import pb from "$lib/pocketbase";
   import { fetchDashboardData, type DashboardData } from "$lib/dashboard";
+  import RevenueDetailModal from "$lib/components/RevenueDetailModal.svelte";
 
   const user = pb.authStore.model;
 
-  let dashboardData: DashboardData | null = null;
-  let loading = true;
-  let error = "";
+  let dashboardData = $state<DashboardData | null>(null);
+  let loading = $state(true);
+  let error = $state("");
+  let isRevenueModalOpen = $state(false);
 
   function logout() {
     pb.authStore.clear();
@@ -73,7 +75,7 @@
           >Gérer mes compagnies</a
         >
         <button
-          on:click={logout}
+          onclick={logout}
           class="bg-primary-600 hover:bg-primary-500 text-white font-semibold py-2.5 px-4 rounded-lg transition-colors duration-200"
           >Se déconnecter</button
         >
@@ -107,7 +109,7 @@
 
     <!-- Fallback avec données mockées -->
     <section class="py-10 px-4">
-      <div class="max-w-7xl mx-auto grid md:grid-cols-3 gap-6">
+      <div class="max-w-7xl mx-auto grid md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div class="bg-surface border border-border rounded-card p-6">
           <p class="text-content-tertiary text-xs uppercase tracking-wide">
             Trésorerie
@@ -126,12 +128,85 @@
           </p>
           <p class="text-white text-2xl font-bold mt-2">168</p>
         </div>
+        <div
+          class="bg-primary-500/5 border border-primary-500/30 rounded-card p-6"
+        >
+          <div class="flex items-center justify-between relative z-10">
+            <p
+              class="text-primary-400 text-xs font-bold uppercase tracking-widest"
+            >
+              Profit Mensuel <span
+                class="text-primary-400/50 normal-case font-normal">(24h)</span
+              >
+            </p>
+            <div class="relative group/tooltip">
+              <button
+                class="text-primary-400/50 hover:text-primary-400 transition-colors p-1"
+                aria-label="Voir le détail des revenus" onclick={() => (isRevenueModalOpen = true)}
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  ><circle cx="12" cy="12" r="10"></circle><line
+                    x1="12"
+                    y1="16"
+                    x2="12"
+                    y2="12"
+                  ></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg
+                >
+              </button>
+              <div
+                class="absolute bottom-full right-0 mb-3 w-64 p-4 bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all duration-200 z-50 pointer-events-none translate-y-2 group-hover/tooltip:translate-y-0"
+              >
+                <p
+                  class="text-[10px] font-bold text-primary-400 uppercase tracking-widest mb-3"
+                >
+                  Détail des revenus (24h)
+                </p>
+                <div class="space-y-2 text-[11px]">
+                  <div class="flex justify-between">
+                    <span class="text-slate-400">Revenu de base</span>
+                    <span class="text-white font-mono">$10,000</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-slate-400">Bonus réputation</span>
+                    <span class="text-white font-mono">+$2,400</span>
+                  </div>
+                  <div
+                    class="flex justify-between text-red-400/90 border-t border-white/5 pt-1"
+                  >
+                    <span>Coûts estimisés</span>
+                    <span class="font-mono">-$0</span>
+                  </div>
+                  <div
+                    class="flex justify-between border-t border-primary-500/30 pt-2 mt-2"
+                  >
+                    <span class="text-white font-bold text-[12px]"
+                      >Profit Net</span
+                    >
+                    <span class="text-primary-400 font-bold text-[12px]"
+                      >$12,400</span
+                    >
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <p class="text-white text-2xl font-black mt-2">$12,400</p>
+        </div>
       </div>
     </section>
   {:else if dashboardData}
     <!-- Données réelles depuis PocketBase -->
     <section class="py-10 px-4">
-      <div class="max-w-7xl mx-auto grid md:grid-cols-3 gap-6">
+      <div class="max-w-7xl mx-auto grid md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div class="bg-surface border border-border rounded-card p-6">
           <p class="text-content-tertiary text-xs uppercase tracking-wide">
             Trésorerie
@@ -154,6 +229,141 @@
           </p>
           <p class="text-white text-2xl font-bold mt-2">
             {formatCurrency(dashboardData.financials.daily_payroll)}
+          </p>
+        </div>
+        <div
+          class="bg-primary-500/5 border border-primary-500/30 rounded-card p-6 relative overflow-hidden group"
+        >
+          <div
+            class="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="48"
+              height="48"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              class="text-primary-400"
+              ><line x1="12" y1="1" x2="12" y2="23"></line><path
+                d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"
+              ></path></svg
+            >
+          </div>
+          <div class="flex items-center justify-between relative z-10">
+            <p
+              class="text-primary-400 text-xs font-bold uppercase tracking-widest"
+            >
+              Profil Mensuel <span
+                class="text-primary-400/50 normal-case font-normal">(24h)</span
+              >
+            </p>
+            <div class="relative group/tooltip">
+              <button
+                class="text-primary-400/50 hover:text-primary-400 transition-colors p-1"
+                aria-label="Voir le détail des revenus" onclick={() => (isRevenueModalOpen = true)}
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  ><circle cx="12" cy="12" r="10"></circle><line
+                    x1="12"
+                    y1="16"
+                    x2="12"
+                    y2="12"
+                  ></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg
+                >
+              </button>
+              <!-- Tooltip content -->
+              <div
+                class="absolute bottom-full right-0 mb-3 w-64 p-4 bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all duration-200 z-50 pointer-events-none translate-y-2 group-hover/tooltip:translate-y-0"
+              >
+                <p
+                  class="text-[10px] font-bold text-primary-400 uppercase tracking-widest mb-3"
+                >
+                  Détail des revenus (24h)
+                </p>
+                <div class="space-y-2 text-[11px]">
+                  <div class="flex justify-between">
+                    <span class="text-slate-400">Revenu de base</span>
+                    <span class="text-white font-mono"
+                      >{formatCurrency(
+                        dashboardData.financials.profit_breakdown
+                          .base_hourly_revenue * 1440
+                      )}</span
+                    >
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-slate-400">Bonus réputation</span>
+                    <span class="text-white font-mono"
+                      >+{formatCurrency(
+                        dashboardData.financials.profit_breakdown
+                          .reputation_hourly_bonus * 1440
+                      )}</span
+                    >
+                  </div>
+                  {#if dashboardData.financials.profit_breakdown.premium_multiplier > 1}
+                    <div
+                      class="flex justify-between border-t border-white/5 pt-1 text-amber-400/90 italic"
+                    >
+                      <span>Multiplicateur Premium</span>
+                      <span
+                        >x{dashboardData.financials.profit_breakdown
+                          .premium_multiplier}</span
+                      >
+                    </div>
+                  {/if}
+                  <div class="flex justify-between">
+                    <span class="text-slate-400">Production employés</span>
+                    <span class="text-white font-mono"
+                      >+{formatCurrency(
+                        dashboardData.financials.profit_breakdown
+                          .employees_hourly_revenue * 1440
+                      )}</span
+                    >
+                  </div>
+                  <div
+                    class="flex justify-between text-red-400/90 border-t border-white/5 pt-1"
+                  >
+                    <span>Coûts (Salaires + Main.)</span>
+                    <span class="font-mono"
+                      >-{formatCurrency(
+                        dashboardData.financials.profit_breakdown.hourly_costs *
+                          1440
+                      )}</span
+                    >
+                  </div>
+                  <div
+                    class="flex justify-between border-t border-primary-500/30 pt-2 mt-2"
+                  >
+                    <span class="text-white font-bold text-[12px]"
+                      >Profit Net</span
+                    >
+                    <span class="text-primary-400 font-bold text-[12px]"
+                      >{formatCurrency(
+                        dashboardData.financials.monthly_net_profit
+                      )}</span
+                    >
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <p class="text-white text-2xl font-black mt-2">
+            {formatCurrency(dashboardData.financials.monthly_net_profit)}
+          </p>
+          <p class="text-[10px] text-content-tertiary mt-2">
+            Projection sur 1 mois de jeu
           </p>
         </div>
       </div>
@@ -328,5 +538,29 @@
         </div>
       </div>
     </section>
+  {/if}
+
+  {#if dashboardData}
+    <RevenueDetailModal
+      isOpen={isRevenueModalOpen}
+      onClose={() => (isRevenueModalOpen = false)}
+      breakdown={dashboardData.financials.profit_breakdown}
+      monthlyProfit={dashboardData.financials.monthly_net_profit}
+      {formatCurrency}
+    />
+  {:else}
+    <RevenueDetailModal
+      isOpen={isRevenueModalOpen}
+      onClose={() => (isRevenueModalOpen = false)}
+      breakdown={{
+        base_hourly_revenue: 10000 / 1440,
+        reputation_hourly_bonus: 2400 / 1440,
+        employees_hourly_revenue: 0,
+        hourly_costs: 0,
+        premium_multiplier: 1,
+      }}
+      monthlyProfit={12400}
+      {formatCurrency}
+    />
   {/if}
 </div>

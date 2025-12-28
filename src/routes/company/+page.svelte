@@ -11,6 +11,20 @@
   import { goto } from "$app/navigation";
   import { deleteCompany } from "$lib/services/company";
   import { notifications } from "$lib/notifications";
+  import { onMount } from "svelte";
+
+  onMount(async () => {
+    if ($activeCompany) {
+      try {
+        const updated = await pb
+          .collection("companies")
+          .getOne<Company>($activeCompany.id);
+        activeCompany.set(updated);
+      } catch (e) {
+        console.error("Failed to refresh company data", e);
+      }
+    }
+  });
 
   let levelUpLoading = $state(false);
 
