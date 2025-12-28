@@ -3,11 +3,30 @@
 	import favicon from "$lib/assets/favicon.svg";
 	import { onMount } from "svelte";
 	import { initFirebase } from "$lib/firebase";
+    import pb from "$lib/pocketbase";
+    import { currentUser, activeCompany } from "$lib/stores";
+    import { goto } from "$app/navigation";
+
 	let { children } = $props();
 
-	onMount(() => {
-		// Initialise Firebase/Analytics au premier rendu client
+	onMount(async () => {
+		// Initialise Firebase/Analytics
 		initFirebase();
+
+        // Sync auth state
+        pb.authStore.onChange(async (token, model) => {
+            currentUser.set(model);
+            if (model && model.active_company) {
+                 try {
+                    const company = await pb.collection('companies').getOne(model.active_company);
+                    activeCompany.set(company);
+                 } catch (e) {
+                     console.error("Failed to load active company", e);
+                 }
+            } else {
+                activeCompany.set(null);
+            }
+        }, true);
 	});
 </script>
 

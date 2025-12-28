@@ -87,10 +87,6 @@ interface PBItem {
  * @throws Error si l'utilisateur n'existe pas ou n'a pas d'entreprise active
  */
 export async function fetchDashboardData(userId: string): Promise<DashboardData> {
-    // TODO: Implémentation PocketBase - Pour l'instant, retour de données mockées
-    return getMockedDashboardData();
-
-    /* Code PocketBase commenté temporairement
     try {
         // Étape 1: Récupérer l'utilisateur avec expand sur active_company
         const user = await pb.collection("users").getOne<PBUser>(userId, {
@@ -113,13 +109,13 @@ export async function fetchDashboardData(userId: string): Promise<DashboardData>
                 { requestKey: null }
             ).catch(() => null), // Gérer le cas où il n'y a pas encore d'actions
 
-            // Récupérer tous les employés de l'entreprise
+            // Récupérer tous les employés de l'entreprise (champ relation: employer)
             pb.collection("employees").getFullList<PBEmployee>({
-                filter: `company="${companyId}"`,
+                filter: `employer="${companyId}"`,
                 requestKey: null,
             }),
 
-            // Récupérer l'inventaire avec expand sur les items
+            // Récupérer l'inventaire avec expand sur les items (champ relation: company)
             pb.collection("inventory").getFullList<PBInventoryItem>({
                 filter: `company="${companyId}"`,
                 expand: "item",
@@ -181,7 +177,7 @@ export async function fetchDashboardData(userId: string): Promise<DashboardData>
             },
             financials: {
                 cash,
-                valuation,
+                valuation: valuation || 0,
                 daily_payroll: dailyPayroll,
                 stock_ticker: stockData?.ticker || "N/A",
                 stock_price: stockPrice,
@@ -195,73 +191,37 @@ export async function fetchDashboardData(userId: string): Promise<DashboardData>
                 average_efficiency: parseFloat(averageEfficiency.toFixed(1)),
             },
         };
-    } catch (error: any) {
+    } catch (error: Error | any) {
         console.error("Erreur lors de la récupération des données du dashboard:", error);
         throw new Error(
             error.message || "Impossible de récupérer les données du dashboard"
         );
     }
-    */
-}
-
-/**
- * Données mockées pour le développement
- */
-function getMockedDashboardData(): DashboardData {
-    return {
-        company: {
-            name: "Ketsuna Industries",
-            level: 12,
-            prestige: 2450,
-            ceo: "Garder",
-        },
-        financials: {
-            cash: 1_245_600,
-            valuation: 5_890_000,
-            daily_payroll: 48_500,
-            stock_ticker: "KTS",
-            stock_price: 124.5,
-        },
-        resources: {
-            inventory_count: 342,
-            top_items: [
-                { name: "Serveurs Cloud", qty: 85, value: 425_000 },
-                { name: "Composants IA", qty: 62, value: 310_000 },
-                { name: "Licences Software", qty: 128, value: 192_000 },
-                { name: "Équipement Bureau", qty: 45, value: 67_500 },
-                { name: "Matériel R&D", qty: 22, value: 88_000 },
-            ],
-        },
-        staff: {
-            total_employees: 127,
-            average_efficiency: 94.2,
-        },
-    };
 }
 
 /**
  * Version allégée pour les mises à jour fréquentes (seulement les données financières)
  */
 export async function fetchFinancialsOnly(companyId: string): Promise<DashboardData["financials"]> {
-    // TODO: Implémentation PocketBase - Pour l'instant, retour de données mockées
-    return getMockedDashboardData().financials;
+    try {
+        const [company, stockData, employees] = await Promise.all([
+            pb.collection("companies").getOne<PBCompany>(companyId),
+            pb.collection("stocks").getFirstListItem<PBStock>(`company="${companyId}"`).catch(() => null),
+            pb.collection("employees").getFullList<PBEmployee>({
+                filter: `employer="${companyId}"`,
+                fields: "salary",
+            }),
+        ]);
 
-    /* Code PocketBase commenté temporairement
-    const [company, stockData, employees] = await Promise.all([
-        pb.collection("companies").getOne<PBCompany>(companyId),
-        pb.collection("stocks").getFirstListItem<PBStock>(`company="${companyId}"`).catch(() => null),
-        pb.collection("employees").getFullList<PBEmployee>({
-            filter: `company="${companyId}"`,
-            fields: "salary",
-        }),
-    ]);
-
-    return {
-        cash: company.balance || 0,
-        valuation: (stockData?.current_price || 0) * (stockData?.total_shares || 0),
-        daily_payroll: employees.reduce((sum, emp) => sum + (emp.salary || 0), 0),
-        stock_ticker: stockData?.ticker || "N/A",
-        stock_price: stockData?.current_price || 0,
-    };
-    */
+        return {
+            cash: company.balance || 0,
+            valuation: (stockData?.current_price || 0) * (stockData?.total_shares || 0),
+            daily_payroll: employees.reduce((sum, emp) => sum + (emp.salary || 0), 0),
+            stock_ticker: stockData?.ticker || "N/A",
+            stock_price: stockData?.current_price || 0,
+        };
+    } catch (error) {
+        console.error("Error fetching financials:", error);
+        throw error;
+    }
 }
