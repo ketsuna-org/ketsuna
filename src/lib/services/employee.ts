@@ -49,14 +49,8 @@ export async function hireRandomEmployee(company: Company): Promise<Employee> {
         throw new Error(`Fonds insuffisants. Coût du recrutement : $${hiringFee}`);
     }
 
-    // 3. Update Company Balance & Daily Payroll
-    // Note: Concurrency safety would need backend logic, but we do client-side for now.
-    await pb.collection('companies').update(company.id, {
-        balance: company.balance - hiringFee,
-        payroll_daily_cost: company.payroll_daily_cost + (payload.salary || 0)
-    });
-
-    // 4. Create Employee
+    // 3. Create Employee
+    // Note: Balance deduction and payroll recalculation are now handled by PocketBase hooks (see employees.pb.js)
     const record = await pb.collection('employees').create<Employee>(payload);
     
     return record;
