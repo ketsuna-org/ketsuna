@@ -1,6 +1,37 @@
 import pb from "$lib/pocketbase";
 
-// Types pour typage fort
+// --- TYPES ---
+
+// Réponse brute de l'API /api/company/finance
+interface ApiFinanceResponse {
+    success: boolean;
+    companyId: string;
+    hourly_net: number;
+    daily_net: number;
+    monthly_net: number;
+    breakdown: {
+        base_hourly_revenue: number;
+        reputation_hourly_bonus: number;
+        employees_hourly_revenue: number;
+        hourly_costs?: number; // Parfois agrégé
+        maintenance_hourly: number;
+        payroll_hourly: number;
+        premium_multiplier: number;
+        machine_production_count: number;
+        daily_payroll: number;
+    };
+    daily_view: {
+        revenue_base: number;
+        revenue_employees: number;
+        revenue_reputation: number;
+        cost_maintenance: number;
+        cost_payroll: number;
+        total_revenue: number;
+        total_cost: number;
+        profit: number;
+    };
+}
+
 export interface DashboardData {
     company: {
         name: string;
@@ -17,15 +48,10 @@ export interface DashboardData {
         stock_ticker: string;
         stock_price: number;
         monthly_net_profit: number;
-        profit_breakdown: {
-            base_hourly_revenue: number;
-            reputation_hourly_bonus: number;
-            employees_hourly_revenue: number;
-            hourly_costs: number;
-            premium_multiplier: number;
-            machine_production_count: number;
-            daily_payroll?: number;
-        };
+        // On stocke directement la vue journalière de l'API
+        daily_view: ApiFinanceResponse["daily_view"];
+        // On garde le breakdown horaire pour compatibilité
+        profit_breakdown: ApiFinanceResponse["breakdown"];
     };
     resources: {
         inventory_count: number;
@@ -41,6 +67,7 @@ export interface DashboardData {
     };
 }
 
+// Types PocketBase (restent nécessaires pour les autres widgets: Staff, Inventory, Stocks)
 interface PBUser {
     id: string;
     username: string;
@@ -69,57 +96,36 @@ interface PBStock {
     total_shares: number;
 }
 
-interface PBMachine {
-    id: string;
-    machine: string;
-    expand?: {
-        machine?: PBItem;
-    };
-}
-
 interface PBEmployee {
     id: string;
-    company: string;
-    salary: number;
-    rarity: number;
     efficiency?: number;
 }
 
 interface PBInventoryItem {
     id: string;
-    company: string;
-    item: string;
     quantity: number;
     expand?: {
-        item?: PBItem;
+        item?: {
+            name: string;
+            base_price: number;
+        };
     };
 }
 
-interface PBItem {
-    id: string;
-    name: string;
-    base_price: number;
-    type: string;
-    product?: string;
-    product_quantity?: number;
-}
+// --- FONCTIONS ---
 
 /**
- * Agrège toutes les données du dashboard de l'entreprise active du joueur
- * en un minimum de requêtes API grâce à expand et Promise.all
- * 
- * @param userId - ID de l'utilisateur PocketBase
- * @returns Objet JSON structuré avec les données du dashboard
- * @throws Error si l'utilisateur n'existe pas ou n'a pas d'entreprise active
+ * Agrège les données via des requêtes parallèles :
+ * 1. API Finance (Source de vérité pour l'argent)
+ * 2. Collections PB (Pour les inventaires, le nombre d'employés, le stock market)
  */
 export async function fetchDashboardData(userId: string): Promise<DashboardData> {
     try {
-        // Étape 1: Récupérer l'utilisateur avec expand sur active_company
+        // 1. Récupération User & Company ID
         const user = await pb.collection("users").getOne<PBUser>(userId, {
             expand: "active_company",
         });
 
-        // Vérifier si l'utilisateur a une entreprise active
         if (!user.active_company || !user.expand?.active_company) {
             throw new Error("L'utilisateur n'a pas d'entreprise active");
         }
@@ -127,93 +133,46 @@ export async function fetchDashboardData(userId: string): Promise<DashboardData>
         const company = user.expand.active_company;
         const companyId = company.id;
 
-        // Étape 2: Requêtes parallèles pour toutes les données liées à l'entreprise
-        const [stockData, employeesData, inventoryData, assignedMachines] = await Promise.all([
-            // Récupérer les actions de l'entreprise (devrait retourner 1 seul résultat)
+        // 2. Requêtes Parallèles (API + Collections)
+        // On ne fetch plus 'machines' ici car l'API finance nous donne déjà le 'machine_production_count'
+        const [financeData, stockData, employeesData, inventoryData] = await Promise.all([
+            
+            // A. Appel à ton Endpoint Custom (Source de vérité financière)
+            pb.send<ApiFinanceResponse>("/api/company/finance", {
+                method: "POST",
+                body: { companyId },
+            }),
+
+            // B. Données boursières (Pour valuation & ticker)
             pb.collection("stocks").getFirstListItem<PBStock>(
                 `company="${companyId}"`,
                 { requestKey: null }
-            ).catch(() => null), // Gérer le cas où il n'y a pas encore d'actions
+            ).catch(() => null),
 
-            // Récupérer tous les employés de l'entreprise (champ relation: employer)
+            // C. Liste employés (Juste pour compter le nombre total et l'efficacité moyenne)
             pb.collection("employees").getFullList<PBEmployee>({
                 filter: `employer="${companyId}"`,
+                fields: "efficiency", // On optimise en ne demandant que ce champ
                 requestKey: null,
             }),
 
-            // Récupérer l'inventaire avec expand sur les items (champ relation: company)
+            // D. Inventaire (Pour le widget Top Items)
             pb.collection("inventory").getFullList<PBInventoryItem>({
                 filter: `company="${companyId}"`,
                 expand: "item",
                 requestKey: null,
             }),
-
-            // Récupérer les machines installées
-            pb.collection("machines").getFullList<PBMachine>({
-                filter: `company="${companyId}"`,
-                expand: "machine",
-                requestKey: null,
-            }),
         ]);
 
-        // Étape 3: Calculs et agrégations côté client
+        // 3. Traitement des données non-financières
 
-        let hourlyRevenue = 0;
-        let baseRevenue = 0;
-        let reputationBonus = 0;
-        let employeesRevenue = 0;
-        const premiumMultiplier = user.is_premium ? 1.5 : 1.0;
-
-        // Vérifier si nous avons des produits finis en stock
-        const hasFinishedProducts = inventoryData.some(inv =>
-            inv.expand?.item?.type === "Produit Fini" && inv.quantity > 0
-        );
-
-        if (employeesData.length > 0 && hasFinishedProducts) {
-            baseRevenue = (company.level || 1) * (2000 / 24);
-            reputationBonus = (company.reputation || 0) / 24;
-
-            employeesData.forEach((emp) => {
-                const efficiency = emp.efficiency || 1.0;
-                const rarity = emp.rarity || 0;
-                employeesRevenue += efficiency * (rarity + 1) * 50;
-            });
-
-            hourlyRevenue = (baseRevenue + reputationBonus) * premiumMultiplier + employeesRevenue;
-        }
-
-        // Calculer la production des machines
-        let machineProductionCount = 0;
-        assignedMachines.forEach((assignment) => {
-            if (assignment.expand?.machine) {
-                machineProductionCount += assignment.expand.machine.product_quantity || 0;
-            }
-        });
-
-        const dailyPayroll = employeesData.reduce((sum, emp) => sum + (emp.salary || 0), 0);
-
-        // Ne compter les coûts que s'il y a un potentiel de revenu
-        // (employés + produits finis en stock)
-        let hourlyCost = 0;
-        if (employeesData.length > 0 && hasFinishedProducts) {
-            hourlyCost = (company.level || 1) * 5; // Only maintenance, payroll is daily
-        }
-
-        const netHourlyProfit = hourlyRevenue - hourlyCost;
-        // 1 month = 30 days * 24 hours = 720 game hours
-        // Subtract daily payroll for 30 days
-        const monthlyNetProfit = netHourlyProfit * 720 - dailyPayroll * 30;
-
-        // Financials
-        const cash = company.balance || 0;
+        // Valuation Boursière
         const stockPrice = stockData?.current_price || 0;
         const totalShares = stockData?.total_shares || 0;
         const valuation = stockPrice * totalShares;
 
-        // Resources - Calculer l'inventaire total et top 5 items
+        // Ressources (Top 5 Items)
         const inventoryCount = inventoryData.reduce((sum, inv) => sum + (inv.quantity || 0), 0);
-
-        // Grouper par item et calculer valeur totale
         const itemsMap = new Map<string, { name: string; qty: number; value: number }>();
 
         inventoryData.forEach((inv) => {
@@ -226,26 +185,21 @@ export async function fetchDashboardData(userId: string): Promise<DashboardData>
                 existing.qty += qty;
                 existing.value += qty * itemPrice;
             } else {
-                itemsMap.set(itemName, {
-                    name: itemName,
-                    qty,
-                    value: qty * itemPrice,
-                });
+                itemsMap.set(itemName, { name: itemName, qty, value: qty * itemPrice });
             }
         });
-
-        // Trier par quantité et prendre le top 5
+        
         const topItems = Array.from(itemsMap.values())
             .sort((a, b) => b.qty - a.qty)
             .slice(0, 5);
 
-        // Staff - Calculer moyenne d'efficacité
+        // Staff Stats
         const totalEmployees = employeesData.length;
         const averageEfficiency = totalEmployees > 0
             ? employeesData.reduce((sum, emp) => sum + (emp.efficiency || 100), 0) / totalEmployees
             : 100;
 
-        // Étape 4: Construire l'objet de retour
+        // 4. Construction de l'objet final
         return {
             company: {
                 name: company.name,
@@ -253,23 +207,19 @@ export async function fetchDashboardData(userId: string): Promise<DashboardData>
                 prestige: user.prestige || 0,
                 ceo: user.username || "Anonyme",
                 tech_points: Math.round((company.tech_points || 0) * 100) / 100,
+                id: companyId
             },
             financials: {
-                cash,
-                valuation: valuation || 0,
-                daily_payroll: dailyPayroll,
+                cash: company.balance || 0,
+                valuation,
+                daily_payroll: financeData.breakdown.daily_payroll,
                 stock_ticker: stockData?.ticker || "N/A",
                 stock_price: stockPrice,
-                monthly_net_profit: monthlyNetProfit,
-                profit_breakdown: {
-                    base_hourly_revenue: baseRevenue,
-                    reputation_hourly_bonus: reputationBonus,
-                    employees_hourly_revenue: employeesRevenue,
-                    hourly_costs: hourlyCost,
-                    premium_multiplier: premiumMultiplier,
-                    machine_production_count: machineProductionCount,
-                    daily_payroll: dailyPayroll
-                }
+                monthly_net_profit: financeData.monthly_net,
+                
+                // On injecte directement les objets retournés par l'API
+                daily_view: financeData.daily_view,
+                profit_breakdown: financeData.breakdown
             },
             resources: {
                 inventory_count: inventoryCount,
@@ -281,45 +231,37 @@ export async function fetchDashboardData(userId: string): Promise<DashboardData>
             },
         };
     } catch (error: unknown) {
-        console.error("Erreur lors de la récupération des données du dashboard:", error);
-        const message = error instanceof Error ? error.message : "Impossible de récupérer les données du dashboard";
-        throw new Error(message);
+        console.error("Erreur Dashboard:", error);
+        throw new Error(error instanceof Error ? error.message : "Erreur inconnue");
     }
 }
 
 /**
- * Version allégée pour les mises à jour fréquentes (seulement les données financières)
+ * Version légère : Appelle uniquement l'API Finance + Company/Stocks de base
  */
 export async function fetchFinancialsOnly(companyId: string): Promise<DashboardData["financials"]> {
     try {
-        const [company, stockData, employees] = await Promise.all([
+        const [company, stockData, financeData] = await Promise.all([
             pb.collection("companies").getOne<PBCompany>(companyId),
             pb.collection("stocks").getFirstListItem<PBStock>(`company="${companyId}"`).catch(() => null),
-            pb.collection("employees").getFullList<PBEmployee>({
-                filter: `employer="${companyId}"`,
-                fields: "salary",
+            pb.send<ApiFinanceResponse>("/api/company/finance", {
+                method: "POST",
+                body: { companyId },
             }),
         ]);
 
         return {
             cash: company.balance || 0,
             valuation: (stockData?.current_price || 0) * (stockData?.total_shares || 0),
-            daily_payroll: employees.reduce((sum, emp) => sum + (emp.salary || 0), 0),
+            daily_payroll: financeData.breakdown.daily_payroll,
             stock_ticker: stockData?.ticker || "N/A",
             stock_price: stockData?.current_price || 0,
-            monthly_net_profit: 0,
-            profit_breakdown: {
-                base_hourly_revenue: 0,
-                reputation_hourly_bonus: 0,
-                employees_hourly_revenue: 0,
-                hourly_costs: 0,
-                premium_multiplier: 1,
-                machine_production_count: 0,
-                daily_payroll: 0
-            }
+            monthly_net_profit: financeData.monthly_net,
+            daily_view: financeData.daily_view,
+            profit_breakdown: financeData.breakdown
         };
-    } catch (error: unknown) {
-        console.error("Error fetching financials:", error);
+    } catch (error) {
+        console.error("Error financials:", error);
         throw error;
     }
 }

@@ -52,7 +52,7 @@
     </div>
     <div class="text-right">
       <p class="text-slate-500 text-xs">Salaire/Jour</p>
-      <p class="text-red-400 font-mono">-${employee.salary}</p>
+      <p class="text-red-400 font-mono">{employee.salary}€</p>
     </div>
     <div>
       <p class="text-slate-500 text-xs">Efficacité</p>

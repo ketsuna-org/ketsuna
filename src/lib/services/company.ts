@@ -18,15 +18,12 @@ export async function levelUpCompany(company: Company, cost: number): Promise<vo
     // We update balance and level. Tech points might also increase or unlocked via level (handled by 'technologies' collection separately usually).
     // Let's assume level up grants +1 Tech Point as a bonus? Structure doesn't specify, but let's keep it simple: Balance decreases, Level increases.
     
-    // Note: companies.updateRule requires @request.auth.id = ceo.id.
-    
-    const newLevel = company.level + 1;
-    const newBalance = company.balance - cost;
-    
-    await pb.collection('companies').update(company.id, {
-        level: newLevel,
-        balance: newBalance,
-        // Optional: Add tech points or reputation gain here if designed
+    // Use the dedicated server-side endpoint which bypasses strict field protections safely
+    await pb.send("/api/company/levelup", {
+        method: "POST",
+        body: {
+            companyId: company.id
+        }
     });
 }
 

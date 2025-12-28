@@ -10,14 +10,14 @@
   let item = $derived(inventoryItem.expand?.item);
 
   // Vente
-  let qtyToSell = 1;
-  let selling = false;
-  let error: string | null = null;
-  let lastSale: {
+  let qtyToSell = $state(1);
+  let selling = $state(false);
+  let error = $state<string | null>(null);
+  let lastSale = $state<{
     revenue: number;
     unitSellPrice: number;
     techGain: number;
-  } | null = null;
+  } | null>(null);
 
   async function onSell() {
     error = null;
@@ -62,7 +62,7 @@
       <h3 class="font-bold text-white text-lg">{item.name}</h3>
       <span
         class="text-xs uppercase font-bold px-2 py-0.5 rounded bg-slate-900 border border-slate-700 {getTypeColor(
-          item.type,
+          item.type
         )}"
       >
         {item.type}
@@ -77,7 +77,7 @@
       <div class="text-right">
         <p class="text-slate-500 text-xs text-right">Valeur Estimée</p>
         <p class="text-emerald-400 font-mono">
-          ${(inventoryItem.quantity * item.base_price).toLocaleString()}
+          {(inventoryItem.quantity * item.base_price).toLocaleString()}€
         </p>
       </div>
     </div>
@@ -93,7 +93,7 @@
         />
         <button
           class="px-3 py-1.5 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-sm disabled:opacity-50"
-          on:click={onSell}
+          onclick={onSell}
           disabled={selling ||
             qtyToSell <= 0 ||
             qtyToSell > inventoryItem.quantity}

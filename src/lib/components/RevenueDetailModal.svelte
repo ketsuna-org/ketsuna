@@ -1,324 +1,173 @@
 <script lang="ts">
-  import { fade, fly, scale } from "svelte/transition";
-  import { backOut } from "svelte/easing";
+  interface Breakdown {
+    base_hourly_revenue: number;
+    reputation_hourly_bonus: number;
+    employees_hourly_revenue: number;
+    maintenance_hourly: number;
+    premium_multiplier: number;
+    machine_production_count: number;
+    daily_payroll: number;
+  }
+
+  interface DailyView {
+    revenue_base: number;
+    revenue_employees: number;
+    revenue_reputation: number;
+    cost_maintenance: number;
+    cost_payroll: number;
+    total_revenue: number;
+    total_cost: number;
+    profit: number;
+  }
 
   interface Props {
     isOpen: boolean;
     onClose: () => void;
-    breakdown: {
-      base_hourly_revenue: number;
-      reputation_hourly_bonus: number;
-      employees_hourly_revenue: number;
-      hourly_costs: number;
-      payroll_hourly?: number;
-      maintenance_hourly?: number;
-      premium_multiplier: number;
-      machine_production_count: number;
-      daily_payroll?: number;
-    };
+    breakdown: Breakdown;
+    daily_view: DailyView;
     monthlyProfit: number;
     formatCurrency: (value: number) => string;
   }
 
-  let { isOpen, onClose, breakdown, monthlyProfit, formatCurrency }: Props =
-    $props();
+  let {
+    isOpen,
+    onClose,
+    breakdown,
+    daily_view,
+    monthlyProfit,
+    formatCurrency,
+  }: Props = $props();
 
   const handleBackdropClick = (e: MouseEvent) => {
     if (e.target === e.currentTarget) {
       onClose();
     }
   };
+
+  const handleBackdropKeyDown = (e: KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") {
+      if (e.target === e.currentTarget) {
+        onClose();
+      }
+    }
+  };
+
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (e.key === "Escape") {
+      onClose();
+    }
+  };
+
+  const handleDialogKeyDown = (e: KeyboardEvent) => {
+    // Prevent event propagation to avoid closing when interacting with dialog content
+    e.stopPropagation();
+  };
 </script>
 
+<svelte:window onkeydown={handleKeyDown} />
+
 {#if isOpen}
-  <!-- svelte-ignore a11y_click_events_have_key_events -->
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
-    class="fixed inset-0 z-100 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm"
-    transition:fade={{ duration: 200 }}
+    class="fixed inset-0 z-100 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm outline-none"
     onclick={handleBackdropClick}
+    onkeydown={handleBackdropKeyDown}
+    role="button"
+    tabindex="0"
+    aria-label="Fermer la modale en cliquant sur l'arrière-plan"
   >
     <div
-      class="bg-slate-900 border border-white/10 w-full max-w-md rounded-3xl shadow-2xl overflow-hidden"
-      transition:scale={{ start: 0.9, duration: 300, easing: backOut }}
+      class="bg-slate-900 border border-white/10 w-full max-w-md rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] cursor-default outline-none"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modal-title"
+      tabindex="0"
+      onclick={(e) => e.stopPropagation()}
+      onkeydown={handleDialogKeyDown}
     >
-      <!-- Header -->
-      <div
-        class="p-6 border-b border-white/5 bg-linear-to-br from-indigo-500/10 to-transparent"
+      <header
+        class="p-6 border-b border-white/5 bg-linear-to-br from-indigo-500/10 to-transparent shrink-0"
       >
         <div class="flex justify-between items-center">
           <div>
-            <h3 class="text-xl font-bold text-white">Analyse des revenus</h3>
+            <h3 id="modal-title" class="text-xl font-bold text-white">
+              Analyse des revenus
+            </h3>
             <p
               class="text-xs text-indigo-400 font-medium uppercase tracking-widest mt-1"
             >
-              Projection Journalière (24h)
+              Cycle de 24 Heures
             </p>
           </div>
           <button
             onclick={onClose}
-            class="w-10 h-10 rounded-full flex items-center justify-center bg-white/5 hover:bg-white/10 text-white transition-colors"
+            class="w-10 h-10 rounded-full flex items-center justify-center bg-white/5 hover:bg-white/10 text-white transition-colors cursor-pointer"
+            aria-label="Fermer la modale"
           >
             ✕
           </button>
         </div>
-      </div>
+      </header>
 
-      <!-- Content -->
-      <div class="p-6 space-y-6">
-        {#if breakdown.base_hourly_revenue === 0 && monthlyProfit <= 0}
-          <div class="space-y-3">
-            <!-- No Employees or No Stock Alert -->
-            <div
-              class="p-4 bg-red-500/10 border border-red-500/20 rounded-2xl flex gap-3 items-start"
-              transition:fly={{ y: -10 }}
-            >
-              <div class="mt-0.5 text-red-500">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  ><path
-                    d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"
-                  ></path><path d="M12 9v4"></path><path d="M12 17h.01"
-                  ></path></svg
-                >
-              </div>
-              <div>
-                <p class="text-sm font-bold text-red-400">
-                  Production à l'arrêt
-                </p>
-                <div class="text-[11px] text-red-400/80 leading-relaxed mt-1">
-                  Votre entreprise ne génère aucun revenu car :
-                  <ul class="list-disc ml-4 mt-1 space-y-0.5">
-                    <li>Vous n'avez peut-être aucun employé.</li>
-                    <li>
-                      Ou vous n'avez plus de <strong>Produit Fini</strong> en stock
-                      à vendre.
-                    </li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-
-            <!-- Resignation Warning -->
-            <div
-              class="p-3 bg-amber-500/5 border border-amber-500/10 rounded-xl flex gap-3 items-center"
-              transition:fade
-            >
-              <div class="text-amber-500">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  ><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"
-                  ></path><circle cx="9" cy="7" r="4"></circle><line
-                    x1="17"
-                    y1="8"
-                    x2="22"
-                    y2="13"
-                  ></line><line x1="22" y1="8" x2="17" y2="13"></line></svg
-                >
-              </div>
-              <p class="text-[10px] text-amber-500/80 font-medium">
-                Attention : Si votre solde devient négatif, vos employés
-                démissionneront un par un.
-              </p>
-            </div>
-          </div>
-        {/if}
-
-        <div class="space-y-4">
-          <div class="flex justify-between items-center group">
-            <div class="flex flex-col">
-              <span class="text-slate-400 text-sm">Revenu de base</span>
-              <span class="text-[10px] text-slate-500 italic"
-                >Lié au niveau de l'entreprise</span
-              >
-            </div>
-            <span class="text-white font-mono font-bold"
-              >{formatCurrency(breakdown.base_hourly_revenue * 24)}</span
-            >
-          </div>
-
+      <div class="p-6 space-y-6 overflow-y-auto custom-scrollbar">
+        <section class="pb-2 border-b border-white/5 space-y-3">
+          <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider">
+            Revenus (24h)
+          </h4>
           <div class="flex justify-between items-center">
-            <div class="flex flex-col">
-              <span class="text-slate-400 text-sm">Bonus Réputation</span>
-              <span class="text-[10px] text-slate-500 italic"
-                >+{breakdown.reputation_hourly_bonus * 24} points/jour</span
-              >
-            </div>
+            <span class="text-slate-300 text-sm">Revenu de base</span>
             <span class="text-white font-mono font-bold"
-              >+{formatCurrency(breakdown.reputation_hourly_bonus * 24)}</span
+              >{formatCurrency(daily_view.revenue_base)}</span
             >
           </div>
-
-          {#if breakdown.premium_multiplier > 1}
-            <div
-              class="flex justify-between items-center p-3 bg-amber-500/10 border border-amber-500/20 rounded-2xl"
-            >
-              <div class="flex flex-col">
-                <span class="text-amber-400 text-sm font-bold"
-                  >Bonus de Compte Premium</span
-                >
-                <span class="text-[10px] text-amber-500/70 uppercase"
-                  >Multiplicateur actif</span
-                >
-              </div>
-              <span class="text-amber-400 font-mono font-black text-lg"
-                >x{breakdown.premium_multiplier}</span
-              >
-            </div>
-          {/if}
-
-          <div
-            class="flex justify-between items-center pt-2 border-t border-white/5"
-          >
-            <div class="flex flex-col">
-              <span class="text-slate-400 text-sm font-medium"
-                >Production des Employés</span
-              >
-              <span class="text-[10px] text-slate-500 italic"
-                >Efficacité & Rareté</span
-              >
-            </div>
+          <div class="flex justify-between items-center">
+            <span class="text-slate-300 text-sm">Production Employés</span>
             <span class="text-emerald-400 font-mono font-bold"
-              >+{formatCurrency(breakdown.employees_hourly_revenue * 24)}</span
+              >+{formatCurrency(daily_view.revenue_employees)}</span
             >
           </div>
+        </section>
 
-          {#if breakdown.payroll_hourly !== undefined || breakdown.maintenance_hourly !== undefined}
-            <div class="pt-2 border-t border-white/5 space-y-2">
-              {#if breakdown.payroll_hourly !== undefined}
-                <div class="flex justify-between items-center">
-                  <div class="flex flex-col">
-                    <span class="text-slate-400 text-sm">Salaires</span>
-                    <span class="text-[10px] text-slate-500 italic"
-                      >par 24h</span
-                    >
-                  </div>
-                  <span class="text-red-400 font-mono font-bold"
-                    >-{formatCurrency(breakdown.payroll_hourly * 24)}</span
-                  >
-                </div>
-              {/if}
-
-              {#if breakdown.maintenance_hourly !== undefined}
-                <div class="flex justify-between items-center">
-                  <div class="flex flex-col">
-                    <span class="text-slate-400 text-sm">Maintenance</span>
-                    <span class="text-[10px] text-slate-500 italic"
-                      >par 24h</span
-                    >
-                  </div>
-                  <span class="text-red-400 font-mono font-bold"
-                    >-{formatCurrency(breakdown.maintenance_hourly * 24)}</span
-                  >
-                </div>
-              {/if}
-
-              <div class="flex justify-between items-center">
-                <div class="flex flex-col">
-                  <span class="text-slate-400 text-sm font-medium"
-                    >Total Coûts Opérationnels</span
-                  >
-                </div>
-                <span class="text-red-400 font-mono font-bold"
-                  >-{formatCurrency(
-                    breakdown.hourly_costs * 24 +
-                      (breakdown.daily_payroll || 0),
-                  )}</span
-                >
-              </div>
-            </div>
-          {:else}
-            <div
-              class="flex justify-between items-center pt-2 border-t border-white/5"
+        <section class="pb-2 border-b border-white/5 space-y-3">
+          <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider">
+            Dépenses (24h)
+          </h4>
+          <div class="flex justify-between items-center">
+            <span class="text-slate-300 text-sm">Salaires</span>
+            <span class="text-red-400 font-mono font-bold"
+              >-{formatCurrency(daily_view.cost_payroll)}</span
             >
-              <div class="flex flex-col">
-                <span class="text-slate-400 text-sm">Coûts Opérationnels</span>
-                <span class="text-[10px] text-slate-500 italic"
-                  >Salaires & Maintenance</span
-                >
-              </div>
-              <span class="text-red-400 font-mono font-bold"
-                >-{formatCurrency(
-                  breakdown.hourly_costs * 24 + (breakdown.daily_payroll || 0),
-                )}</span
-              >
-            </div>
-          {/if}
-
-          {#if breakdown.machine_production_count > 0}
-            <div
-              class="flex justify-between items-center pt-2 border-t border-white/5"
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-slate-300 text-sm">Maintenance</span>
+            <span class="text-red-400 font-mono font-bold"
+              >-{formatCurrency(daily_view.cost_maintenance)}</span
             >
-              <div class="flex flex-col">
-                <span class="text-slate-400 text-sm font-medium"
-                  >Production Automatisée</span
-                >
-                <span class="text-[10px] text-slate-500 italic"
-                  >Machines en service</span
-                >
-              </div>
-              <span class="text-cyan-400 font-mono font-bold"
-                >+{breakdown.machine_production_count * 24} unités/jour</span
-              >
-            </div>
-          {/if}
-        </div>
+          </div>
+        </section>
 
-        <!-- Result -->
-        <div
-          class="mt-8 p-6 bg-indigo-500/10 border border-indigo-500/30 rounded-3xl relative overflow-hidden group"
-        >
+        <footer class="mt-4">
           <div
-            class="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity"
+            class="p-6 {daily_view.profit > 0
+              ? 'bg-indigo-500/10 border-indigo-500/30'
+              : 'bg-red-500/10 border-red-500/30'} border rounded-3xl"
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="64"
-              height="64"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              class="text-indigo-400"
-              ><line x1="12" y1="1" x2="12" y2="23"></line><path
-                d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"
-              ></path></svg
+            <p
+              class="text-xs font-black uppercase tracking-widest mb-1 opacity-70"
             >
+              Projection Mensuelle
+            </p>
+            <p class="text-white text-3xl font-black tracking-tight">
+              {formatCurrency(monthlyProfit)}
+            </p>
           </div>
-          <p
-            class="text-indigo-400 text-xs font-black uppercase tracking-widest mb-1"
-          >
-            Profit Net Mensuel Projeté
-          </p>
-          <p class="text-white text-3xl font-black">
-            {formatCurrency(monthlyProfit)}
-          </p>
-        </div>
 
-        <button
-          onclick={onClose}
-          class="w-full py-4 bg-white text-slate-900 font-bold rounded-2xl hover:bg-slate-200 transition-colors shadow-lg shadow-white/5"
-        >
-          Compris
-        </button>
+          <button
+            onclick={onClose}
+            class="w-full mt-6 py-4 bg-white text-slate-900 font-bold rounded-2xl hover:bg-slate-200 transition-colors shadow-lg cursor-pointer"
+          >
+            Compris
+          </button>
+        </footer>
       </div>
     </div>
   </div>

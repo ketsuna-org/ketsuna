@@ -54,13 +54,13 @@
 
     if ($activeCompany.balance < cost) {
       notifications.error(
-        `Fonds insuffisants. Besoin de $${cost.toLocaleString()}`,
+        `Fonds insuffisants. Besoin de $${cost.toLocaleString()}`
       );
       return;
     }
     if ($activeCompany.reputation < repReq) {
       notifications.warning(
-        `Réputation trop basse. Besoin de ${repReq} points`,
+        `Réputation trop basse. Besoin de ${repReq} points`
       );
       return;
     }
@@ -73,10 +73,13 @@
         .getOne<Company>($activeCompany.id);
       activeCompany.set(updated);
       notifications.success(
-        "Expansion réussie ! Votre entreprise a gagné un niveau.",
+        "Expansion réussie ! Votre entreprise a gagné un niveau."
       );
     } catch (e: any) {
-      notifications.error(e.message);
+      console.error("Level up error:", e);
+      // Try to extract detailed message from PocketBase error
+      const msg = e?.data?.message || e?.message || "Erreur inconnue";
+      notifications.error(msg);
     } finally {
       levelUpLoading = false;
     }
@@ -142,7 +145,10 @@
               Prochain Niveau
             </p>
             <p class="text-emerald-400 font-mono text-lg">
-              ${getLevelCost($activeCompany.level).toLocaleString()}
+              {getLevelCost($activeCompany.level).toLocaleString()}€
+            </p>
+            <p class="text-purple-400 font-mono text-xs">
+              {getRepReq($activeCompany.level)} Rep
             </p>
           </div>
           <button
@@ -174,7 +180,7 @@
       <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
         <StatCard
           title="Balance"
-          value={`$${$activeCompany.balance.toLocaleString()}`}
+          value={`${$activeCompany.balance.toLocaleString()}€`}
           color="text-emerald-400"
         />
         <StatCard

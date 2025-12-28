@@ -5,30 +5,32 @@
   import { fetchDashboardData, type DashboardData } from "$lib/dashboard";
   import RevenueDetailModal from "$lib/components/RevenueDetailModal.svelte";
 
+  // --- STATE MANAGEMENT (Svelte 5 Runes) ---
   const user = pb.authStore.model;
 
   let dashboardData = $state<DashboardData | null>(null);
   let loading = $state(true);
   let error = $state("");
   let isRevenueModalOpen = $state(false);
-  let revenueBreakdown = $state<any>(null);
-  let revenueMonthly = $state<number>(0);
-  let revenueLoading = $state(false);
-  let revenueError = $state("");
+
+  // --- ACTIONS ---
 
   function logout() {
     pb.authStore.clear();
     goto("/");
   }
 
-  // Formatter en devise
+  // Formatter en devise compacte (ex: $1.2M)
   function formatCurrency(value: number): string {
-    if (value >= 1_000_000) {
-      return `$${(value / 1_000_000).toFixed(1)}M`;
-    } else if (value >= 1_000) {
-      return `$${(value / 1_000).toFixed(0)}k`;
+    if (value === undefined || value === null || isNaN(value)) {
+      return "0€";
     }
-    return `$${value.toFixed(0)}`;
+    if (value >= 1_000_000) {
+      return `${(value / 1_000_000).toFixed(1)}M€`;
+    } else if (value >= 1_000) {
+      return `${(value / 1_000).toFixed(0)}k€`;
+    }
+    return `${value.toFixed(0)}€`;
   }
 
   onMount(async () => {
@@ -46,17 +48,6 @@
       loading = false;
     }
   });
-
-  // Données mockées de fallback
-  const mockedCompanies = [
-    { name: "Ketsuna Industries", revenue: "$1.2M", employees: 120 },
-    { name: "Nova Tech", revenue: "$550k", employees: 48 },
-  ];
-
-  const mockedPortfolio = [
-    { ticker: "KTS", change: "+2.4%", value: "$45,230" },
-    { ticker: "NVT", change: "-0.8%", value: "$12,780" },
-  ];
 </script>
 
 <div
@@ -167,134 +158,10 @@
         >
           <p class="text-status-danger font-semibold mb-2">Erreur</p>
           <p class="text-content-secondary text-sm">{error}</p>
-          <p class="text-content-tertiary text-xs mt-4">
-            Mode démo actif (données mockées).
-          </p>
-        </div>
-      </div>
-    </section>
-
-    <!-- Fallback avec données mockées -->
-    <section class="py-10 px-4">
-      <div class="max-w-7xl mx-auto grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div class="bg-surface border border-border rounded-card p-6">
-          <p class="text-content-tertiary text-xs uppercase tracking-wide">
-            Trésorerie
-          </p>
-          <p class="text-white text-2xl font-bold mt-2">$240,500</p>
-        </div>
-        <div class="bg-surface border border-border rounded-card p-6">
-          <p class="text-content-tertiary text-xs uppercase tracking-wide">
-            Valorisation
-          </p>
-          <p class="text-white text-2xl font-bold mt-2">$58,010</p>
-        </div>
-        <div class="bg-surface border border-border rounded-card p-6">
-          <p class="text-content-tertiary text-xs uppercase tracking-wide">
-            Employés
-          </p>
-          <p class="text-white text-2xl font-bold mt-2">168</p>
-        </div>
-        <div
-          class="bg-primary-500/5 border border-primary-500/30 rounded-card p-6"
-        >
-          <div class="flex items-center justify-between relative z-10">
-            <p
-              class="text-primary-400 text-xs font-bold uppercase tracking-widest"
-            >
-              Profit Mensuel <span
-                class="text-primary-400/50 normal-case font-normal">(24h)</span
-              >
-            </p>
-            <div class="relative group/tooltip">
-              <button
-                class="text-primary-400/50 hover:text-primary-400 transition-colors p-1"
-                aria-label="Voir le détail des revenus"
-                onclick={async () => {
-                  isRevenueModalOpen = true;
-                  // fetch breakdown from hooks API
-                  revenueLoading = true;
-                  revenueError = "";
-                  try {
-                    const json = await pb.send("/api/company/finance", {
-                      method: "POST",
-                      body: {
-                        companyId: dashboardData?.company.id,
-                      },
-                    });
-                    revenueBreakdown = json.breakdown;
-                    revenueMonthly =
-                      json.monthly_net ||
-                      (json.daily_net ? json.daily_net * 30 : 0);
-                  } catch (err: any) {
-                    console.error("Erreur fetching finance:", err);
-                    revenueError = err?.message || String(err);
-                  } finally {
-                    revenueLoading = false;
-                  }
-                }}
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  ><circle cx="12" cy="12" r="10"></circle><line
-                    x1="12"
-                    y1="16"
-                    x2="12"
-                    y2="12"
-                  ></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg
-                >
-              </button>
-              <div
-                class="absolute bottom-full right-0 mb-3 w-64 p-4 bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all duration-200 z-50 pointer-events-none translate-y-2 group-hover/tooltip:translate-y-0"
-              >
-                <p
-                  class="text-[10px] font-bold text-primary-400 uppercase tracking-widest mb-3"
-                >
-                  Détail des revenus (24h)
-                </p>
-                <div class="space-y-2 text-[11px]">
-                  <div class="flex justify-between">
-                    <span class="text-slate-400">Revenu de base</span>
-                    <span class="text-white font-mono">$10,000</span>
-                  </div>
-                  <div class="flex justify-between">
-                    <span class="text-slate-400">Bonus réputation</span>
-                    <span class="text-white font-mono">+$2,400</span>
-                  </div>
-                  <div
-                    class="flex justify-between text-red-400/90 border-t border-white/5 pt-1"
-                  >
-                    <span>Coûts estimisés</span>
-                    <span class="font-mono">-$0</span>
-                  </div>
-                  <div
-                    class="flex justify-between border-t border-primary-500/30 pt-2 mt-2"
-                  >
-                    <span class="text-white font-bold text-[12px]"
-                      >Profit Net</span
-                    >
-                    <span class="text-primary-400 font-bold text-[12px]"
-                      >$12,400</span
-                    >
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <p class="text-white text-2xl font-black mt-2">$12,400</p>
         </div>
       </div>
     </section>
   {:else if dashboardData}
-    <!-- Données réelles depuis PocketBase -->
     <section class="py-10 px-4">
       <div class="max-w-7xl mx-auto grid md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div class="bg-surface border border-border rounded-card p-6">
@@ -305,6 +172,7 @@
             {formatCurrency(dashboardData.financials.cash)}
           </p>
         </div>
+
         <div class="bg-surface border border-border rounded-card p-6">
           <p class="text-content-tertiary text-xs uppercase tracking-wide">
             Valorisation
@@ -313,14 +181,16 @@
             {formatCurrency(dashboardData.financials.valuation)}
           </p>
         </div>
+
         <div class="bg-surface border border-border rounded-card p-6">
           <p class="text-content-tertiary text-xs uppercase tracking-wide">
-            Salaires / Jour
+            Salaires (24h)
           </p>
           <p class="text-white text-2xl font-bold mt-2">
             {formatCurrency(dashboardData.financials.daily_payroll)}
           </p>
         </div>
+
         <div
           class="bg-primary-500/5 border border-primary-500/30 rounded-card p-6 relative overflow-hidden group"
         >
@@ -347,36 +217,13 @@
             <p
               class="text-primary-400 text-xs font-bold uppercase tracking-widest"
             >
-              Profil Mensuel <span
-                class="text-primary-400/50 normal-case font-normal">(24h)</span
-              >
+              Profit Net
             </p>
             <div class="relative group/tooltip">
               <button
-                class="text-primary-400/50 hover:text-primary-400 transition-colors p-1"
+                class="text-primary-400/50 hover:text-primary-400 transition-colors p-1 cursor-pointer"
                 aria-label="Voir le détail des revenus"
-                onclick={async () => {
-                  isRevenueModalOpen = true;
-                  revenueLoading = true;
-                  revenueError = "";
-                  try {
-                    const json = await pb.send("/api/company/finance", {
-                      method: "POST",
-                      body: {
-                        companyId: dashboardData?.company.id,
-                      },
-                    });
-                    revenueBreakdown = json.breakdown;
-                    revenueMonthly =
-                      json.monthly_net ||
-                      (json.daily_net ? json.daily_net * 30 : 0);
-                  } catch (err: any) {
-                    console.error("Erreur fetching finance:", err);
-                    revenueError = err?.message || String(err);
-                  } finally {
-                    revenueLoading = false;
-                  }
-                }}
+                onclick={() => (isRevenueModalOpen = true)}
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -396,62 +243,29 @@
                   ></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg
                 >
               </button>
-              <!-- Tooltip content -->
+
               <div
                 class="absolute bottom-full right-0 mb-3 w-64 p-4 bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all duration-200 z-50 pointer-events-none translate-y-2 group-hover/tooltip:translate-y-0"
               >
                 <p
                   class="text-[10px] font-bold text-primary-400 uppercase tracking-widest mb-3"
                 >
-                  Détail des revenus (24h)
+                  Aperçu Journalier
                 </p>
                 <div class="space-y-2 text-[11px]">
                   <div class="flex justify-between">
-                    <span class="text-slate-400">Revenu de base</span>
-                    <span class="text-white font-mono"
-                      >{formatCurrency(
-                        dashboardData.financials.profit_breakdown
-                          .base_hourly_revenue * 1440,
-                      )}</span
-                    >
-                  </div>
-                  <div class="flex justify-between">
-                    <span class="text-slate-400">Bonus réputation</span>
+                    <span class="text-slate-400">Revenus Bruts</span>
                     <span class="text-white font-mono"
                       >+{formatCurrency(
-                        dashboardData.financials.profit_breakdown
-                          .reputation_hourly_bonus * 1440,
+                        dashboardData.financials.daily_view.total_revenue
                       )}</span
                     >
                   </div>
-                  {#if dashboardData.financials.profit_breakdown.premium_multiplier > 1}
-                    <div
-                      class="flex justify-between border-t border-white/5 pt-1 text-amber-400/90 italic"
-                    >
-                      <span>Multiplicateur Premium</span>
-                      <span
-                        >x{dashboardData.financials.profit_breakdown
-                          .premium_multiplier}</span
-                      >
-                    </div>
-                  {/if}
-                  <div class="flex justify-between">
-                    <span class="text-slate-400">Production employés</span>
-                    <span class="text-white font-mono"
-                      >+{formatCurrency(
-                        dashboardData.financials.profit_breakdown
-                          .employees_hourly_revenue * 1440,
-                      )}</span
-                    >
-                  </div>
-                  <div
-                    class="flex justify-between text-red-400/90 border-t border-white/5 pt-1"
-                  >
-                    <span>Coûts (Salaires + Main.)</span>
+                  <div class="flex justify-between text-red-400/90">
+                    <span>Coûts (Salaires/Maint)</span>
                     <span class="font-mono"
                       >-{formatCurrency(
-                        dashboardData.financials.profit_breakdown.hourly_costs *
-                          1440,
+                        dashboardData.financials.daily_view.total_cost
                       )}</span
                     >
                   </div>
@@ -459,11 +273,11 @@
                     class="flex justify-between border-t border-primary-500/30 pt-2 mt-2"
                   >
                     <span class="text-white font-bold text-[12px]"
-                      >Profit Net</span
+                      >Net Journalier</span
                     >
                     <span class="text-primary-400 font-bold text-[12px]"
                       >{formatCurrency(
-                        dashboardData.financials.monthly_net_profit,
+                        dashboardData.financials.daily_view.profit
                       )}</span
                     >
                   </div>
@@ -475,7 +289,7 @@
             {formatCurrency(dashboardData.financials.monthly_net_profit)}
           </p>
           <p class="text-[10px] text-content-tertiary mt-2">
-            Projection sur 1 mois de jeu
+            Projection sur 30 jours
           </p>
         </div>
       </div>
@@ -583,91 +397,15 @@
         </div>
       </div>
     </section>
-  {:else}
-    <!-- Mode démo (pas de données réelles ni d'erreur) -->
-    <section class="py-4 px-4">
-      <div
-        class="max-w-7xl mx-auto bg-primary-900/10 border border-primary-900/20 rounded-card p-4"
-      >
-        <p class="text-primary-300 text-sm">
-          Cette page contient des données mockées et sert uniquement de
-          maquette.
-        </p>
-      </div>
-    </section>
-
-    <section class="py-10 px-4">
-      <div class="max-w-7xl mx-auto grid md:grid-cols-2 gap-6">
-        <div class="bg-surface border border-border rounded-card p-6">
-          <h2 class="text-lg font-semibold text-white mb-4">Mes Entreprises</h2>
-          <div class="space-y-3">
-            {#each mockedCompanies as c}
-              <div
-                class="flex items-center justify-between bg-surface-alt border border-border rounded-lg p-4"
-              >
-                <div>
-                  <p class="text-white font-medium">
-                    {c.name}
-                  </p>
-                  <p class="text-content-secondary text-sm">
-                    {c.employees} employés
-                  </p>
-                </div>
-                <div class="text-right">
-                  <p class="text-content-secondary text-xs">Revenus</p>
-                  <p class="text-white font-semibold">
-                    {c.revenue}
-                  </p>
-                </div>
-              </div>
-            {/each}
-          </div>
-        </div>
-
-        <div class="bg-surface border border-border rounded-card p-6">
-          <h2 class="text-lg font-semibold text-white mb-4">
-            Portefeuille Boursier
-          </h2>
-          <div class="space-y-3">
-            {#each mockedPortfolio as p}
-              <div
-                class="flex items-center justify-between bg-surface-alt border border-border rounded-lg p-4"
-              >
-                <p class="text-white font-medium">
-                  {p.ticker}
-                </p>
-                <p class="text-content-secondary">{p.value}</p>
-                <p
-                  class="{p.change.startsWith('+')
-                    ? 'text-status-success'
-                    : 'text-status-danger'} font-semibold"
-                >
-                  {p.change}
-                </p>
-              </div>
-            {/each}
-          </div>
-        </div>
-      </div>
-    </section>
   {/if}
 
-  {#if isRevenueModalOpen}
+  {#if isRevenueModalOpen && dashboardData}
     <RevenueDetailModal
       isOpen={isRevenueModalOpen}
       onClose={() => (isRevenueModalOpen = false)}
-      breakdown={revenueBreakdown ??
-        dashboardData?.financials?.profit_breakdown ?? {
-          base_hourly_revenue: 10000 / 1440,
-          reputation_hourly_bonus: 2400 / 1440,
-          employees_hourly_revenue: 0,
-          hourly_costs: 0,
-          premium_multiplier: 1,
-          machine_production_count: 0,
-        }}
-      monthlyProfit={revenueMonthly ||
-        dashboardData?.financials?.monthly_net_profit ||
-        12400}
+      breakdown={dashboardData.financials.profit_breakdown}
+      daily_view={dashboardData.financials.daily_view}
+      monthlyProfit={dashboardData.financials.monthly_net_profit}
       {formatCurrency}
     />
   {/if}
