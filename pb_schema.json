@@ -894,6 +894,44 @@
             },
             {
                 "hidden": false,
+                "id": "number3529535109",
+                "max": null,
+                "min": null,
+                "name": "sell_price",
+                "onlyInt": false,
+                "presentable": false,
+                "required": false,
+                "system": false,
+                "type": "number"
+            },
+            {
+                "cascadeDelete": false,
+                "collectionId": "pbc_710432678",
+                "hidden": false,
+                "id": "relation2296548748",
+                "maxSelect": 999,
+                "minSelect": 0,
+                "name": "need_for_product",
+                "presentable": false,
+                "required": false,
+                "system": false,
+                "type": "relation"
+            },
+            {
+                "cascadeDelete": false,
+                "collectionId": "pbc_842702175",
+                "hidden": false,
+                "id": "relation471400111",
+                "maxSelect": 1,
+                "minSelect": 0,
+                "name": "use_recipe",
+                "presentable": false,
+                "required": false,
+                "system": false,
+                "type": "relation"
+            },
+            {
+                "hidden": false,
                 "id": "autodate2990389176",
                 "name": "created",
                 "onCreate": true,
@@ -914,6 +952,8 @@
             }
         ],
         "indexes": [],
+        "created": "2025-12-25 22:12:10.135Z",
+        "updated": "2025-12-28 17:13:56.061Z",
         "system": false
     },
     {
@@ -1117,16 +1157,6 @@
             },
             {
                 "hidden": false,
-                "id": "json4273100967",
-                "maxSize": 0,
-                "name": "inputs_json",
-                "presentable": false,
-                "required": false,
-                "system": false,
-                "type": "json"
-            },
-            {
-                "hidden": false,
                 "id": "number3028603729",
                 "max": null,
                 "min": null,
@@ -1151,6 +1181,31 @@
                 "type": "relation"
             },
             {
+                "cascadeDelete": false,
+                "collectionId": "pbc_710432678",
+                "hidden": false,
+                "id": "relation2945441636",
+                "maxSelect": 999,
+                "minSelect": 0,
+                "name": "inputs_items",
+                "presentable": false,
+                "required": false,
+                "system": false,
+                "type": "relation"
+            },
+            {
+                "hidden": false,
+                "id": "number75678239",
+                "max": null,
+                "min": null,
+                "name": "input_quantity",
+                "onlyInt": false,
+                "presentable": false,
+                "required": false,
+                "system": false,
+                "type": "number"
+            },
+            {
                 "hidden": false,
                 "id": "autodate2990389176",
                 "name": "created",
@@ -1172,6 +1227,8 @@
             }
         ],
         "indexes": [],
+        "created": "2025-12-25 22:13:47.767Z",
+        "updated": "2025-12-28 17:11:24.245Z",
         "system": false
     },
     {

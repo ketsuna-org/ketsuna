@@ -38,10 +38,23 @@
 <div class="container mx-auto p-4 max-w-6xl">
   <div class="flex justify-between items-center mb-8">
     <div class="flex items-center gap-4">
-        <a href="/company" class="p-2 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-        </a>
-        <h1 class="text-3xl font-bold text-white">Inventaire & Stockage</h1>
+      <a
+        href="/company"
+        class="p-2 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"><path d="m15 18-6-6 6-6" /></svg
+        >
+      </a>
+      <h1 class="text-3xl font-bold text-white">Inventaire & Stockage</h1>
     </div>
   </div>
 
@@ -63,7 +76,7 @@
   {:else}
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" in:fade>
       {#each inventory as invItem}
-        <ItemCard inventoryItem={invItem} />
+        <ItemCard inventoryItem={invItem} on:sold={loadInventory} />
       {/each}
     </div>
   {/if}
