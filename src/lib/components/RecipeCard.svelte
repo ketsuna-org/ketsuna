@@ -5,6 +5,8 @@
         checkRecipeRequirements,
     } from "$lib/services/recipe";
     import { notifications } from "$lib/notifications";
+    import { activeCompany } from "$lib/stores";
+    import pb from "$lib/pocketbase";
 
     /**
      * @type {Recipe} - La recette à afficher
@@ -70,6 +72,9 @@
         isLoading = true;
         try {
             const result = await produceFromRecipe(companyId, recipe, quantity);
+            // Refresh activeCompany store to reflect reputation/balance changes
+            const updated = await pb.collection("companies").getOne(companyId);
+            activeCompany.set(updated);
             notifications.success(
                 `✨ Production réussie: ${recipe.expand?.output_item?.name || "Item"} x${result.outputQuantity}`,
             );

@@ -2,6 +2,8 @@
     import type { Technology } from "$lib/types";
     import { unlockTechnology } from "$lib/services/tech";
     import { notifications } from "$lib/notifications";
+    import { activeCompany } from "$lib/stores";
+    import pb from "$lib/pocketbase";
 
     /**
      * @type {Technology} - Données de la technologie à afficher
@@ -46,6 +48,9 @@
         isLoading = true;
         try {
             await unlockTechnology(companyId, technology);
+            // Refresh activeCompany store to reflect tech_points and balance changes
+            const updated = await pb.collection("companies").getOne(companyId);
+            activeCompany.set(updated);
             notifications.success(`✨ ${technology.name} débloquée !`);
             onUnlock?.();
         } catch (error: any) {

@@ -5,6 +5,7 @@
   import { buyItem, fetchMarketItems, type Item } from "$lib/services/market";
   import { fetchDashboardData, type DashboardData } from "$lib/dashboard";
   import { notifications } from "$lib/notifications";
+  import { activeCompany } from "$lib/stores";
   import pb from "$lib/pocketbase";
   import StatCard from "$lib/components/StatCard.svelte";
 
@@ -66,6 +67,9 @@
       quantities[item.id] = 1;
       // Refresh dashboard to show new balance
       dashboardData = await fetchDashboardData(userId);
+      // Refresh activeCompany store to reflect changes
+      const updated = await pb.collection("companies").getOne(activeCompanyId);
+      activeCompany.set(updated);
     } catch (err: any) {
       error = err.message;
       notifications.error(`Erreur: ${err.message}`);

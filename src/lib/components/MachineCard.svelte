@@ -2,6 +2,8 @@
     import type { Item } from "$lib/types";
     import { buyItem } from "$lib/services/market";
     import { notifications } from "$lib/notifications";
+    import { activeCompany } from "$lib/stores";
+    import pb from "$lib/pocketbase";
 
     /**
      * @type {Item} - La machine à afficher (item de type "Machine")
@@ -33,6 +35,9 @@
         isLoading = true;
         try {
             await buyItem(companyId, machine, 1);
+            // Refresh activeCompany store to reflect balance changes
+            const updated = await pb.collection("companies").getOne(companyId);
+            activeCompany.set(updated);
             notifications.success(`✨ ${machine.name} achetée !`);
             onPurchase?.();
         } catch (error: any) {

@@ -37,8 +37,9 @@
       // 3. Update local state
       activeCompany.set(newCompany);
 
-      // Optionally reload user to get fresh relations
+      // Reload user and trigger authStore change to sync active_company
       const freshUser = await pb.collection("users").getOne(user.id);
+      pb.authStore.save(pb.authStore.token, freshUser);
       currentUser.set(freshUser);
     } catch (e: any) {
       console.error("Error creating company:", e);

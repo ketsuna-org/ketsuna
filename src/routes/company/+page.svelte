@@ -14,15 +14,26 @@
   import { onMount } from "svelte";
 
   onMount(async () => {
-    if ($activeCompany) {
-      try {
-        const updated = await pb
-          .collection("companies")
-          .getOne<Company>($activeCompany.id);
-        activeCompany.set(updated);
-      } catch (e) {
-        console.error("Failed to refresh company data", e);
+    const user = pb.authStore.model;
+    if (!user?.id) {
+      activeCompany.set(null);
+      return;
+    }
+
+    try {
+      // Fetch user with expanded active_company relation
+      const fullUser = await pb.collection("users").getOne(user.id, {
+        expand: "active_company",
+      });
+
+      if (fullUser.expand?.active_company) {
+        activeCompany.set(fullUser.expand.active_company);
+      } else {
+        activeCompany.set(null);
       }
+    } catch (e) {
+      console.error("Failed to load active company", e);
+      activeCompany.set(null);
     }
   });
 
@@ -43,13 +54,13 @@
 
     if ($activeCompany.balance < cost) {
       notifications.error(
-        `Fonds insuffisants. Besoin de $${cost.toLocaleString()}`
+        `Fonds insuffisants. Besoin de $${cost.toLocaleString()}`,
       );
       return;
     }
     if ($activeCompany.reputation < repReq) {
       notifications.warning(
-        `Réputation trop basse. Besoin de ${repReq} points`
+        `Réputation trop basse. Besoin de ${repReq} points`,
       );
       return;
     }
@@ -62,7 +73,7 @@
         .getOne<Company>($activeCompany.id);
       activeCompany.set(updated);
       notifications.success(
-        "Expansion réussie ! Votre entreprise a gagné un niveau."
+        "Expansion réussie ! Votre entreprise a gagné un niveau.",
       );
     } catch (e: any) {
       notifications.error(e.message);
