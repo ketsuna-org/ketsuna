@@ -273,19 +273,28 @@
               {/if}
             </div>
 
-            <div class="mt-8 space-y-4">
-              <!-- Quantity Selector -->
-              <div class="flex items-center gap-3">
-                <span
-                  class="text-xs text-slate-400 font-semibold whitespace-nowrap"
-                  >Quantité:</span
+            <div class="mt-6 space-y-3">
+              <!-- Price & Quantity Row -->
+              <div class="flex items-end justify-between gap-4">
+                <div class="flex-1">
+                  <span
+                    class="text-[10px] text-slate-500 uppercase font-black tracking-wider"
+                    >Prix Unitaire</span
+                  >
+                  <div class="text-2xl font-mono font-black text-white mt-1">
+                    {formatCurrency(item.base_price)}
+                  </div>
+                </div>
+
+                <!-- Compact Quantity Selector -->
+                <div
+                  class="flex items-center gap-1.5 bg-slate-900/50 border border-white/10 rounded-xl p-1"
                 >
-                <div class="flex-1 flex items-center gap-2">
                   <button
                     onclick={() =>
                       setQuantity(item.id, getQuantity(item.id) - 1)}
                     disabled={getQuantity(item.id) <= 1}
-                    class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-30 disabled:hover:bg-slate-800 flex items-center justify-center text-white font-bold transition-colors"
+                    class="w-7 h-7 rounded-lg bg-slate-800/80 hover:bg-slate-700 disabled:opacity-20 disabled:cursor-not-allowed flex items-center justify-center text-slate-300 hover:text-white font-bold transition-all text-sm"
                   >
                     −
                   </button>
@@ -298,65 +307,88 @@
                         parseInt(e.currentTarget.value) || 1,
                       )}
                     min="1"
-                    class="flex-1 bg-slate-900/50 border border-white/10 rounded-lg px-3 py-2 text-center font-mono text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    class="w-14 bg-transparent text-center font-mono font-bold text-white text-sm focus:outline-none"
                   />
                   <button
                     onclick={() =>
                       setQuantity(item.id, getQuantity(item.id) + 1)}
-                    class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-white font-bold transition-colors"
+                    class="w-7 h-7 rounded-lg bg-slate-800/80 hover:bg-slate-700 flex items-center justify-center text-slate-300 hover:text-white font-bold transition-all text-sm"
                   >
                     +
                   </button>
                 </div>
               </div>
 
-              <!-- Price Display -->
-              <div class="flex items-center justify-between gap-4">
-                <div class="flex flex-col">
-                  <span class="text-[10px] text-slate-500 uppercase font-black"
-                    >Prix Total</span
-                  >
+              <!-- Total Price -->
+              {#if getQuantity(item.id) > 1}
+                <div
+                  class="flex items-center justify-between px-3 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-xl"
+                >
+                  <span class="text-xs text-emerald-400 font-semibold">
+                    Total ({getQuantity(item.id)} unités)
+                  </span>
                   <span class="text-lg font-mono font-black text-emerald-400">
                     {formatCurrency(item.base_price * getQuantity(item.id))}
                   </span>
-                  <span class="text-[10px] text-slate-500 mt-0.5">
-                    {formatCurrency(item.base_price)} / unité
-                  </span>
                 </div>
-                <button
-                  onclick={() => handleBuy(item)}
-                  disabled={buyingId === item.id ||
-                    (dashboardData?.financials.cash || 0) <
-                      item.base_price * getQuantity(item.id)}
-                  class="flex-1 py-3 px-4 rounded-2xl font-bold transition-all flex items-center justify-center gap-2 group/btn {buyingId ===
-                  item.id
-                    ? 'bg-slate-800'
-                    : 'bg-white text-slate-900 hover:bg-emerald-400 hover:text-slate-950 disabled:opacity-20 disabled:hover:bg-white'}"
-                >
-                  {#if buyingId === item.id}
-                    <div
-                      class="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"
-                    ></div>
-                  {:else}
-                    Acheter
-                    <svg
-                      class="w-4 h-4 group-hover/btn:translate-x-1 transition-transform"
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="20"
-                      height="20"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      ><line x1="5" y1="12" x2="19" y2="12"></line><polyline
-                        points="12 5 19 12 12 19"
-                      ></polyline></svg
-                    >
-                  {/if}
-                </button>
-              </div>
+              {/if}
+
+              <!-- Buy Button -->
+              <button
+                onclick={() => handleBuy(item)}
+                disabled={buyingId === item.id ||
+                  (dashboardData?.financials.cash || 0) <
+                    item.base_price * getQuantity(item.id)}
+                class="w-full py-3 px-6 rounded-xl font-bold transition-all flex items-center justify-center gap-2 group/btn shadow-lg {buyingId ===
+                item.id
+                  ? 'bg-slate-800 cursor-wait'
+                  : 'bg-gradient-to-r from-white to-slate-100 text-slate-900 hover:from-emerald-400 hover:to-emerald-500 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed disabled:from-white disabled:to-slate-100'}"
+              >
+                {#if buyingId === item.id}
+                  <div
+                    class="w-4 h-4 border-2 border-slate-500 border-t-transparent rounded-full animate-spin"
+                  ></div>
+                  <span>Achat en cours...</span>
+                {:else}
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    class="group-hover/btn:scale-110 transition-transform"
+                    ><circle cx="9" cy="21" r="1"></circle><circle
+                      cx="20"
+                      cy="21"
+                      r="1"
+                    ></circle><path
+                      d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"
+                    ></path></svg
+                  >
+                  Acheter {getQuantity(item.id) > 1
+                    ? `(×${getQuantity(item.id)})`
+                    : ""}
+                  <svg
+                    class="w-4 h-4 group-hover/btn:translate-x-1 transition-transform"
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    ><line x1="5" y1="12" x2="19" y2="12"></line><polyline
+                      points="12 5 19 12 12 19"
+                    ></polyline></svg
+                  >
+                {/if}
+              </button>
             </div>
           </div>
         {/each}

@@ -27,7 +27,7 @@ export async function buyItem(companyId: string, item: Item, quantity: number): 
         // Créer/mettre à jour l'inventaire
         // Le hook inventory.pb.js déduira automatiquement le balance lors de la création
         const existing = await pb.collection("inventory").getFirstListItem(
-            `company="${companyId}" && item="${item.id}"`,
+            `company='${companyId}' && item='${item.id}'`,
             { requestKey: null }
         ).catch(() => null);
 
