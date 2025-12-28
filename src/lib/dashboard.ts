@@ -15,7 +15,7 @@ export interface DashboardData {
         daily_payroll: number;
         stock_ticker: string;
         stock_price: number;
-        monthly_net_profit: number; 
+        monthly_net_profit: number;
         profit_breakdown: {
             base_hourly_revenue: number;
             reputation_hourly_bonus: number;
@@ -163,14 +163,14 @@ export async function fetchDashboardData(userId: string): Promise<DashboardData>
         const premiumMultiplier = user.is_premium ? 1.5 : 1.0;
 
         // Vérifier si nous avons des produits finis en stock
-        const hasFinishedProducts = inventoryData.some(inv => 
+        const hasFinishedProducts = inventoryData.some(inv =>
             inv.expand?.item?.type === "Produit Fini" && inv.quantity > 0
         );
 
         if (employeesData.length > 0 && hasFinishedProducts) {
             baseRevenue = (company.level || 1) * 100;
             reputationBonus = (company.reputation || 0) * 10;
-            
+
             employeesData.forEach((emp) => {
                 const efficiency = emp.efficiency || 1.0;
                 const rarity = emp.rarity || 0;
@@ -189,8 +189,14 @@ export async function fetchDashboardData(userId: string): Promise<DashboardData>
         });
 
         const dailyPayroll = employeesData.reduce((sum, emp) => sum + (emp.salary || 0), 0);
-        const hourlyCost = (dailyPayroll / 24) + ((company.level || 1) * 5);
-        
+
+        // Ne compter les coûts que s'il y a un potentiel de revenu
+        // (employés + produits finis en stock)
+        let hourlyCost = 0;
+        if (employeesData.length > 0 && hasFinishedProducts) {
+            hourlyCost = (dailyPayroll / 24) + ((company.level || 1) * 5);
+        }
+
         const netHourlyProfit = hourlyRevenue - hourlyCost;
         // User definition: 1 month = 24h real = 1440 game hours (assuming 1min=1h)
         const monthlyNetProfit = netHourlyProfit * 1440;

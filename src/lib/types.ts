@@ -38,17 +38,69 @@ export interface Employee {
 export interface Item {
     id: string;
     name: string;
-    type: 'Ressource Brute' | 'Composant' | 'Produit Fini';
+    type: 'Ressource Brute' | 'Composant' | 'Produit Fini' | 'Machine';
     base_price: number;
     volatility: number;
+    product?: string; // Relation to item (for machines)
+    product_quantity?: number; // Quantity produced per time unit
 }
 
 export interface InventoryItem {
     id: string;
     company: string;
-    item: string; 
+    item: string;
     expand?: {
         item?: Item;
     };
     quantity: number;
+}
+
+export interface Technology {
+    id: string;
+    name: string;
+    description: string;
+    cost: number; // tech_points required
+    required_level: number;
+    effects_json: Record<string, unknown>;
+    item_unlocked: string[]; // Relation to items
+    expand?: {
+        item_unlocked?: Item[];
+    };
+}
+
+export interface CompanyTech {
+    id: string;
+    company: string;
+    technology: string;
+    expand?: {
+        technology?: Technology;
+    };
+}
+
+export interface RecipeInput {
+    item_id: string;
+    quantity: number;
+}
+
+export interface Recipe {
+    id: string;
+    output_item: string; // Relation to Item
+    inputs_json: RecipeInput[];
+    production_time: number; // in seconds
+    required_tech?: string; // Relation to Technology (optional)
+    expand?: {
+        output_item?: Item;
+        required_tech?: Technology;
+    };
+}
+
+export interface Machine {
+    id: string;
+    company: string;
+    machine: string; // Relation to Item (type: Machine)
+    employees: string[]; // Relation to Employees
+    expand?: {
+        machine?: Item;
+        employees?: Employee[];
+    };
 }
