@@ -14,14 +14,14 @@
   export let allEmployees: Employee[] = [];
 
   /**
-   * @type {string} - ID de l'entreprise
-   */
-  export let companyId: string = "";
-
-  /**
    * @type {() => void} - Callback pour rafraîchir après changement
    */
   export let onUpdate: (() => void) | null = null;
+
+  /**
+   * @type {Set<string>} - Ensemble des IDs d'employés déjà assignés (globalement)
+   */
+  export let busyEmployeeIds: Set<string> = new Set();
 
   let isLoading = false;
   let showEmployeeModal = false;
@@ -72,10 +72,14 @@
   // Employés actuellement assignés
   $: assignedEmployeeIds = new Set(machine.employees || []);
 
-  // Employés disponibles pour assignation
-  $: availableEmployees = allEmployees.filter(
-    (emp) => !assignedEmployeeIds.has(emp.id)
-  );
+  // Employés disponibles pour assignation (exclut tous les employés occupés)
+  // Si busyEmployeeIds n'est pas fourni (ex: usage isolé), on fallback sur l'exclusion locale
+  $: availableEmployees = allEmployees.filter((emp) => {
+    if (busyEmployeeIds.size > 0) {
+      return !busyEmployeeIds.has(emp.id);
+    }
+    return !assignedEmployeeIds.has(emp.id);
+  });
 
   async function handleAssignEmployee(employeeId: string) {
     isLoading = true;
@@ -100,7 +104,7 @@
     isLoading = true;
     try {
       const updatedEmployees = (machine.employees || []).filter(
-        (id) => id !== employeeId
+        (id) => id !== employeeId,
       );
 
       await pb.collection("machines").update(machine.id, {

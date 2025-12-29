@@ -303,7 +303,6 @@
                                     <MachineAssignment
                                         {machine}
                                         allEmployees={employees}
-                                        companyId={$activeCompany?.id || ""}
                                         onUpdate={handleMachineUpdate}
                                         {busyEmployeeIds}
                                     />
