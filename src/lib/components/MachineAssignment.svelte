@@ -40,7 +40,7 @@
   async function loadMachineRecipe(id: string) {
     try {
       const r = await pb.collection("recipes").getOne<Recipe>(id, {
-        expand: "output_item",
+        expand: "output_item,inputs_items",
         requestKey: null,
       });
       machineRecipe = r;
@@ -138,15 +138,64 @@
 
     {#if machineRecipe}
       <div class="p-3 bg-slate-700/50 rounded border border-slate-600">
-        <div class="flex items-center justify-between mb-2">
-          <span class="text-sm font-semibold text-white">
-            {machineRecipe.name ||
-              machineRecipe.expand?.output_item?.name ||
-              "Item"}
-          </span>
-          <span class="text-xs text-indigo-400">
-            {machineRecipe.production_time}s
-          </span>
+        <div class="flex flex-col gap-3 mb-3">
+          <!-- Inputs -->
+          {#if machineRecipe.expand?.inputs_items && machineRecipe.expand.inputs_items.length > 0}
+            <div class="space-y-1">
+              <span class="text-xs text-slate-400 font-medium">Requis:</span>
+              <div class="flex flex-wrap gap-2">
+                {#each machineRecipe.expand.inputs_items as input}
+                  <div
+                    class="flex items-center gap-1.5 px-2 py-1 bg-slate-800 rounded text-xs border border-slate-600"
+                  >
+                    <span class="text-slate-300">{input.name}</span>
+                    <span class="text-amber-400 font-mono"
+                      >x{machineRecipe.input_quantity}</span
+                    >
+                  </div>
+                {/each}
+              </div>
+            </div>
+
+            <!-- Arrow Separator -->
+            <div class="flex justify-center my-1 text-slate-500">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                ><line x1="12" y1="5" x2="12" y2="19" /><polyline
+                  points="19 12 12 19 5 12"
+                /></svg
+              >
+            </div>
+          {/if}
+
+          <!-- Output -->
+          <div>
+            <span class="text-xs text-slate-400 font-medium block mb-1"
+              >Produit:</span
+            >
+            <div
+              class="flex items-center justify-between bg-slate-800 p-2 rounded border border-indigo-500/30"
+            >
+              <span class="text-sm font-semibold text-white">
+                {machineRecipe.expand?.output_item?.name ||
+                  machineRecipe.name ||
+                  "Item"}
+              </span>
+              <span
+                class="text-xs text-indigo-400 font-mono bg-indigo-500/10 px-2 py-1 rounded"
+              >
+                {machineRecipe.production_time}s
+              </span>
+            </div>
+          </div>
         </div>
 
         {#if machine.production_started_at && machineRecipe.production_time > 60}
@@ -182,7 +231,10 @@
       <div class="p-3 bg-slate-700/50 rounded border border-slate-600">
         <p class="text-sm text-white font-medium">Production Passive</p>
         <p class="text-xs text-slate-400 mt-1">
-          Génère {machineItem.product_quantity || 1} unité(s) par minute.
+          Génère {machineItem.product_quantity || 1} unité(s) de
+          <span class="text-emerald-400 font-semibold"
+            >{machineItem.expand?.product?.name || "Produit Inconnu"}</span
+          > par minute.
         </p>
       </div>
     {:else}

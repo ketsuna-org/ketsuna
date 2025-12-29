@@ -1,4 +1,5 @@
 import pb from "$lib/pocketbase";
+import type { Recipe } from "$lib/types";
 
 export interface Item {
     id: string;
@@ -8,6 +9,10 @@ export interface Item {
     volatility: number;
     product?: string;
     product_quantity?: number;
+    use_recipe?: string;
+    expand?: {
+        use_recipe?: Recipe;
+    };
 }
 
 /**
@@ -62,6 +67,7 @@ export async function fetchMarketItems(): Promise<Item[]> {
     return await pb.collection("items").getFullList<Item>({
         sort: "name",
         filter: 'type != "Produit Fini"', // Le marché vend des matières et machines
+        expand: "use_recipe.inputs_items,use_recipe.output_item,product",
         requestKey: null
     });
 }

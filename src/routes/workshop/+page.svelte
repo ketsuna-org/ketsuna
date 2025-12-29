@@ -51,7 +51,7 @@
                 fetchAvailableRecipes($activeCompany.id),
                 pb.collection("machines").getFullList<Machine>({
                     filter: `company="${$activeCompany.id}"`,
-                    expand: "machine,employees",
+                    expand: "machine.product,employees",
                     requestKey: null,
                 }),
                 pb.collection("employees").getFullList<Employee>({

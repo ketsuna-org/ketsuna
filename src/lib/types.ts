@@ -44,6 +44,10 @@ export interface Item {
     product?: string; // Relation to item (for machines)
     product_quantity?: number; // Quantity produced per time unit
     use_recipe?: string; // Relation to recipe
+    expand?: {
+        product?: Item;
+        use_recipe?: Recipe;
+    };
 }
 
 export interface InventoryItem {

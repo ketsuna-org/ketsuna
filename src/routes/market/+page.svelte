@@ -264,15 +264,63 @@
                 </span>
               </div>
               <h3 class="text-xl font-bold text-white mb-1">{item.name}</h3>
-              <p class="text-xs text-slate-500 leading-relaxed">
+              <div class="text-xs text-slate-500 leading-relaxed">
                 {#if item.type === "Machine"}
-                  Produit <span class="text-emerald-400 font-semibold"
-                    >{item.product_quantity || 1}</span
-                  > unités par cycle.
+                  {#if item.expand?.use_recipe}
+                    <div
+                      class="mt-2 text-xs bg-slate-800/50 p-2 rounded border border-white/5 space-y-2"
+                    >
+                      <!-- Inputs -->
+                      {#if item.expand.use_recipe.expand?.inputs_items && item.expand.use_recipe.expand.inputs_items.length > 0}
+                        <div class="flex flex-wrap gap-1">
+                          <span class="text-slate-400 font-semibold mr-1"
+                            >Requis:</span
+                          >
+                          {#each item.expand.use_recipe.expand.inputs_items as input}
+                            <span
+                              class="bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded text-[10px]"
+                            >
+                              {input.name}
+                              <span class="text-amber-400"
+                                >x{item.expand.use_recipe.input_quantity}</span
+                              >
+                            </span>
+                          {/each}
+                        </div>
+                      {/if}
+
+                      <!-- Output -->
+                      <div
+                        class="flex items-center gap-2 border-t border-white/5 pt-1"
+                      >
+                        <span class="text-slate-400 font-semibold"
+                          >Produit:</span
+                        >
+                        <span class="text-emerald-400 font-medium">
+                          {item.expand.use_recipe.expand?.output_item?.name ||
+                            item.expand.use_recipe.name ||
+                            "Item"}
+                        </span>
+                        <span
+                          class="text-[10px] text-slate-500 bg-slate-800 px-1.5 py-0.5 rounded"
+                        >
+                          {item.expand.use_recipe.production_time}s
+                        </span>
+                      </div>
+                    </div>
+                  {:else}
+                    Produit <span class="text-emerald-400 font-semibold"
+                      >{item.product_quantity || 1}</span
+                    >
+                    unité(s) de
+                    <span class="text-emerald-400 font-semibold"
+                      >{item.expand?.product?.name || "Produit"}</span
+                    > par cycle.
+                  {/if}
                 {:else}
                   Essentiel pour la production de composants avancés.
                 {/if}
-              </p>
+              </div>
               {#if item.type === "Machine" && item.volatility}
                 <p class="text-xs text-amber-400 mt-2">
                   📊 Volatilité: {(item.volatility * 100).toFixed(1)}%
