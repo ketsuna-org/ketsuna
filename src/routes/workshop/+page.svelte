@@ -22,6 +22,11 @@
     let error = $state("");
     let activeTab = $state<"manual" | "automation">("manual");
 
+    // Calculer l'ensemble des ID d'employés déjà assignés à n'importe quelle machine
+    let busyEmployeeIds = $derived(
+        new Set(machines.flatMap((m) => m.employees || [])),
+    );
+
     $effect(() => {
         if ($activeCompany) {
             loadData();
@@ -300,6 +305,7 @@
                                         allEmployees={employees}
                                         companyId={$activeCompany?.id || ""}
                                         onUpdate={handleMachineUpdate}
+                                        {busyEmployeeIds}
                                     />
                                 {/each}
                             </div>
