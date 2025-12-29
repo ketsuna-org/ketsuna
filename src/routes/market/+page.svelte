@@ -8,6 +8,7 @@
   import { activeCompany } from "$lib/stores";
   import pb from "$lib/pocketbase";
   import StatCard from "$lib/components/StatCard.svelte";
+  import type { Company } from "$lib/types";
 
   let items: Item[] = $state([]);
   let dashboardData: DashboardData | null = $state(null);
@@ -34,7 +35,7 @@
   });
 
   const filteredItems = $derived(
-    filter === "All" ? items : items.filter((i) => i.type === filter)
+    filter === "All" ? items : items.filter((i) => i.type === filter),
   );
 
   function getQuantity(itemId: string): number {
@@ -61,7 +62,7 @@
       const quantity = getQuantity(item.id);
       await buyItem(activeCompanyId, item, quantity);
       notifications.success(
-        `✨ ${quantity}x ${item.name} achetée${quantity > 1 ? "s" : ""} !`
+        `${quantity}x ${item.name} achetée${quantity > 1 ? "s" : ""} !`,
       );
       // Reset quantity to 1
       quantities[item.id] = 1;
@@ -70,7 +71,7 @@
       // Refresh activeCompany store to reflect changes
       const updated = await pb
         .collection("companies")
-        .getOne(activeCompanyId, { requestKey: null });
+        .getOne<Company>(activeCompanyId, { requestKey: null });
       activeCompany.set(updated);
     } catch (err: any) {
       error = err.message;
@@ -310,7 +311,7 @@
                     oninput={(e) =>
                       setQuantity(
                         item.id,
-                        parseInt(e.currentTarget.value) || 1
+                        parseInt(e.currentTarget.value) || 1,
                       )}
                     min="1"
                     class="w-14 bg-transparent text-center font-mono font-bold text-white text-sm focus:outline-none"

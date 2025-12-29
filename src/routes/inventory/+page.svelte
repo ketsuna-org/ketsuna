@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onDestroy } from "svelte";
   import { activeCompany } from "$lib/stores";
   import pb from "$lib/pocketbase";
   import type { InventoryItem } from "$lib/types";
@@ -7,6 +8,7 @@
 
   let inventory = $state<InventoryItem[]>([]);
   let loading = $state(true);
+  let unsubscribe: () => void;
 
   async function loadInventory() {
     if (!$activeCompany) return;
@@ -28,9 +30,53 @@
     }
   }
 
+  async function subscribeToInventory() {
+    if (unsubscribe) unsubscribe();
+
+    try {
+      unsubscribe = await pb
+        .collection("inventory")
+        .subscribe("*", async ({ action, record }) => {
+          if (record.company !== $activeCompany?.id) return;
+
+          if (action === "create" || action === "update") {
+            // Fetch updated record with expand to ensure we have item details
+            const updatedRecord = await pb
+              .collection("inventory")
+              .getOne<InventoryItem>(record.id, {
+                expand: "item",
+              });
+
+            const index = inventory.findIndex((i) => i.id === record.id);
+            if (index > -1) {
+              inventory[index] = updatedRecord;
+            } else {
+              inventory.push(updatedRecord);
+              // Re-sort if needed, or just append
+              inventory.sort((a, b) =>
+                (a.expand?.item?.name || "").localeCompare(
+                  b.expand?.item?.name || "",
+                ),
+              );
+            }
+          } else if (action === "delete") {
+            inventory = inventory.filter((i) => i.id !== record.id);
+          }
+        });
+    } catch (err) {
+      console.error("Failed to subscribe to inventory", err);
+    }
+  }
+
+  onDestroy(() => {
+    if (unsubscribe) unsubscribe();
+  });
+
   $effect(() => {
     if ($activeCompany) {
-      loadInventory();
+      loadInventory().then(() => {
+        subscribeToInventory();
+      });
     }
   });
 </script>
@@ -40,6 +86,7 @@
     <div class="flex items-center gap-4">
       <a
         href="/company"
+        aria-label="Retour à l'entreprise"
         class="p-2 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
       >
         <svg

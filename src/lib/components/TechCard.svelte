@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { Technology } from "$lib/types";
+    import type { Technology, Company } from "$lib/types";
     import { unlockTechnology } from "$lib/services/tech";
     import { notifications } from "$lib/notifications";
     import { activeCompany } from "$lib/stores";
@@ -49,9 +49,11 @@
         try {
             await unlockTechnology(companyId, technology);
             // Refresh activeCompany store to reflect tech_points and balance changes
-            const updated = await pb.collection("companies").getOne(companyId);
+            const updated = await pb
+                .collection("companies")
+                .getOne<Company>(companyId);
             activeCompany.set(updated);
-            notifications.success(`✨ ${technology.name} débloquée !`);
+            notifications.success(`${technology.name} débloquée !`);
             onUnlock?.();
         } catch (error: any) {
             notifications.error(`Erreur: ${error.message}`);

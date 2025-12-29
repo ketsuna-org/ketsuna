@@ -1,6 +1,6 @@
 <script lang="ts">
     import { goto } from "$app/navigation";
-    import { onMount } from "svelte";
+    import { onMount, onDestroy } from "svelte";
     import { fade } from "svelte/transition";
     import { fetchAvailableRecipes } from "$lib/services/recipe";
     import { fetchDashboardData, type DashboardData } from "$lib/dashboard";
@@ -84,7 +84,7 @@
         }
     }
 
-    function handleRecipeProduce() {
+    async function handleRecipeProduce() {
         loadData();
     }
 
@@ -104,9 +104,72 @@
             notifications.success("Machine assignée depuis le stock");
             await loadData();
         } catch (err: any) {
-            notifications.error(err?.message || "Erreur lors de l'assignation");
+            notifications.error(err?.message || "Erreur lors du recrutement");
         }
     }
+
+    let unsubscribe: () => void;
+
+    async function subscribeToInventory() {
+        if (unsubscribe) unsubscribe();
+
+        try {
+            unsubscribe = await pb
+                .collection("inventory")
+                .subscribe("*", async ({ action, record }) => {
+                    if (record.company !== $activeCompany?.id) return;
+
+                    if (action === "create" || action === "update") {
+                        // Fetch updated record with expand to ensure we have item details
+                        const updatedRecord = await pb
+                            .collection("inventory")
+                            .getOne<InventoryItem>(record.id, {
+                                expand: "item",
+                            });
+
+                        const index = inventory.findIndex(
+                            (i) => i.id === record.id,
+                        );
+                        if (index > -1) {
+                            inventory[index] = updatedRecord;
+                        } else {
+                            inventory.push(updatedRecord);
+                        }
+                    } else if (action === "delete") {
+                        inventory = inventory.filter((i) => i.id !== record.id);
+                    }
+
+                    // Update derived lists
+                    availableMachineStock = inventory.filter(
+                        (inv) =>
+                            inv.expand?.item?.type === "Machine" &&
+                            (inv.quantity || 0) > 0,
+                    );
+
+                    // Update dashboard data (partial update for resources)
+                    if (dashboardData) {
+                        dashboardData.resources.inventory_count =
+                            inventory.length;
+                        // Note: We can't easily update top_items without complex logic or re-fetching,
+                        // but updating the total count is a good indicator.
+                    }
+                });
+        } catch (err) {
+            console.error("Failed to subscribe to inventory", err);
+        }
+    }
+
+    onDestroy(() => {
+        if (unsubscribe) unsubscribe();
+    });
+
+    $effect(() => {
+        if ($activeCompany) {
+            loadData().then(() => {
+                subscribeToInventory();
+            });
+        }
+    });
 </script>
 
 <div class="min-h-screen bg-slate-950 text-slate-200 p-6">
@@ -123,9 +186,31 @@
                     ← Tableau de bord
                 </button>
                 <div>
-                    <h1 class="text-4xl font-black text-white tracking-tight">
-                        ⚙️ Atelier de Production
-                    </h1>
+                    <div class="flex items-center gap-3">
+                        <div class="p-3 bg-indigo-500/10 rounded-xl">
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="32"
+                                height="32"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                class="text-indigo-400"
+                                ><path
+                                    d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"
+                                ></path><circle cx="12" cy="12" r="3"
+                                ></circle></svg
+                            >
+                        </div>
+                        <h1
+                            class="text-4xl font-black text-white tracking-tight"
+                        >
+                            Atelier de Production
+                        </h1>
+                    </div>
                     <p class="text-slate-400 mt-1">
                         Produisez des items en masse et automatisez vos
                         opérations.
@@ -170,21 +255,62 @@
             <div class="flex gap-2 border-b border-slate-700">
                 <button
                     onclick={() => (activeTab = "manual")}
-                    class="px-4 py-2 font-semibold transition-all {activeTab ===
+                    class="px-4 py-2 font-semibold transition-all flex items-center gap-2 {activeTab ===
                     'manual'
                         ? 'text-indigo-400 border-b-2 border-indigo-400'
                         : 'text-slate-400 hover:text-white'}"
                 >
-                    🔨 Production Manuelle
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="18"
+                        height="18"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        ><path
+                            d="m15 12-8.5 8.5c-.83.83-2.17.83-3 0 0 0 0 0 0 0a2.12 2.12 0 0 1 0-3L12 9"
+                        /><path d="M17.64 15 22 10.64" /><path
+                            d="m20.91 11.7-1.25-1.25c-.6-.6-.93-1.4-.93-2.25V7.86c0-.55-.45-1-1-1H14c-.55 0-1 .45-1 1v3.38c0 .85-.33 1.66-.93 2.26l-1.25 1.25a2.83 2.83 0 0 0 0 4 .19.19 0 0 0 .28 0l7.8-7.8a.19.19 0 0 0 0-.28 2.83 2.83 0 0 0 0-4z"
+                        /></svg
+                    >
+                    Production Manuelle
                 </button>
                 <button
                     onclick={() => (activeTab = "automation")}
-                    class="px-4 py-2 font-semibold transition-all {activeTab ===
+                    class="px-4 py-2 font-semibold transition-all flex items-center gap-2 {activeTab ===
                     'automation'
                         ? 'text-indigo-400 border-b-2 border-indigo-400'
                         : 'text-slate-400 hover:text-white'}"
                 >
-                    🤖 Automatisation
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="18"
+                        height="18"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        ><rect
+                            width="18"
+                            height="10"
+                            x="3"
+                            y="11"
+                            rx="2"
+                        /><circle cx="12" cy="5" r="2" /><path
+                            d="M12 7v4"
+                        /><line x1="8" y1="16" x2="8" y2="16" /><line
+                            x1="16"
+                            y1="16"
+                            x2="16"
+                            y2="16"
+                        /></svg
+                    >
+                    Automatisation
                     {#if machines.length > 0}
                         <span
                             class="ml-1 text-xs bg-indigo-500 text-white px-2 py-1 rounded-full"
@@ -314,9 +440,35 @@
                             <div
                                 class="mt-6 p-4 bg-amber-500/10 border border-amber-600/30 rounded-lg"
                             >
-                                <p class="text-sm text-amber-400">
-                                    ⚠️ Vous n'avez aucun employé. Embauchez du
-                                    personnel pour opérer les machines !
+                                <p
+                                    class="text-sm text-amber-400 flex items-center gap-2"
+                                >
+                                    <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        width="16"
+                                        height="16"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        ><path
+                                            d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"
+                                        /><line
+                                            x1="12"
+                                            y1="9"
+                                            x2="12"
+                                            y2="13"
+                                        /><line
+                                            x1="12"
+                                            y1="17"
+                                            x2="12.01"
+                                            y2="17"
+                                        /></svg
+                                    >
+                                    Vous n'avez aucun employé. Embauchez du personnel
+                                    pour opérer les machines !
                                 </p>
                             </div>
                         {/if}
@@ -329,8 +481,26 @@
                 <section
                     class="bg-slate-800/30 border border-slate-700 rounded-lg p-6"
                 >
-                    <h3 class="text-xl font-bold text-white mb-4">
-                        📦 Top 5 items en inventaire
+                    <h3
+                        class="text-xl font-bold text-white mb-4 flex items-center gap-2"
+                    >
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="20"
+                            height="20"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            ><path
+                                d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"
+                            /><path d="m3.3 7 8.7 5 8.7-5" /><path
+                                d="M12 22.08V12"
+                            /></svg
+                        >
+                        Top 5 items en inventaire
                     </h3>
                     <div
                         class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4"

@@ -243,46 +243,6 @@
                   ></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg
                 >
               </button>
-
-              <div
-                class="absolute bottom-full right-0 mb-3 w-64 p-4 bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all duration-200 z-50 pointer-events-none translate-y-2 group-hover/tooltip:translate-y-0"
-              >
-                <p
-                  class="text-[10px] font-bold text-primary-400 uppercase tracking-widest mb-3"
-                >
-                  Aperçu Journalier
-                </p>
-                <div class="space-y-2 text-[11px]">
-                  <div class="flex justify-between">
-                    <span class="text-slate-400">Revenus Bruts</span>
-                    <span class="text-white font-mono"
-                      >+{formatCurrency(
-                        dashboardData.financials.daily_view.total_revenue
-                      )}</span
-                    >
-                  </div>
-                  <div class="flex justify-between text-red-400/90">
-                    <span>Coûts (Salaires/Maint)</span>
-                    <span class="font-mono"
-                      >-{formatCurrency(
-                        dashboardData.financials.daily_view.total_cost
-                      )}</span
-                    >
-                  </div>
-                  <div
-                    class="flex justify-between border-t border-primary-500/30 pt-2 mt-2"
-                  >
-                    <span class="text-white font-bold text-[12px]"
-                      >Net Journalier</span
-                    >
-                    <span class="text-primary-400 font-bold text-[12px]"
-                      >{formatCurrency(
-                        dashboardData.financials.daily_view.profit
-                      )}</span
-                    >
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
           <p class="text-white text-2xl font-black mt-2">

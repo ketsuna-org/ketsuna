@@ -100,7 +100,13 @@
             </div>
         {/if}
 
-        <form on:submit|preventDefault={handleAuth} class="space-y-5">
+        <form
+            onsubmit={(e) => {
+                e.preventDefault();
+                handleAuth();
+            }}
+            class="space-y-5"
+        >
             {#if !isLogin}
                 <div>
                     <label
@@ -143,10 +149,12 @@
                         >Mot de passe</label
                     >
                     {#if isLogin}
-                        <a
-                            href="#"
+                        <button
+                            type="button"
+                            onclick={() =>
+                                alert("Fonctionnalité bientôt disponible")}
                             class="text-xs text-primary-400 hover:text-primary-300 transition-colors"
-                            >Oublié ?</a
+                            >Oublié ?</button
                         >
                     {/if}
                 </div>
@@ -183,7 +191,7 @@
         </div>
 
         <button
-            on:click={handleDiscordAuth}
+            onclick={handleDiscordAuth}
             disabled={loading}
             class="w-full bg-surface-highlight hover:bg-surface-selected border border-border text-content-primary hover:text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center gap-3"
         >
@@ -201,7 +209,7 @@
 
         <div class="mt-6 text-center space-y-3">
             <button
-                on:click={() => {
+                onclick={() => {
                     isLogin = !isLogin;
                     error = "";
                 }}
