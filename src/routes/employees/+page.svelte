@@ -19,7 +19,7 @@
 
   // Derived state from URL
   let showDeleteModal = $derived(
-    $page.url.searchParams.get("state") === "delete"
+    $page.url.searchParams.get("state") === "delete",
   );
   let deleteId = $derived($page.url.searchParams.get("id"));
   let employeeToDelete = $derived(employees.find((e) => e.id === deleteId));
@@ -37,7 +37,7 @@
       activeCompany.set(updated);
       newlyHired = newEmp;
       notifications.success(
-        `Nouvelle recrue : ${newEmp.name} a rejoint vos rangs !`
+        `Nouvelle recrue : ${newEmp.name} a rejoint vos rangs !`,
       );
     } catch (e: any) {
       notifications.error(e.message);
