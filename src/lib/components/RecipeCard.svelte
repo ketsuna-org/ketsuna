@@ -97,142 +97,189 @@
 </script>
 
 <div
-  class="border border-slate-700 rounded-lg p-4 bg-slate-800 hover:border-indigo-500 hover:shadow-lg transition-all"
+  class="border border-slate-700/50 rounded-2xl p-6 bg-slate-900/50 backdrop-blur-sm hover:border-slate-600/50 hover:bg-slate-900/80 transition-all hover:shadow-xl group"
 >
   <!-- Header with Recipe Name -->
-  <div class="mb-4">
-    <h2 class="text-lg font-bold text-white mb-1">
-      {recipe.name || recipe.expand?.output_item?.name || "Recette inconnue"}
-    </h2>
-    <div class="h-1 w-12 bg-indigo-500 rounded"></div>
-  </div>
-
-  <!-- Output Item -->
-  <div class="mb-4">
-    <h3
-      class="text-sm text-slate-400 mb-2 uppercase tracking-wider font-semibold"
-    >
-      Produit Final
-    </h3>
-    <div
-      class="flex items-center gap-3 bg-slate-700/30 rounded p-3 border border-slate-600"
-    >
-      <div>
-        <p class="font-semibold text-white">
-          {recipe.expand?.output_item?.name || "Item"}
-        </p>
-        <p class="text-xs text-slate-400">x{quantity}</p>
-      </div>
-      <div class="ml-auto text-right">
-        <p class="text-sm text-indigo-400 font-semibold">
-          ${(recipe.expand?.output_item?.base_price || 0) * quantity}
-        </p>
+  <div class="mb-5 flex items-start justify-between">
+    <div>
+      <h2 class="text-xl font-bold text-white mb-1 flex items-center gap-2">
+        <span class="p-1.5 bg-slate-800 rounded-lg text-lg">📜</span>
+        {recipe.name || recipe.expand?.output_item?.name || "Recette inconnue"}
+      </h2>
+      <div class="flex gap-2">
+        {#if recipe.required_tech}
+          <div
+            class="text-[10px] bg-purple-500/10 border border-purple-500/20 text-purple-300 px-2 py-0.5 rounded-full font-medium"
+          >
+            📚 {recipe.expand?.required_tech?.name || "Tech"}
+          </div>
+        {/if}
+        {#if recipe.production_time}
+          <div
+            class="text-[10px] bg-slate-800 border border-slate-700 text-slate-400 px-2 py-0.5 rounded-full font-mono"
+          >
+            ⏱️ {recipe.production_time}s
+          </div>
+        {/if}
       </div>
     </div>
   </div>
 
-  <!-- Inputs -->
-  <div class="mb-4">
-    <h3
-      class="text-sm text-slate-400 mb-2 uppercase tracking-wider font-semibold"
-    >
-      Matériaux Requis
-    </h3>
-    <div class="space-y-2">
-      {#each recipeInputs as inputItem (inputItem.id)}
-        {@const available = getInputInventoryQuantity(inputItem.id)}
-        {@const needed = inputQty * quantity}
-        {@const hasEnough = available >= needed}
-        <div
-          class="flex items-center justify-between bg-slate-700/30 rounded p-2 border {hasEnough
-            ? 'border-slate-600'
-            : 'border-red-600/50'}"
-        >
-          <div class="flex-1">
-            <p class="text-sm font-medium text-white">
-              {inputItem.name}
-            </p>
-            <p class="text-xs text-slate-400">
-              Requis: {needed}
-            </p>
+  <div class="space-y-4 mb-6">
+    <!-- Output Item -->
+    <div class="bg-slate-950/30 rounded-xl border border-slate-800/50 p-4">
+      <h3
+        class="text-xs text-slate-500 mb-2 uppercase tracking-wider font-bold flex items-center gap-2"
+      >
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+        Produit Final
+      </h3>
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div
+            class="w-10 h-10 rounded-lg bg-slate-800 flex items-center justify-center text-lg shadow-inner"
+          >
+            📦
           </div>
-          <div class="text-right">
-            <p
-              class={`text-sm font-semibold ${hasEnough ? "text-emerald-400" : "text-red-400"}`}
-            >
-              {available}/{needed}
+          <div>
+            <p class="font-bold text-white text-sm">
+              {recipe.expand?.output_item?.name || "Item"}
             </p>
+            <div class="flex items-center gap-2 mt-0.5">
+              <span
+                class="text-xs font-mono bg-slate-800 px-1.5 rounded text-slate-300 border border-slate-700"
+                >x{quantity}</span
+              >
+              <span class="text-[10px] text-slate-500">unité(s)</span>
+            </div>
           </div>
         </div>
-      {/each}
+        <div class="text-right">
+          <p
+            class="text-xs text-slate-500 mb-0.5 uppercase tracking-wider font-semibold"
+          >
+            Valeur
+          </p>
+          <p
+            class="text-sm text-indigo-400 font-bold font-mono bg-indigo-500/10 px-2 py-1 rounded-lg border border-indigo-500/20 inline-block"
+          >
+            ${(recipe.expand?.output_item?.base_price || 0) * quantity}
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Inputs -->
+    <div>
+      <h3
+        class="text-xs text-slate-500 mb-2 uppercase tracking-wider font-bold flex items-center gap-2 pl-1"
+      >
+        <span class="w-1.5 h-1.5 rounded-full bg-slate-500"></span>
+        Matériaux Requis
+      </h3>
+      <div class="space-y-2">
+        {#each recipeInputs as inputItem (inputItem.id)}
+          {@const available = getInputInventoryQuantity(inputItem.id)}
+          {@const needed = inputQty * quantity}
+          {@const hasEnough = available >= needed}
+          <div
+            class="flex items-center justify-between bg-slate-800/50 rounded-lg p-2.5 border {hasEnough
+              ? 'border-slate-700/50'
+              : 'border-red-500/30 bg-red-500/5'}"
+          >
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-slate-500">•</span>
+              <p class="text-sm font-medium text-slate-200">
+                {inputItem.name}
+              </p>
+            </div>
+            <div class="flex items-center gap-2">
+              <p class="text-xs text-slate-500">
+                Requis: <span class="text-white font-mono">{needed}</span>
+              </p>
+              <div
+                class={`text-xs font-bold px-2 py-0.5 rounded border ${hasEnough ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" : "bg-red-500/10 border-red-500/20 text-red-400"}`}
+              >
+                {available} <span class="opacity-50">/</span>
+                {needed}
+              </div>
+            </div>
+          </div>
+        {/each}
+      </div>
     </div>
   </div>
 
-  <!-- Production Time -->
-  {#if recipe.production_time}
-    <div class="mb-4 p-2 bg-slate-700/30 rounded border border-slate-600">
-      <p class="text-xs text-slate-400">
-        Temps de production: <span class="text-amber-400 font-semibold"
-          >{recipe.production_time}s</span
-        >
-      </p>
-    </div>
-  {/if}
-
-  <!-- Tech Requirement -->
-  {#if recipe.required_tech}
-    <div class="mb-4 p-2 bg-purple-500/10 rounded border border-purple-600/30">
-      <p class="text-xs text-purple-300">
-        📚 Technologie requise: <span class="font-semibold"
-          >{recipe.expand?.required_tech?.name || "Tech"}</span
-        >
-      </p>
-    </div>
-  {/if}
-
   <!-- Quantity Control & Action -->
-  <div class="border-t border-slate-700 pt-3 space-y-2">
-    <div class="flex items-center gap-2">
-      <label for="quantity-{recipe.id}" class="text-sm text-slate-400"
-        >Quantité:</label
+  <div class="pt-4 border-t border-slate-700/50">
+    <div class="flex items-end gap-3">
+      <div class="w-24">
+        <label
+          for="quantity-{recipe.id}"
+          class="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1.5 block"
+          >Quantité</label
+        >
+        <input
+          type="number"
+          id="quantity-{recipe.id}"
+          min="1"
+          max="100"
+          bind:value={quantity}
+          disabled={isLoading || !canProduce}
+          class="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white text-sm font-mono focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none disabled:opacity-50 transition-colors"
+        />
+      </div>
+
+      <button
+        on:click={handleProduce}
+        disabled={!canProduce || isLoading}
+        class="flex-1 px-4 py-2.5 rounded-xl font-bold text-sm transition-all shadow-lg flex items-center justify-center gap-2
+                {canProduce && !isLoading
+          ? 'bg-indigo-600 hover:bg-indigo-500 text-white cursor-pointer shadow-indigo-500/20 hover:shadow-indigo-500/30 hover:-translate-y-0.5 border border-indigo-400/20'
+          : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'}"
       >
-      <input
-        type="number"
-        id="quantity-{recipe.id}"
-        min="1"
-        max="100"
-        bind:value={quantity}
-        disabled={isLoading || !canProduce}
-        class="w-16 px-2 py-1 bg-slate-700 border border-slate-600 rounded text-white text-sm focus:border-indigo-500 focus:outline-none disabled:opacity-50"
-      />
+        {#if isLoading}
+          <span
+            class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"
+          ></span>
+          Production...
+        {:else if canProduce}
+          <span>⚙️</span> Produire
+        {:else}
+          Stock insuffisant
+        {/if}
+      </button>
     </div>
 
     {#if shortages.length > 0}
-      <div class="text-xs text-red-400 space-y-1">
+      <div class="mt-3 p-2 bg-red-500/10 border border-red-500/20 rounded-lg">
         {#each shortages as shortage}
-          <div>
-            ❌ {shortage.itemName}: manque {shortage.needed -
-              shortage.available}
+          <div
+            class="text-xs text-red-400 font-medium flex items-center gap-1.5"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="3"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              class="shrink-0"
+              ><line x1="18" y1="6" x2="6" y2="18"></line><line
+                x1="6"
+                y1="6"
+                x2="18"
+                y2="18"
+              ></line></svg
+            >
+            Manque {shortage.needed - shortage.available}
+            {shortage.itemName}
           </div>
         {/each}
       </div>
     {/if}
-
-    <button
-      on:click={handleProduce}
-      disabled={!canProduce || isLoading}
-      class="w-full px-3 py-2 rounded font-semibold text-sm transition-all
-            {canProduce && !isLoading
-        ? 'bg-indigo-600 hover:bg-indigo-500 text-white cursor-pointer'
-        : 'bg-slate-700 text-slate-500 cursor-not-allowed'}"
-    >
-      {#if isLoading}
-        Production en cours...
-      {:else if canProduce}
-        ⚙️ Produire x{quantity}
-      {:else}
-        Stock insuffisant
-      {/if}
-    </button>
   </div>
 </div>

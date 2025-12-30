@@ -3,6 +3,8 @@
   import { currentUser, activeCompany } from "$lib/stores";
   import type { Company } from "$lib/types";
 
+  let { onCreated } = $props<{ onCreated?: () => void }>();
+
   let name = $state("");
   let loading = $state(false);
   let error = $state("");
@@ -24,16 +26,6 @@
         is_npc: false,
       });
 
-      // 2. Update user's active company and owned companies
-      // Note: owned_companies is an array, we append the new ID.
-      // But creating a 'companies' record might not auto-update 'users' depending on backend.
-      // We explicitly update the user here.
-      const owned = user.owned_companies || [];
-      await pb.collection("users").update(user.id, {
-        owned_companies: [...owned, newCompany.id],
-        active_company: newCompany.id,
-      });
-
       // 3. Update local state
       activeCompany.set(newCompany);
 
@@ -41,6 +33,10 @@
       const freshUser = await pb.collection("users").getOne(user.id);
       pb.authStore.save(pb.authStore.token, freshUser);
       currentUser.set(freshUser);
+
+      if (onCreated) {
+        onCreated();
+      }
     } catch (e: any) {
       console.error("Error creating company:", e);
       error = e.message || "Failed to create company";

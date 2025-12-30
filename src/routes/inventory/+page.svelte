@@ -145,7 +145,7 @@
                 "[REALTIME] Fetched update:",
                 updatedRecord.id,
                 "Qty:",
-                updatedRecord.quantity,
+                updatedRecord.quantity
               );
 
               const index = inventory.findIndex((i) => i.id === record.id);
@@ -157,8 +157,8 @@
                 inventory.push(updatedRecord);
                 inventory.sort((a, b) =>
                   (a.expand?.item?.name || "").localeCompare(
-                    b.expand?.item?.name || "",
-                  ),
+                    b.expand?.item?.name || ""
+                  )
                 );
               }
 
@@ -169,7 +169,7 @@
             } catch (fetchErr) {
               console.error(
                 "[REALTIME] Failed to fetch updated record:",
-                fetchErr,
+                fetchErr
               );
             }
           } else if (action === "delete") {
@@ -253,21 +253,34 @@
   <div class="max-w-7xl mx-auto space-y-8">
     <!-- Header -->
     <header
-      class="flex flex-col md:flex-row md:items-center justify-between gap-4"
+      class="flex flex-col md:flex-row md:items-center justify-between gap-6"
     >
       <div class="flex items-center gap-4">
-        <button
-          onclick={() => goto("/company")}
-          class="text-slate-400 hover:text-white transition-colors flex items-center gap-2 whitespace-nowrap"
-        >
-          ← Entreprise
-        </button>
         <div>
-          <h1 class="text-4xl font-black text-white tracking-tight">
+          <h1
+            class="text-3xl md:text-4xl font-black text-white tracking-tight flex items-center gap-3"
+          >
+            <span class="p-2 bg-indigo-500/10 rounded-xl text-indigo-400">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="32"
+                height="32"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                ><path
+                  d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"
+                /><path d="m3.3 7 8.7 5 8.7-5" /><path d="M12 22.08V12" /></svg
+              >
+            </span>
             Inventaire & Stockage
           </h1>
-          <p class="text-slate-400 mt-1">
-            Gérez votre production et vendez vos stocks.
+          <p class="text-slate-400 mt-2 max-w-xl">
+            Gérez votre production, vendez vos surplus et transférez vos actifs
+            stratégiques vers la réserve.
           </p>
         </div>
       </div>
@@ -278,41 +291,42 @@
         class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
       >
         {#each Array(8) as _}
-          <div class="h-64 bg-slate-900/50 rounded-3xl animate-pulse"></div>
+          <div
+            class="h-80 bg-slate-900/50 rounded-2xl animate-pulse border border-slate-800"
+          ></div>
         {/each}
       </div>
     {:else if inventory.length === 0}
       <div
-        class="flex flex-col items-center justify-center py-20 bg-slate-900/50 rounded-3xl border border-white/5"
+        class="flex flex-col items-center justify-center py-20 bg-slate-900/30 rounded-3xl border border-slate-800 border-dashed backdrop-blur-sm"
         in:fade
       >
         <div
-          class="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mb-4"
+          class="w-20 h-20 bg-slate-800/50 rounded-full flex items-center justify-center mb-6 text-slate-600"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
-            width="32"
-            height="32"
+            width="40"
+            height="40"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
             stroke-width="2"
             stroke-linecap="round"
             stroke-linejoin="round"
-            class="text-slate-600"
             ><path
               d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"
             /><path d="m3.3 7 8.7 5 8.7-5" /><path d="M12 22.08V12" /></svg
           >
         </div>
-        <h3 class="text-xl font-bold text-white mb-2">Entrepôt Vide</h3>
-        <p class="text-slate-500 max-w-md text-center">
+        <h3 class="text-2xl font-black text-white mb-2">Entrepôt Vide</h3>
+        <p class="text-slate-500 max-w-md text-center mb-8">
           Vos entrepôts sont vides. Produisez des ressources dans l'atelier ou
           achetez-en au marché pour commencer.
         </p>
         <button
           onclick={() => goto("/workshop")}
-          class="mt-6 px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-medium transition-colors"
+          class="px-8 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl shadow-xl shadow-indigo-600/20 transition-all hover:scale-105 active:scale-95"
         >
           Aller à l'atelier
         </button>
@@ -327,11 +341,16 @@
       />
 
       <!-- Results count -->
-      <div class="text-sm text-slate-400 mb-4">
-        {filteredInventory.length} item(s) sur {inventory.length}
+      <div class="text-sm text-slate-500 font-medium px-1">
+        Affichage de <span class="text-white font-bold"
+          >{filteredInventory.length}</span
+        >
+        item(s) sur {inventory.length}
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div
+        class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+      >
         {#each filteredInventory as invItem (invItem.id)}
           {@const item = invItem.expand?.item}
           {@const resalePrice = item ? item.base_price / 2 : 0}
@@ -340,13 +359,18 @@
           {#if item}
             <div
               transition:fly={{ y: 20, duration: 400 }}
-              class="group bg-slate-900 border border-white/5 rounded-3xl p-6 transition-all hover:border-indigo-500/50 hover:shadow-xl hover:shadow-indigo-500/10 flex flex-col justify-between"
+              class="group bg-slate-900/50 border border-slate-800 rounded-2xl p-5 hover:border-indigo-500/30 hover:bg-slate-900/80 hover:shadow-xl hover:shadow-indigo-500/10 flex flex-col justify-between relative overflow-hidden backdrop-blur-sm transition-all"
             >
-              <div>
+              <!-- Decorative gradient blob -->
+              <div
+                class="absolute top-0 right-0 w-32 h-32 bg-indigo-500/0 group-hover:bg-indigo-500/5 rounded-full blur-2xl transition-all duration-500 -translate-y-1/2 translate-x-1/2 pointer-events-none"
+              ></div>
+
+              <div class="relative z-10">
                 <div class="flex justify-between items-start mb-4">
                   <!-- Icon -->
                   <div
-                    class="p-3 rounded-2xl bg-slate-800 text-slate-400 group-hover:bg-indigo-500/10 group-hover:text-indigo-400 transition-colors"
+                    class="p-3 rounded-2xl bg-slate-950 border border-slate-800 text-slate-400 group-hover:text-indigo-400 group-hover:border-indigo-500/30 transition-all shadow-sm"
                   >
                     {#if item.type === "Machine"}
                       <svg
@@ -406,30 +430,43 @@
                   </div>
                   <!-- Badge -->
                   <span
-                    class="text-[10px] font-black uppercase tracking-tighter bg-white/5 px-2 py-1 rounded-md text-slate-500"
+                    class="text-[10px] font-bold uppercase tracking-wider bg-slate-950 border border-slate-800 px-2 py-1 rounded-lg text-slate-500"
                   >
                     {item.type}
                   </span>
                 </div>
 
-                <h3 class="text-xl font-bold text-white mb-2">{item.name}</h3>
+                <h3
+                  class="text-xl font-bold text-white mb-4 leading-tight min-h-[3.5rem]"
+                >
+                  {item.name}
+                </h3>
 
-                <div class="flex justify-between items-end mb-4">
-                  <div>
-                    <span
-                      class="text-[10px] text-slate-500 uppercase font-black tracking-wider"
-                      >Quantité</span
+                <div class="grid grid-cols-2 gap-2 mb-4">
+                  <div
+                    class="bg-slate-950/50 p-2 rounded-xl border border-slate-800/50"
+                  >
+                    <div
+                      class="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-0.5"
                     >
-                    <div class="text-3xl font-mono font-black text-white">
+                      Quantité
+                    </div>
+                    <div class="text-2xl font-mono font-black text-white">
                       {invItem.quantity}
                     </div>
                   </div>
-                  <div class="text-right">
-                    <span
-                      class="text-[10px] text-slate-500 uppercase font-black tracking-wider"
-                      >Valeur Totale</span
+                  <div
+                    class="bg-emerald-950/20 p-2 rounded-xl border border-emerald-500/10 text-right"
+                  >
+                    <div
+                      class="text-[10px] text-emerald-500/70 uppercase font-bold tracking-wider mb-0.5"
                     >
-                    <div class="text-lg font-mono font-bold text-emerald-400">
+                      Valeur
+                    </div>
+                    <div
+                      class="text-lg font-mono font-bold text-emerald-400 truncate"
+                      title={formatCurrency(totalValue)}
+                    >
                       {formatCurrency(totalValue)}
                     </div>
                   </div>
@@ -437,14 +474,17 @@
               </div>
 
               <!-- Action Section -->
-              <div class="space-y-3 pt-4 border-t border-white/5">
-                <div class="flex items-center justify-between">
-                  <span class="text-xs text-slate-500"
-                    >Prix de revente estimé</span
+              <div
+                class="space-y-3 pt-4 border-t border-slate-800/50 relative z-10"
+              >
+                <div class="flex items-center justify-between px-1">
+                  <span class="text-xs font-medium text-slate-500"
+                    >Prix revente</span
                   >
-                  <span class="font-mono font-bold text-white text-sm"
+                  <span class="font-mono font-bold text-slate-300 text-sm"
                     >{formatCurrency(resalePrice)}
-                    <span class="text-xs text-slate-600 font-normal">/u</span
+                    <span class="text-[10px] text-slate-600 font-normal"
+                      >/u</span
                     ></span
                   >
                 </div>
@@ -452,17 +492,17 @@
                 <div class="flex flex-col gap-3">
                   <!-- Qty Selector -->
                   <div
-                    class="flex items-center gap-1 bg-slate-800 rounded-xl p-1 border border-white/5 w-full flex-grow"
+                    class="flex items-center gap-1 bg-slate-950 rounded-xl p-1 border border-slate-800 w-full"
                   >
                     <button
                       onclick={() =>
                         setSellQuantity(
                           invItem.id,
                           getSellQuantity(invItem.id) - 1,
-                          invItem.quantity,
+                          invItem.quantity
                         )}
                       disabled={getSellQuantity(invItem.id) <= 1}
-                      class="w-8 h-8 rounded-lg hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition-colors disabled:opacity-30"
+                      class="w-8 h-8 rounded-lg bg-slate-900 hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white transition-all disabled:opacity-30 disabled:hover:bg-slate-900 border border-slate-800"
                       >-</button
                     >
                     <input
@@ -473,7 +513,7 @@
                         setSellQuantity(
                           invItem.id,
                           parseInt(e.currentTarget.value) || 1,
-                          invItem.quantity,
+                          invItem.quantity
                         )}
                     />
                     <button
@@ -481,10 +521,10 @@
                         setSellQuantity(
                           invItem.id,
                           getSellQuantity(invItem.id) + 1,
-                          invItem.quantity,
+                          invItem.quantity
                         )}
                       disabled={getSellQuantity(invItem.id) >= invItem.quantity}
-                      class="w-8 h-8 rounded-lg hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition-colors disabled:opacity-30"
+                      class="w-8 h-8 rounded-lg bg-slate-900 hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white transition-all disabled:opacity-30 disabled:hover:bg-slate-900 border border-slate-800"
                       >+</button
                     >
                     <button
@@ -492,9 +532,9 @@
                         setSellQuantity(
                           invItem.id,
                           invItem.quantity,
-                          invItem.quantity,
+                          invItem.quantity
                         )}
-                      class="px-2 h-8 text-[10px] font-black bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white rounded-lg transition-colors border border-white/5 shadow-inner"
+                      class="px-2 h-8 text-[10px] font-bold bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 hover:text-indigo-300 rounded-lg transition-colors border border-indigo-500/20 ml-1"
                     >
                       MAX
                     </button>
@@ -506,15 +546,34 @@
                       onclick={() => handleDeposit(invItem)}
                       disabled={depositingIds[invItem.id] ||
                         sellingIds[invItem.id]}
-                      class="w-12 h-10 flex flex-shrink-0 items-center justify-center bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-xl font-bold transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                      class="w-12 h-10 flex flex-shrink-0 items-center justify-center bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl font-bold transition-all shadow-lg shadow-black/20 border border-slate-700 hover:border-slate-600 disabled:opacity-50 disabled:cursor-not-allowed group/lock"
                       title="Déposer dans la réserve sécurisée"
                     >
                       {#if depositingIds[invItem.id]}
                         <div
-                          class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"
+                          class="w-4 h-4 border-2 border-slate-500 border-t-white rounded-full animate-spin"
                         ></div>
                       {:else}
-                        🔒
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          class="group-hover/lock:text-emerald-400 transition-colors"
+                          ><rect
+                            x="3"
+                            y="11"
+                            width="18"
+                            height="11"
+                            rx="2"
+                            ry="2"
+                          /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg
+                        >
                       {/if}
                     </button>
 
@@ -523,25 +582,25 @@
                       onclick={() => handleSell(invItem)}
                       disabled={sellingIds[invItem.id] ||
                         getSellQuantity(invItem.id) <= 0}
-                      class="flex-1 h-10 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-emerald-900/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      class="flex-1 h-10 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-emerald-900/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 border border-emerald-500/50"
                     >
                       {#if sellingIds[invItem.id]}
                         <div
                           class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"
                         ></div>
                       {:else}
-                        Vendre
+                        <span>Vendre</span>
                       {/if}
                     </button>
                   </div>
                 </div>
 
-                <div class="text-center">
+                <div class="text-center pt-1">
                   <button
                     onclick={() => openSellAllConfirmation(invItem)}
-                    class="text-[10px] text-slate-500 hover:text-emerald-400 transition-colors uppercase font-bold tracking-wider"
+                    class="text-[10px] text-slate-500 hover:text-emerald-400 transition-colors uppercase font-bold tracking-wider hover:underline decoration-emerald-500/30 underline-offset-4"
                   >
-                    Tout vendre
+                    Tout vendre immédiatement
                   </button>
                 </div>
               </div>
