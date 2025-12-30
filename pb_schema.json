@@ -907,6 +907,18 @@
             },
             {
                 "hidden": false,
+                "id": "number3028603729",
+                "max": null,
+                "min": null,
+                "name": "production_time",
+                "onlyInt": false,
+                "presentable": false,
+                "required": false,
+                "system": false,
+                "type": "number"
+            },
+            {
+                "hidden": false,
                 "id": "autodate2990389176",
                 "name": "created",
                 "onCreate": true,
@@ -929,6 +941,8 @@
         "indexes": [
             "CREATE UNIQUE INDEX `idx_2KIYSSKtvs` ON `items` (`name`)"
         ],
+        "created": "2025-12-25 22:12:10.135Z",
+        "updated": "2025-12-30 16:16:03.547Z",
         "system": false
     },
     {

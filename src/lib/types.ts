@@ -44,6 +44,7 @@ export interface Item {
     product?: string; // Relation to item (for machines)
     product_quantity?: number; // Quantity produced per time unit
     use_recipe?: string; // Relation to recipe
+    production_time?: number; // Time in seconds for passive production
     expand?: {
         product?: Item;
         use_recipe?: Recipe;

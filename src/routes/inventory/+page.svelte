@@ -141,21 +141,27 @@
                   expand: "item",
                 });
 
+              console.log(
+                "[REALTIME] Fetched update:",
+                updatedRecord.id,
+                "Qty:",
+                updatedRecord.quantity,
+              );
+
               const index = inventory.findIndex((i) => i.id === record.id);
               if (index > -1) {
-                // Proper Svelte 5 reactivity: create new array
-                inventory = [
-                  ...inventory.slice(0, index),
-                  updatedRecord,
-                  ...inventory.slice(index + 1),
-                ];
+                // Update existing item
+                inventory[index] = updatedRecord;
               } else {
-                inventory = [...inventory, updatedRecord].sort((a, b) =>
+                // Add new item and sort
+                inventory.push(updatedRecord);
+                inventory.sort((a, b) =>
                   (a.expand?.item?.name || "").localeCompare(
                     b.expand?.item?.name || "",
                   ),
                 );
               }
+
               // Initialize sell quantity if new
               if (!sellQuantities[record.id]) {
                 sellQuantities = { ...sellQuantities, [record.id]: 1 };

@@ -53,23 +53,36 @@
 
   // Fonction pour calculer et mettre à jour le progrès
   function updateProgress() {
+    const now = new Date().getTime();
+    let total = 0;
+
+    // CAS 1: Recette (Recipe)
     if (
       machine.production_started_at &&
       machineRecipe &&
-      machineRecipe.production_time > 60
+      machineRecipe.production_time > 0
     ) {
+      total = machineRecipe.production_time;
+    }
+    // CAS 2: Production Passive (Passive)
+    else if (
+      machine.production_started_at &&
+      machineItem &&
+      machineItem.product &&
+      (machineItem.production_time || 0) > 0
+    ) {
+      total = machineItem.production_time;
+    }
+
+    if (total > 0) {
       const start = new Date(machine.production_started_at).getTime();
-      const now = new Date().getTime();
       const elapsed = (now - start) / 1000;
-      const total = machineRecipe.production_time;
 
       const newProgress = Math.min(100, (elapsed / total) * 100);
       progress = newProgress;
       timeRemaining = Math.max(0, total - elapsed);
 
-      // Si la production est terminée, déclencher un rafraîchissement
       if (newProgress >= 100) {
-        // Reset visuel et rafraîchir les données
         setTimeout(() => {
           progress = 0;
           onUpdate?.();
@@ -222,7 +235,7 @@
           </div>
         </div>
 
-        {#if machine.production_started_at && machineRecipe.production_time > 60}
+        {#if machine.production_started_at && machineRecipe.production_time > 0}
           <div class="space-y-1">
             <div class="w-full bg-slate-700 rounded-full h-1.5 overflow-hidden">
               <div
@@ -252,14 +265,50 @@
         {/if}
       </div>
     {:else if machineItem?.product}
+      <!-- PASSIVE PRODUCTION DISPLAY -->
       <div class="p-3 bg-slate-700/50 rounded border border-slate-600">
         <p class="text-sm text-white font-medium">Production Passive</p>
-        <p class="text-xs text-slate-400 mt-1">
-          Génère {machineItem.product_quantity || 1} unité(s) de
-          <span class="text-emerald-400 font-semibold"
-            >{machineItem.expand?.product?.name || "Produit Inconnu"}</span
-          > par minute.
-        </p>
+        {#if machineItem.production_time && machineItem.production_time > 0}
+          <p class="text-xs text-slate-400 mt-1 mb-2">
+            Génère {machineItem.product_quantity || 1} unité(s) de
+            <span class="text-emerald-400 font-semibold"
+              >{machineItem.expand?.product?.name || "Produit Inconnu"}</span
+            >
+            toutes les
+            <span class="text-indigo-400 font-mono"
+              >{machineItem.production_time}s</span
+            >
+          </p>
+
+          {#if machine.production_started_at}
+            <div class="space-y-1">
+              <div
+                class="w-full bg-slate-700 rounded-full h-1.5 overflow-hidden"
+              >
+                <div
+                  class="bg-indigo-500 h-full transition-all duration-1000"
+                  style="width: {progress}%"
+                ></div>
+              </div>
+              <div class="flex justify-between text-[10px] text-slate-500">
+                <span>{Math.round(progress)}% terminé</span>
+                <span>~{Math.round(timeRemaining)}s restantes</span>
+              </div>
+            </div>
+          {:else}
+            <p class="text-xs text-amber-400">
+              ⚠️ Production en pause / non démarrée
+            </p>
+          {/if}
+        {:else}
+          <!-- Legacy / Instant -->
+          <p class="text-xs text-slate-400 mt-1">
+            Génère {machineItem.product_quantity || 1} unité(s) de
+            <span class="text-emerald-400 font-semibold"
+              >{machineItem.expand?.product?.name || "Produit Inconnu"}</span
+            > chaque seconde.
+          </p>
+        {/if}
       </div>
     {:else}
       <p class="text-xs text-slate-500 italic">Aucune production configurée.</p>
