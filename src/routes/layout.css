@@ -51,3 +51,20 @@ body {
   background-color: var(--color-background);
   color: var(--color-content-primary);
 }
+
+/* Ensure all interactive elements have pointer cursor */
+button,
+[role="button"],
+a,
+select,
+input[type="button"],
+input[type="submit"],
+input[type="reset"] {
+  cursor: pointer;
+}
+
+/* Disabled elements should show not-allowed cursor */
+button:disabled,
+[disabled] {
+  cursor: not-allowed;
+}

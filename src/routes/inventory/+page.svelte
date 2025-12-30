@@ -9,6 +9,7 @@
   import { goto } from "$app/navigation";
   import FilterBar from "$lib/components/FilterBar.svelte";
   import SellConfirmation from "$lib/components/SellConfirmation.svelte";
+  import { depositToReserve } from "$lib/services/reserve";
 
   let inventory = $state<InventoryItem[]>([]);
   let loading = $state(true);
@@ -16,6 +17,7 @@
   // Track quantity to sell per item
   let sellQuantities = $state<Record<string, number>>({});
   let sellingIds = $state<Record<string, boolean>>({});
+  let depositingIds = $state<Record<string, boolean>>({});
 
   // Filter states
   let searchQuery = $state("");
@@ -73,6 +75,22 @@
     // Set quantity to max and sell
     sellQuantities[invItem.id] = invItem.quantity;
     await handleSell(invItem);
+  }
+
+  async function handleDeposit(invItem: InventoryItem) {
+    const qty = sellQuantities[invItem.id] || 1;
+    if (qty <= 0) return;
+
+    depositingIds[invItem.id] = true;
+    try {
+      await depositToReserve(invItem.expand.item.id, qty);
+      notifications.success(`Déposé: ${qty}x ${invItem.expand.item.name}`);
+      await loadInventory();
+    } catch (e: any) {
+      notifications.error(e.message);
+    } finally {
+      depositingIds[invItem.id] = false;
+    }
   }
 
   async function loadInventory() {
@@ -465,21 +483,40 @@
                     >
                   </div>
 
-                  <!-- Sell Button -->
-                  <button
-                    onclick={() => handleSell(invItem)}
-                    disabled={sellingIds[invItem.id] ||
-                      getSellQuantity(invItem.id) <= 0}
-                    class="flex-1 py-1 px-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-emerald-900/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  >
-                    {#if sellingIds[invItem.id]}
-                      <div
-                        class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"
-                      ></div>
-                    {:else}
-                      Vendre
-                    {/if}
-                  </button>
+                  <div class="flex gap-2 flex-1">
+                    <!-- Deposit Button -->
+                    <button
+                      onclick={() => handleDeposit(invItem)}
+                      disabled={depositingIds[invItem.id] ||
+                        sellingIds[invItem.id]}
+                      class="w-10 flex items-center justify-center bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-xl font-bold transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="Déposer dans la réserve sécurisée"
+                    >
+                      {#if depositingIds[invItem.id]}
+                        <div
+                          class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"
+                        ></div>
+                      {:else}
+                        🔒
+                      {/if}
+                    </button>
+
+                    <!-- Sell Button -->
+                    <button
+                      onclick={() => handleSell(invItem)}
+                      disabled={sellingIds[invItem.id] ||
+                        getSellQuantity(invItem.id) <= 0}
+                      class="flex-1 py-1 px-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-emerald-900/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                      {#if sellingIds[invItem.id]}
+                        <div
+                          class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"
+                        ></div>
+                      {:else}
+                        Vendre
+                      {/if}
+                    </button>
+                  </div>
                 </div>
 
                 <div class="text-center">

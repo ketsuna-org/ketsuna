@@ -63,80 +63,28 @@
             : "Bienvenue, Invité"}
         </p>
       </div>
-      <div class="flex flex-wrap gap-3">
-        <a
-          href="/market"
-          class="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2.5 px-4 rounded-lg transition-colors duration-200 flex items-center gap-2"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            ><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"
-            ></circle><path
-              d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"
-            ></path></svg
-          >
-          Marché
-        </a>
-        <a
-          href="/laboratory"
-          class="bg-purple-600 hover:bg-purple-500 text-white font-semibold py-2.5 px-4 rounded-lg transition-colors duration-200 flex items-center gap-2"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            ><path d="M10 2v7.5"></path><path d="M14 2v7.5"></path><path
-              d="M8.5 2h7"
-            ></path><path d="M14 11.5L19 21c.5 1 0 2-1 2H6c-1 0-1.5-1-1-2l5-9.5"
-            ></path></svg
-          >
-          Laboratoire
-        </a>
-        <a
-          href="/workshop"
-          class="bg-amber-600 hover:bg-amber-500 text-white font-semibold py-2.5 px-4 rounded-lg transition-colors duration-200 flex items-center gap-2"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            ><path
-              d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"
-            ></path></svg
-          >
-          Atelier
-        </a>
-        <div class="h-10 w-px bg-border mx-2"></div>
-        <a
-          href="/company"
-          class="bg-surface hover:bg-surface-highlight border border-border text-content-secondary hover:text-white font-medium py-2.5 px-4 rounded-lg transition-colors duration-200"
-          >Sociétés</a
-        >
+      <div class="flex flex-wrap gap-3 items-center">
         <button
           onclick={logout}
-          class="bg-slate-800 hover:bg-slate-700 text-white font-semibold py-2.5 px-4 rounded-lg transition-colors duration-200"
-          >Quitter</button
+          class="bg-slate-800 hover:bg-slate-700 text-white font-semibold py-2.5 px-4 rounded-lg transition-colors duration-200 flex items-center gap-2"
         >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+            <polyline points="16 17 21 12 16 7"></polyline>
+            <line x1="21" y1="12" x2="9" y2="12"></line>
+          </svg>
+          Quitter
+        </button>
       </div>
     </div>
   </section>

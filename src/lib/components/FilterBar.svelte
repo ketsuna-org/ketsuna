@@ -20,12 +20,14 @@
         filters = [],
         selectedFilters = $bindable({} as Record<string, string>),
         onSearch = null,
+        class: className = "",
     } = $props<{
         searchQuery?: string;
         placeholder?: string;
         filters?: FilterOption[];
         selectedFilters?: Record<string, string>;
         onSearch?: (() => void) | null;
+        class?: string;
     }>();
 
     function handleInput(e: Event) {
@@ -52,7 +54,7 @@
 </script>
 
 <div
-    class="flex flex-col sm:flex-row gap-3 mb-6 p-4 bg-slate-800/50 rounded-xl border border-slate-700"
+    class="flex flex-col sm:flex-row gap-3 mb-6 p-4 bg-slate-800/50 rounded-xl border border-slate-700 {className}"
 >
     <!-- Search Input -->
     <div class="relative flex-1">

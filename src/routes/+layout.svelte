@@ -8,8 +8,12 @@
   import type { Company } from "$lib/types";
   import { goto } from "$app/navigation";
   import NotificationCenter from "$lib/components/NotificationCenter.svelte";
+  import NavigationHub from "$lib/components/NavigationHub.svelte";
+  import NavFab from "$lib/components/NavFab.svelte";
 
   let { children } = $props();
+
+  let navHubOpen = $state(false);
 
   onMount(async () => {
     // Initialise Firebase/Analytics
@@ -39,3 +43,11 @@
 </svelte:head>
 {@render children()}
 <NotificationCenter />
+
+<!-- Navigation Hub (Global) -->
+<NavigationHub bind:isOpen={navHubOpen} />
+
+<!-- Floating Action Button (only when logged in) -->
+{#if $currentUser}
+  <NavFab onclick={() => (navHubOpen = true)} />
+{/if}

@@ -62,10 +62,25 @@
         });
     });
 
-    // Calculer l'ensemble des ID d'employés déjà assignés à n'importe quelle machine
     let busyEmployeeIds = $derived(
         new Set(machines.flatMap((m) => m.employees || [])),
     );
+
+    // Filter states for machines
+    let machineSearchQuery = $state("");
+
+    // Filtered machines
+    let filteredMachines = $derived.by(() => {
+        return machines.filter((machine: Machine) => {
+            if (!machineSearchQuery) return true;
+            // machine.machine is the relation ID. expand.machine is the record.
+            // CAUTION: The type definition might need careful checking, casting as any or checking properties
+            const machineName = (machine.expand as any)?.machine?.name || "";
+            return machineName
+                .toLowerCase()
+                .includes(machineSearchQuery.toLowerCase());
+        });
+    });
 
     $effect(() => {
         if ($activeCompany) {
@@ -477,8 +492,14 @@
                                 </p>
                             </div>
                         {:else}
+                            <FilterBar
+                                bind:searchQuery={machineSearchQuery}
+                                placeholder="Rechercher une machine installée..."
+                                class="mb-4"
+                            />
+
                             <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                                {#each machines as machine (machine.id)}
+                                {#each filteredMachines as machine (machine.id)}
                                     <MachineAssignment
                                         {machine}
                                         allEmployees={employees}
