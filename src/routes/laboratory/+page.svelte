@@ -15,7 +15,7 @@
     let dashboardData: DashboardData | null = $state(null);
     let loading = $state(true);
     let error = $state("");
-    let filterLevel = $state(1);
+    let filterLevel = $state(0);
 
     $effect(() => {
         if ($activeCompany) {
