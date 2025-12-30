@@ -48,36 +48,50 @@
     try {
       unsubscribe = await pb
         .collection("inventory")
-        .subscribe("*", async ({ action, record }) => {
+        .subscribe("*", async (e) => {
+          const { action, record } = e;
+          console.log("[REALTIME] Inventory event:", action, record.id);
+
           if (record.company !== $activeCompany?.id) return;
 
           if (action === "create" || action === "update") {
             // Fetch updated record with expand to ensure we have item details
-            const updatedRecord = await pb
-              .collection("inventory")
-              .getOne<InventoryItem>(record.id, {
-                expand: "item",
-              });
+            try {
+              const updatedRecord = await pb
+                .collection("inventory")
+                .getOne<InventoryItem>(record.id, {
+                  expand: "item",
+                });
 
-            const index = inventory.findIndex((i) => i.id === record.id);
-            if (index > -1) {
-              inventory[index] = updatedRecord;
-            } else {
-              inventory.push(updatedRecord);
-              // Re-sort if needed, or just append
-              inventory.sort((a, b) =>
-                (a.expand?.item?.name || "").localeCompare(
-                  b.expand?.item?.name || "",
-                ),
+              const index = inventory.findIndex((i) => i.id === record.id);
+              if (index > -1) {
+                // Proper Svelte 5 reactivity: create new array
+                inventory = [
+                  ...inventory.slice(0, index),
+                  updatedRecord,
+                  ...inventory.slice(index + 1),
+                ];
+              } else {
+                inventory = [...inventory, updatedRecord].sort((a, b) =>
+                  (a.expand?.item?.name || "").localeCompare(
+                    b.expand?.item?.name || "",
+                  ),
+                );
+              }
+              // Initialize sell quantity if new
+              if (!sellQuantities[record.id]) {
+                sellQuantities = { ...sellQuantities, [record.id]: 1 };
+              }
+            } catch (fetchErr) {
+              console.error(
+                "[REALTIME] Failed to fetch updated record:",
+                fetchErr,
               );
-            }
-            // Initialize sell quantity if new
-            if (!sellQuantities[record.id]) {
-              sellQuantities[record.id] = 1;
             }
           } else if (action === "delete") {
             inventory = inventory.filter((i) => i.id !== record.id);
-            delete sellQuantities[record.id];
+            const { [record.id]: _, ...rest } = sellQuantities;
+            sellQuantities = rest;
           }
         });
     } catch (err) {
@@ -102,7 +116,7 @@
     try {
       const res = await sellItem(invItem.item, qty);
       notifications.success(`Vente réussie: +${formatCurrency(res.revenue)}`);
-      
+
       // Update local state immediately
       const index = inventory.findIndex((i) => i.id === invItem.id);
       if (index !== -1) {
@@ -119,10 +133,11 @@
 
       // Refresh company balance
       if ($activeCompany) {
-         const updatedCompany = await pb.collection('companies').getOne($activeCompany.id);
-         activeCompany.set(updatedCompany);
+        const updatedCompany = await pb
+          .collection("companies")
+          .getOne($activeCompany.id);
+        activeCompany.set(updatedCompany);
       }
-      
     } catch (err: any) {
       notifications.error(err?.message || "Erreur lors de la vente");
     } finally {

@@ -1,9 +1,14 @@
 <script lang="ts">
   import type { Employee } from "$lib/types";
 
-  let { employee, onfire } = $props<{
+  let {
+    employee,
+    onfire,
+    assignedMachine = null,
+  } = $props<{
     employee: Employee;
     onfire: (id: string) => void;
+    assignedMachine?: string | null;
   }>();
 
   function getRarityInfo(rarity: number) {
@@ -57,6 +62,16 @@
     <div>
       <p class="text-slate-500 text-xs">Efficacité</p>
       <p class="text-emerald-400 font-bold">{employee.efficiency}%</p>
+    </div>
+    <div class="text-right">
+      <p class="text-slate-500 text-xs">Affectation</p>
+      {#if assignedMachine}
+        <p class="text-indigo-400 text-xs font-semibold">
+          🔧 {assignedMachine}
+        </p>
+      {:else}
+        <p class="text-slate-500 text-xs italic">Non affecté</p>
+      {/if}
     </div>
   </div>
 

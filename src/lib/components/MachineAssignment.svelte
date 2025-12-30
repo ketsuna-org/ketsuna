@@ -2,6 +2,7 @@
   import type { Machine, Employee, Recipe } from "$lib/types";
   import pb from "$lib/pocketbase";
   import { notifications } from "$lib/notifications";
+  import { onMount, onDestroy } from "svelte";
 
   /**
    * @type {Machine} - La machine à configurer
@@ -32,6 +33,7 @@
   let machineRecipe: Recipe | null = null;
   let progress = 0;
   let timeRemaining = 0;
+  let progressInterval: ReturnType<typeof setInterval> | null = null;
 
   $: if (recipeId) {
     loadMachineRecipe(recipeId);
@@ -49,8 +51,8 @@
     }
   }
 
-  // Calcul du progrès pour les productions timées
-  $: {
+  // Fonction pour calculer et mettre à jour le progrès
+  function updateProgress() {
     if (
       machine.production_started_at &&
       machineRecipe &&
@@ -61,13 +63,35 @@
       const elapsed = (now - start) / 1000;
       const total = machineRecipe.production_time;
 
-      progress = Math.min(100, (elapsed / total) * 100);
+      const newProgress = Math.min(100, (elapsed / total) * 100);
+      progress = newProgress;
       timeRemaining = Math.max(0, total - elapsed);
+
+      // Si la production est terminée, déclencher un rafraîchissement
+      if (newProgress >= 100) {
+        // Reset visuel et rafraîchir les données
+        setTimeout(() => {
+          progress = 0;
+          onUpdate?.();
+        }, 1000);
+      }
     } else {
       progress = 0;
       timeRemaining = 0;
     }
   }
+
+  // Démarrer l'interval de mise à jour du progrès
+  onMount(() => {
+    updateProgress();
+    progressInterval = setInterval(updateProgress, 1000);
+  });
+
+  onDestroy(() => {
+    if (progressInterval) {
+      clearInterval(progressInterval);
+    }
+  });
 
   // Employés actuellement assignés
   $: assignedEmployeeIds = new Set(machine.employees || []);
