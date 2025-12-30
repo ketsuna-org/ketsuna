@@ -66,7 +66,6 @@ export interface Technology {
     description: string;
     cost: number; // tech_points required
     required_level: number;
-    effects_json: Record<string, unknown>;
     item_unlocked: string[]; // Relation to items
     expand?: {
         item_unlocked?: Item[];

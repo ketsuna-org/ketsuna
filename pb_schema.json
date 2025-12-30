@@ -1525,16 +1525,6 @@
                 "type": "number"
             },
             {
-                "hidden": false,
-                "id": "json2193473436",
-                "maxSize": 0,
-                "name": "effects_json",
-                "presentable": false,
-                "required": false,
-                "system": false,
-                "type": "json"
-            },
-            {
                 "cascadeDelete": false,
                 "collectionId": "pbc_710432678",
                 "hidden": false,

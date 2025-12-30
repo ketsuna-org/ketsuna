@@ -17,7 +17,7 @@ Les collections principales sont :
 - `employees` : employés d’une société avec `employer` (relation vers `companies`), `name`, `rarity`, `salary`, `efficiency`, `poste`.
 - `items` : objets du jeu avec `name`, `type` (Ressource Brute / Composant / Produit Fini), `base_price`, `volatility`.
 - `inventory` : inventaire d’une `company` pour un `item` donné avec `quantity`.
-- `technologies` : techno déblocable avec `name`, `description`, `cost`, `required_level`, `effects_json`, `item_unlocked` (relations vers `items`).
+- `technologies` : techno déblocable avec `name`, `description`, `cost`, `required_level`, `item_unlocked` (relations vers `items`).
 - `company_techs` : techno possédées par une `company` (`company`, `technology`).
 - `stocks` / `shareholders` : bourse interne avec `stocks` (symbol, share_price, total_shares, volatility, price_history_json) et `shareholders` (holder_company, stock, quantity).
 - `recipes` : recettes de craft avec `output_item`, `inputs_json`, `production_time`, `required_tech`.

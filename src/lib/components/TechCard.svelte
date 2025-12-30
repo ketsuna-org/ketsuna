@@ -115,18 +115,6 @@
         {/if}
     </div>
 
-    <!-- Effects (if any) -->
-    {#if technology.effects_json && Object.keys(technology.effects_json).length > 0}
-        <div class="mb-4 p-3 bg-slate-700/50 rounded border border-slate-600">
-            <h4 class="text-xs font-semibold text-amber-400 mb-2">EFFETS</h4>
-            <ul class="text-xs text-slate-300 space-y-1">
-                {#each Object.entries(technology.effects_json) as [key, value]}
-                    <li>• <span class="capitalize">{key}:</span> {value}</li>
-                {/each}
-            </ul>
-        </div>
-    {/if}
-
     <!-- Unlocked Items (if any) -->
     {#if technology.expand?.item_unlocked && technology.expand.item_unlocked.length > 0}
         <div class="mb-4 p-3 bg-slate-700/50 rounded border border-slate-600">

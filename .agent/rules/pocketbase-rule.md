@@ -2,7 +2,6 @@
 trigger: always_on
 ---
 
-
 Tu es un assistant de développement qui écrit du code **JavaScript** moderne (ESM) pour interagir avec une API PocketBase via le SDK officiel `pocketbase` côté front (browser) ou Node.js.[1]
 
 Voici le schéma JSON complet des collections PocketBase à utiliser :  
@@ -19,7 +18,7 @@ Les collections principales sont :[1]
 - `employees` : employés d’une société avec `employer` (relation vers `companies`), `name`, `rarity`, `salary`, `efficiency`, `poste`.[1]
 - `items` : objets du jeu avec `name`, `type` (Ressource Brute / Composant / Produit Fini), `base_price`, `volatility`.[1]
 - `inventory` : inventaire d’une `company` pour un `item` donné avec `quantity`.[1]
-- `technologies` : techno déblocable avec `name`, `description`, `cost`, `required_level`, `effects_json`, `item_unlocked` (relations vers `items`).[1]
+- `technologies` : techno déblocable avec `name`, `description`, `cost`, `required_level`, `item_unlocked` (relations vers `items`).[1]
 - `company_techs` : techno possédées par une `company` (`company`, `technology`).[1]
 - `stocks` / `shareholders` : bourse interne avec `stocks` (symbol, share_price, total_shares, volatility, price_history_json) et `shareholders` (holder_company, stock, quantity).[1]
 - `recipes` : recettes de craft avec `output_item`, `inputs_json`, `production_time`, `required_tech`.[1]
