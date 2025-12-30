@@ -7,6 +7,8 @@
   import { sellItem } from "$lib/services/inventory";
   import { notifications } from "$lib/notifications";
   import { goto } from "$app/navigation";
+  import FilterBar from "$lib/components/FilterBar.svelte";
+  import SellConfirmation from "$lib/components/SellConfirmation.svelte";
 
   let inventory = $state<InventoryItem[]>([]);
   let loading = $state(true);
@@ -14,6 +16,64 @@
   // Track quantity to sell per item
   let sellQuantities = $state<Record<string, number>>({});
   let sellingIds = $state<Record<string, boolean>>({});
+
+  // Filter states
+  let searchQuery = $state("");
+  let selectedFilters = $state<Record<string, string>>({});
+
+  const inventoryFilters = [
+    {
+      label: "Tous les types",
+      value: "type",
+      options: [
+        { label: "Ressource Brute", value: "Ressource Brute" },
+        { label: "Composant", value: "Composant" },
+        { label: "Produit Fini", value: "Produit Fini" },
+        { label: "Machine", value: "Machine" },
+      ],
+    },
+  ];
+
+  // Filtered inventory
+  let filteredInventory = $derived.by(() => {
+    return inventory.filter((inv) => {
+      const item = inv.expand?.item;
+      if (!item) return false;
+      // Search filter
+      if (
+        searchQuery &&
+        !item.name.toLowerCase().includes(searchQuery.toLowerCase())
+      ) {
+        return false;
+      }
+      // Type filter
+      if (selectedFilters.type && item.type !== selectedFilters.type) {
+        return false;
+      }
+      return true;
+    });
+  });
+
+  // Sell confirmation modal state
+  let sellConfirmItem = $state<InventoryItem | null>(null);
+
+  function openSellAllConfirmation(invItem: InventoryItem) {
+    sellConfirmItem = invItem;
+  }
+
+  function closeSellConfirmation() {
+    sellConfirmItem = null;
+  }
+
+  async function confirmSellAll() {
+    if (!sellConfirmItem) return;
+    const invItem = sellConfirmItem;
+    closeSellConfirmation();
+
+    // Set quantity to max and sell
+    sellQuantities[invItem.id] = invItem.quantity;
+    await handleSell(invItem);
+  }
 
   async function loadInventory() {
     if (!$activeCompany) return;
@@ -234,8 +294,21 @@
         </button>
       </div>
     {:else}
+      <!-- Filter Bar -->
+      <FilterBar
+        bind:searchQuery
+        placeholder="Rechercher un item..."
+        filters={inventoryFilters}
+        bind:selectedFilters
+      />
+
+      <!-- Results count -->
+      <div class="text-sm text-slate-400 mb-4">
+        {filteredInventory.length} item(s) sur {inventory.length}
+      </div>
+
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {#each inventory as invItem (invItem.id)}
+        {#each filteredInventory as invItem (invItem.id)}
           {@const item = invItem.expand?.item}
           {@const resalePrice = item ? item.base_price / 2 : 0}
           {@const totalValue = resalePrice * invItem.quantity}
@@ -411,12 +484,7 @@
 
                 <div class="text-center">
                   <button
-                    onclick={() =>
-                      setSellQuantity(
-                        invItem.id,
-                        invItem.quantity,
-                        invItem.quantity,
-                      )}
+                    onclick={() => openSellAllConfirmation(invItem)}
                     class="text-[10px] text-slate-500 hover:text-emerald-400 transition-colors uppercase font-bold tracking-wider"
                   >
                     Tout vendre
@@ -430,3 +498,17 @@
     {/if}
   </div>
 </div>
+
+<!-- Sell Confirmation Modal -->
+{#if sellConfirmItem}
+  {@const item = sellConfirmItem.expand?.item}
+  {#if item}
+    <SellConfirmation
+      itemName={item.name}
+      quantity={sellConfirmItem.quantity}
+      unitPrice={item.base_price / 2}
+      onConfirm={confirmSellAll}
+      onCancel={closeSellConfirmation}
+    />
+  {/if}
+{/if}

@@ -10,6 +10,7 @@
     import RecipeCard from "$lib/components/RecipeCard.svelte";
     import MachineAssignment from "$lib/components/MachineAssignment.svelte";
     import StatCard from "$lib/components/StatCard.svelte";
+    import FilterBar from "$lib/components/FilterBar.svelte";
     import { notifications } from "$lib/notifications";
 
     let recipes: any[] = $state([]);
@@ -21,6 +22,45 @@
     let loading = $state(true);
     let error = $state("");
     let activeTab = $state<"manual" | "automation">("manual");
+
+    // Filter states for recipes
+    let recipeSearchQuery = $state("");
+    let recipeFilters = $state<Record<string, string>>({});
+
+    const recipeFilterOptions = [
+        {
+            label: "Tous les temps",
+            value: "time",
+            options: [
+                { label: "Rapide (< 60s)", value: "fast" },
+                { label: "Long (> 60s)", value: "long" },
+            ],
+        },
+    ];
+
+    // Filtered recipes
+    let filteredRecipes = $derived.by(() => {
+        return recipes.filter((recipe: any) => {
+            // Search filter
+            const outputName = recipe.expand?.output_item?.name || "";
+            if (
+                recipeSearchQuery &&
+                !outputName
+                    .toLowerCase()
+                    .includes(recipeSearchQuery.toLowerCase())
+            ) {
+                return false;
+            }
+            // Time filter
+            if (recipeFilters.time === "fast" && recipe.production_time > 60) {
+                return false;
+            }
+            if (recipeFilters.time === "long" && recipe.production_time <= 60) {
+                return false;
+            }
+            return true;
+        });
+    });
 
     // Calculer l'ensemble des ID d'employés déjà assignés à n'importe quelle machine
     let busyEmployeeIds = $derived(
@@ -347,10 +387,23 @@
                                 </p>
                             </div>
                         {:else}
+                            <!-- Filter Bar -->
+                            <FilterBar
+                                bind:searchQuery={recipeSearchQuery}
+                                placeholder="Rechercher une recette..."
+                                filters={recipeFilterOptions}
+                                bind:selectedFilters={recipeFilters}
+                            />
+
+                            <!-- Results count -->
+                            <div class="text-sm text-slate-400 mb-2">
+                                {filteredRecipes.length} recette(s) sur {recipes.length}
+                            </div>
+
                             <div
                                 class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
                             >
-                                {#each recipes as recipe (recipe.id)}
+                                {#each filteredRecipes as recipe (recipe.id)}
                                     <RecipeCard
                                         {recipe}
                                         {inventory}

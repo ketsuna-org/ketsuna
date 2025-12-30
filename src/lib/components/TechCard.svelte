@@ -5,42 +5,29 @@
     import { activeCompany } from "$lib/stores";
     import pb from "$lib/pocketbase";
 
-    /**
-     * @type {Technology} - Données de la technologie à afficher
-     */
-    export let technology: Technology;
+    let {
+        technology,
+        availableTechPoints = 0,
+        companyLevel = 1,
+        companyId = "",
+        isOwned = false,
+        onUnlock = null,
+    } = $props<{
+        technology: Technology;
+        availableTechPoints?: number;
+        companyLevel?: number;
+        companyId?: string;
+        isOwned?: boolean;
+        onUnlock?: (() => void) | null;
+    }>();
 
-    /**
-     * @type {number} - Points de tech actuels disponibles
-     */
-    export let availableTechPoints: number = 0;
+    let isLoading = $state(false);
 
-    /**
-     * @type {number} - Niveau de l'entreprise
-     */
-    export let companyLevel: number = 1;
-
-    /**
-     * @type {string} - ID de l'entreprise
-     */
-    export let companyId: string = "";
-
-    /**
-     * @type {boolean} - Si la technologie est déjà débloquée
-     */
-    export let isOwned: boolean = false;
-
-    /**
-     * @type {() => void} - Callback pour rafraîchir après achat
-     */
-    export let onUnlock: (() => void) | null = null;
-
-    let isLoading = false;
-
-    const canUnlock =
+    let canUnlock = $derived(
         !isOwned &&
-        availableTechPoints >= technology.cost &&
-        companyLevel >= technology.required_level;
+            availableTechPoints >= technology.cost &&
+            companyLevel >= technology.required_level,
+    );
 
     async function handleUnlock() {
         if (!canUnlock || !companyId) return;
@@ -49,10 +36,8 @@
         try {
             await unlockTechnology(companyId, technology);
             // Refresh activeCompany store to reflect tech_points and balance changes
-            const updated = await pb
-                .collection("companies")
-                .getOne<Company>(companyId);
-            activeCompany.set(updated);
+            const updated = await pb.collection("companies").getOne(companyId); // Removed generic type as it might conflict if not imported
+            activeCompany.set(updated as unknown as Company);
             notifications.success(`${technology.name} débloquée !`);
             onUnlock?.();
         } catch (error: any) {
@@ -162,7 +147,7 @@
                     </div>
                 {/if}
                 <button
-                    on:click={handleUnlock}
+                    onclick={handleUnlock}
                     disabled={!canUnlock || isLoading}
                     class="w-full px-3 py-2 rounded font-semibold text-sm transition-all
                     {canUnlock && !isLoading
