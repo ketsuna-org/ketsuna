@@ -102,9 +102,27 @@
     try {
       const res = await sellItem(invItem.item, qty);
       notifications.success(`Vente réussie: +${formatCurrency(res.revenue)}`);
-      // Reset quantity to 1 after sale (or keep it if strictly desired, but usually reset is safer)
-      sellQuantities[invItem.id] = 1;
-      // Note: Inventory update comes via subscription or loadInventory
+      
+      // Update local state immediately
+      const index = inventory.findIndex((i) => i.id === invItem.id);
+      if (index !== -1) {
+        const newQty = inventory[index].quantity - qty;
+        if (newQty <= 0) {
+          inventory = inventory.filter((i) => i.id !== invItem.id);
+          delete sellQuantities[invItem.id];
+        } else {
+          inventory[index].quantity = newQty;
+          // Reset sell quantity to 1
+          sellQuantities[invItem.id] = 1;
+        }
+      }
+
+      // Refresh company balance
+      if ($activeCompany) {
+         const updatedCompany = await pb.collection('companies').getOne($activeCompany.id);
+         activeCompany.set(updatedCompany);
+      }
+      
     } catch (err: any) {
       notifications.error(err?.message || "Erreur lors de la vente");
     } finally {

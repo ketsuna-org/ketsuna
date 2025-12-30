@@ -27,29 +27,28 @@ export interface Item {
  * - Vérifier le solde disponible
  * - Déduire le coût du balance
  */
+/**
+ * Achète un item au marché pour l'entreprise active
+ * 
+ * @param companyId - ID de l'entreprise
+ * @param item - Objet item complet
+ * @param quantity - Quantité à acheter
+ * 
+ * NOTE: Le hook inventory.pb.js s'occupe de:
+ * - Vérifier que l'utilisateur est CEO
+ * - Vérifier le solde disponible
+ * - Déduire le coût du balance
+ */
 export async function buyItem(companyId: string, item: Item, quantity: number): Promise<void> {
     try {
-        // Créer/mettre à jour l'inventaire
-        // Le hook inventory.pb.js déduira automatiquement le balance lors de la création
-        const existing = await pb.collection("inventory").getFirstListItem(
-            `company='${companyId}' && item='${item.id}'`,
-            { requestKey: null }
-        ).catch(() => null);
-
-        if (existing) {
-            // Item déjà en inventaire, juste augmenter la quantité
-            await pb.collection("inventory").update(existing.id, {
-                quantity: (existing.quantity || 0) + quantity
-            });
-        } else {
-            // Nouvel item - créer l'inventaire
-            // Le hook déduira le coût du solde
-            await pb.collection("inventory").create({
-                company: companyId,
-                item: item.id,
-                quantity: quantity
-            });
-        }
+        await pb.send("/api/inventory/purchase", {
+            method: "POST",
+            body: {
+                companyId,
+                itemId: item.id,
+                quantity
+            }
+        });
 
         const totalCost = item.base_price * quantity;
         console.log(`[MARKET] Achat réussi: ${quantity}x ${item.name} pour €${totalCost}`);
