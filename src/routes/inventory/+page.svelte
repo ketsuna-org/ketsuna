@@ -443,10 +443,10 @@
                   >
                 </div>
 
-                <div class="flex gap-2">
+                <div class="flex flex-col gap-3">
                   <!-- Qty Selector -->
                   <div
-                    class="flex items-center gap-1 bg-slate-800 rounded-xl p-1 border border-white/5"
+                    class="flex items-center gap-1 bg-slate-800 rounded-xl p-1 border border-white/5 w-full flex-grow"
                   >
                     <button
                       onclick={() =>
@@ -461,7 +461,7 @@
                     >
                     <input
                       type="number"
-                      class="w-12 bg-transparent text-center font-mono font-bold text-sm text-white focus:outline-none"
+                      class="flex-1 min-w-0 bg-transparent text-center font-mono font-bold text-sm text-white focus:outline-none"
                       value={getSellQuantity(invItem.id)}
                       oninput={(e) =>
                         setSellQuantity(
@@ -481,15 +481,26 @@
                       class="w-8 h-8 rounded-lg hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition-colors disabled:opacity-30"
                       >+</button
                     >
+                    <button
+                      onclick={() =>
+                        setSellQuantity(
+                          invItem.id,
+                          invItem.quantity,
+                          invItem.quantity,
+                        )}
+                      class="px-2 h-8 text-[10px] font-black bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white rounded-lg transition-colors border border-white/5 shadow-inner"
+                    >
+                      MAX
+                    </button>
                   </div>
 
-                  <div class="flex gap-2 flex-1">
+                  <div class="flex gap-2 w-full">
                     <!-- Deposit Button -->
                     <button
                       onclick={() => handleDeposit(invItem)}
                       disabled={depositingIds[invItem.id] ||
                         sellingIds[invItem.id]}
-                      class="w-10 flex items-center justify-center bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-xl font-bold transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                      class="w-12 h-10 flex flex-shrink-0 items-center justify-center bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-xl font-bold transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                       title="Déposer dans la réserve sécurisée"
                     >
                       {#if depositingIds[invItem.id]}
@@ -506,7 +517,7 @@
                       onclick={() => handleSell(invItem)}
                       disabled={sellingIds[invItem.id] ||
                         getSellQuantity(invItem.id) <= 0}
-                      class="flex-1 py-1 px-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-emerald-900/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      class="flex-1 h-10 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-emerald-900/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
                       {#if sellingIds[invItem.id]}
                         <div
