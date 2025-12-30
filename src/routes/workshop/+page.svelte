@@ -88,8 +88,8 @@
         }
     });
 
-    async function loadData() {
-        loading = true;
+    async function loadData(silent = false) {
+        if (!silent) loading = true;
         error = "";
         try {
             const userId = pb.authStore.model?.id;
@@ -140,11 +140,13 @@
     }
 
     async function handleRecipeProduce() {
-        loadData();
+        loadData(true);
     }
 
     function handleMachineUpdate() {
-        loadData();
+        // No need for explicit loadData call as subscription will handle it,
+        // but we can call it silently to be sure
+        loadData(true);
     }
 
     // Création d'une assignation de machine depuis le stock
@@ -157,25 +159,27 @@
                 employees: [],
             });
             notifications.success("Machine assignée depuis le stock");
-            await loadData();
+            // loadData(true) will be called by subscription
         } catch (err: any) {
-            notifications.error(err?.message || "Erreur lors du recrutement");
+            notifications.error(err?.message || "Erreur lors de l'assignation");
         }
     }
 
-    let unsubscribe: () => void;
+    let unsubscribeInventory: () => void;
+    let unsubscribeMachines: () => void;
 
-    async function subscribeToInventory() {
-        if (unsubscribe) unsubscribe();
+    async function subscribeToData() {
+        if (unsubscribeInventory) unsubscribeInventory();
+        if (unsubscribeMachines) unsubscribeMachines();
 
         try {
-            unsubscribe = await pb
+            // Inventory Subscription
+            unsubscribeInventory = await pb
                 .collection("inventory")
                 .subscribe("*", async ({ action, record }) => {
                     if (record.company !== $activeCompany?.id) return;
 
                     if (action === "create" || action === "update") {
-                        // Fetch updated record with expand to ensure we have item details
                         const updatedRecord = await pb
                             .collection("inventory")
                             .getOne<InventoryItem>(record.id, {
@@ -194,34 +198,65 @@
                         inventory = inventory.filter((i) => i.id !== record.id);
                     }
 
-                    // Update derived lists
                     availableMachineStock = inventory.filter(
                         (inv) =>
                             inv.expand?.item?.type === "Machine" &&
                             (inv.quantity || 0) > 0,
                     );
 
-                    // Update dashboard data (partial update for resources)
                     if (dashboardData) {
                         dashboardData.resources.inventory_count =
                             inventory.length;
-                        // Note: We can't easily update top_items without complex logic or re-fetching,
-                        // but updating the total count is a good indicator.
                     }
                 });
+
+            // Machines Subscription
+            unsubscribeMachines = await pb
+                .collection("machines")
+                .subscribe<Machine>("*", async ({ action, record }) => {
+                    if (record.company !== $activeCompany?.id) return;
+
+                    if (action === "create" || action === "update") {
+                        // Fetch full record with expansion
+                        const updatedMachine = await pb
+                            .collection("machines")
+                            .getOne<Machine>(record.id, {
+                                expand: "machine.product,employees",
+                                requestKey: null,
+                            });
+
+                        const index = machines.findIndex(
+                            (m) => m.id === record.id,
+                        );
+                        if (index > -1) {
+                            machines[index] = updatedMachine;
+                        } else {
+                            machines = [...machines, updatedMachine];
+                        }
+                    } else if (action === "delete") {
+                        machines = machines.filter((m) => m.id !== record.id);
+                    }
+
+                    // Also trigger a silent dashboard data refresh if machines change
+                    // as it might impact stats
+                    fetchDashboardData(pb.authStore.model?.id).then((data) => {
+                        dashboardData = data;
+                    });
+                });
         } catch (err) {
-            console.error("Failed to subscribe to inventory", err);
+            console.error("Failed to subscribe to data", err);
         }
     }
 
     onDestroy(() => {
-        if (unsubscribe) unsubscribe();
+        if (unsubscribeInventory) unsubscribeInventory();
+        if (unsubscribeMachines) unsubscribeMachines();
     });
 
     $effect(() => {
         if ($activeCompany) {
             loadData().then(() => {
-                subscribeToInventory();
+                subscribeToData();
             });
         }
     });
