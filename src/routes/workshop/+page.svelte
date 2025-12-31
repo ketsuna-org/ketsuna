@@ -53,9 +53,26 @@
   // Filter states for machines
   let machineSearchQuery = $state("");
 
-  let busyEmployeeIds = $derived(
-    new Set(machines.flatMap((m) => m.employees || []))
-  );
+  let busyEmployeeIds = $state(new Set<string>());
+
+  async function fetchBusyEmployees() {
+    if (!$activeCompany?.id) return new Set<string>();
+    try {
+      const allMachines = await pb.collection("machines").getFullList({
+        filter: `company="${$activeCompany.id}"`,
+        fields: "employees",
+        requestKey: null,
+      });
+      const s = new Set<string>();
+      allMachines.forEach((m) => {
+        if (m.employees) m.employees.forEach((id: string) => s.add(id));
+      });
+      return s;
+    } catch (e) {
+      console.warn("Failed to fetch busy employees", e);
+      return new Set<string>();
+    }
+  }
 
   // Build PocketBase filter for recipes
   function buildRecipeFilter(): string {
@@ -171,23 +188,26 @@
       if (!userId) throw new Error("Non connecté");
       if (!$activeCompany?.id) throw new Error("Pas d'entreprise active");
 
-      const [employeesData, inventoryData, dashData] = await Promise.all([
-        pb.collection("employees").getFullList<Employee>({
-          filter: `employer="${$activeCompany.id}"`,
-          requestKey: null,
-        }),
-        pb.collection("inventory").getFullList<InventoryItem>({
-          filter: `company="${$activeCompany.id}"`,
-          expand: "item",
-          requestKey: null,
-        }),
-        fetchDashboardData(userId),
-      ]);
+      const [employeesData, inventoryData, dashData, busySet] =
+        await Promise.all([
+          pb.collection("employees").getFullList<Employee>({
+            filter: `employer="${$activeCompany.id}"`,
+            requestKey: null,
+          }),
+          pb.collection("inventory").getFullList<InventoryItem>({
+            filter: `company="${$activeCompany.id}"`,
+            expand: "item",
+            requestKey: null,
+          }),
+          fetchDashboardData(userId),
+          fetchBusyEmployees(),
+        ]);
 
       // Load paginated data
       await Promise.all([loadRecipes(1, false), loadMachines(1, false)]);
 
       employees = employeesData;
+      busyEmployeeIds = busySet;
       inventory = inventoryData;
       availableMachineStock = inventoryData.filter(
         (inv) => inv.expand?.item?.type === "Machine" && (inv.quantity || 0) > 0
@@ -319,6 +339,9 @@
           } else if (action === "delete") {
             machines = machines.filter((m) => m.id !== record.id);
           }
+
+          // Mise à jour de la liste globale des employés occupés
+          fetchBusyEmployees().then((s) => (busyEmployeeIds = s));
 
           fetchDashboardData(pb.authStore?.record?.id as string).then(
             (data) => {

@@ -64,6 +64,13 @@
       color: "from-slate-500 to-zinc-600",
       description: "Production manuelle et automatique",
     },
+    {
+      label: "Monde",
+      href: "/world",
+      icon: "🌍",
+      color: "from-blue-600 to-indigo-800",
+      description: "Explorez les autres sociétés",
+    },
   ];
 
   function navigateTo(href: string) {

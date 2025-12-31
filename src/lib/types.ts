@@ -22,6 +22,9 @@ export interface Company {
     tech_points: number;
     reputation: number;
     is_npc: boolean;
+    expand?: {
+        ceo?: User;
+    };
 }
 
 export interface Employee {
