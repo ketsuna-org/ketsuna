@@ -142,6 +142,32 @@
     {:else}
       <!-- Stats Section -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <!-- Balance Card -->
+        <div
+          class="bg-slate-900/50 border border-slate-700/50 rounded-2xl p-6 backdrop-blur-sm relative overflow-hidden"
+        >
+          <div
+            class="absolute -right-4 -top-4 w-24 h-24 bg-indigo-500/5 rounded-full blur-2xl"
+          ></div>
+          <div class="relative z-10">
+            <p
+              class="text-xs text-slate-400 font-bold uppercase tracking-wider mb-2"
+            >
+              Solde disponible
+            </p>
+            <p class="text-3xl font-black text-white">
+              {new Intl.NumberFormat("fr-FR", {
+                style: "currency",
+                currency: "EUR",
+                maximumFractionDigits: 0,
+              }).format(dashboardData?.financials.cash || 0)}
+            </p>
+            <p class="text-xs text-indigo-400/80 mt-1 font-medium">
+              Pour débloquer les technologies
+            </p>
+          </div>
+        </div>
+
         <div
           class="bg-slate-900/50 border border-slate-700/50 rounded-2xl p-6 backdrop-blur-sm relative overflow-hidden"
         >
@@ -182,19 +208,38 @@
             class="absolute -right-4 -top-4 w-24 h-24 bg-amber-500/5 rounded-full blur-2xl"
           ></div>
           <div class="relative z-10">
-            <p
-              class="text-xs text-slate-400 font-bold uppercase tracking-wider mb-2"
-            >
-              Prochain seuil
-            </p>
-            <p class="text-3xl font-black text-white">
-              Niveau {Math.max(
-                ...technologies.map((t) => t.required_level || 0)
-              )}
-            </p>
-            <p class="text-xs text-amber-500/80 mt-1 font-medium">
-              Requis pour l'arbre complet
-            </p>
+            {#if technologies
+              .map((t) => t.required_level)
+              .sort((a, b) => a - b)
+              .find((l) => l > (dashboardData?.company.level || 1))}
+              {@const nextLevel = technologies
+                .map((t) => t.required_level)
+                .sort((a, b) => a - b)
+                .find((l) => l > (dashboardData?.company.level || 1))}
+              <p
+                class="text-xs text-slate-400 font-bold uppercase tracking-wider mb-2"
+              >
+                Prochain Palier
+              </p>
+              <p class="text-3xl font-black text-white">
+                Niveau {nextLevel}
+              </p>
+              <p class="text-xs text-amber-500/80 mt-1 font-medium">
+                Débloque de nouvelles technologies
+              </p>
+            {:else}
+              <p
+                class="text-xs text-slate-400 font-bold uppercase tracking-wider mb-2"
+              >
+                Arbre Technologique
+              </p>
+              <p class="text-3xl font-black text-emerald-400">Complet</p>
+              <p class="text-xs text-slate-500 mt-1 font-medium">
+                Niveau {Math.max(
+                  ...technologies.map((t) => t.required_level || 0)
+                )} atteint
+              </p>
+            {/if}
           </div>
         </div>
       </div>
@@ -221,11 +266,13 @@
               class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pl-5 md:pl-0 border-l-2 border-slate-800 md:border-l-0 ml-5 md:ml-0 pb-4 md:pb-0"
             >
               {#each techs as tech (tech.id)}
-                technology={tech}
-                companyLevel={dashboardData?.company.level || 1}
-                companyId={$activeCompany?.id || ""}
-                isOwned={tech.isOwned}
-                onUnlock={handleTechUnlock}
+                <TechCard
+                  technology={tech}
+                  companyLevel={dashboardData?.company.level || 1}
+                  companyId={$activeCompany?.id || ""}
+                  availableBalance={dashboardData?.financials.cash || 0}
+                  isOwned={tech.isOwned}
+                  onUnlock={handleTechUnlock}
                 />
               {/each}
             </div>

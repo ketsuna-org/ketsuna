@@ -7,13 +7,14 @@
 
   let {
     technology,
-    availableTechPoints = 0,
+    availableBalance = 0,
     companyLevel = 1,
     companyId = "",
     isOwned = false,
     onUnlock = null,
   } = $props<{
     technology: Technology;
+    availableBalance?: number;
     companyLevel?: number;
     companyId?: string;
     isOwned?: boolean;
@@ -23,7 +24,9 @@
   let isLoading = $state(false);
 
   let canUnlock = $derived(
-    !isOwned && companyLevel >= technology.required_level
+    !isOwned &&
+      companyLevel >= technology.required_level &&
+      availableBalance >= technology.cost
   );
 
   async function handleUnlock() {
@@ -97,33 +100,48 @@
   </div>
 
   <!-- Requirements Grid -->
-  <div class="grid grid-cols-2 gap-2 mb-4">
-    <!-- Tech Points Cost -->
-
-    <!-- Level Req -->
-    {#if technology.required_level > 0}
-      <div class="bg-slate-950/50 rounded-lg p-2 border border-slate-800/50">
-        <p class="text-[10px] text-slate-500 font-bold uppercase mb-0.5">
-          Niveau
-        </p>
-        <div class="flex items-center gap-1.5">
-          <span
-            class="w-1.5 h-1.5 rounded-full {companyLevel >=
-            technology.required_level
-              ? 'bg-emerald-500'
-              : 'bg-red-500'}"
-          ></span>
-          <span
-            class="text-sm font-black {companyLevel >= technology.required_level
-              ? 'text-white'
-              : 'text-red-400'}"
-          >
-            {companyLevel}/{technology.required_level}
-          </span>
-        </div>
-      </div>
-    {/if}
+  <!-- Cost -->
+  <div class="bg-slate-950/50 rounded-lg p-2 border border-slate-800/50">
+    <p class="text-[10px] text-slate-500 font-bold uppercase mb-0.5">Coût</p>
+    <div class="flex items-center gap-1.5">
+      <span class="text-xs">💰</span>
+      <span
+        class="text-sm font-black {availableBalance >= technology.cost
+          ? 'text-white'
+          : 'text-red-400'}"
+      >
+        {new Intl.NumberFormat("fr-FR", {
+          style: "currency",
+          currency: "EUR",
+          maximumFractionDigits: 0,
+        }).format(technology.cost)}
+      </span>
+    </div>
   </div>
+
+  <!-- Level Req -->
+  {#if technology.required_level > 0}
+    <div class="bg-slate-950/50 rounded-lg p-2 border border-slate-800/50">
+      <p class="text-[10px] text-slate-500 font-bold uppercase mb-0.5">
+        Niveau
+      </p>
+      <div class="flex items-center gap-1.5">
+        <span
+          class="w-1.5 h-1.5 rounded-full {companyLevel >=
+          technology.required_level
+            ? 'bg-emerald-500'
+            : 'bg-red-500'}"
+        ></span>
+        <span
+          class="text-sm font-black {companyLevel >= technology.required_level
+            ? 'text-white'
+            : 'text-red-400'}"
+        >
+          {companyLevel}/{technology.required_level}
+        </span>
+      </div>
+    </div>
+  {/if}
 
   <!-- Unlocked Items Preview -->
   {#if technology.expand?.item_unlocked && technology.expand.item_unlocked.length > 0}
@@ -176,6 +194,8 @@
         <p class="text-[10px] text-center text-red-400/80 mt-2 font-medium">
           {#if companyLevel < technology.required_level}
             Niveau {technology.required_level} requis
+          {:else if availableBalance < technology.cost}
+            Fonds insuffisants
           {/if}
         </p>
       {/if}

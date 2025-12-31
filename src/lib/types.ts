@@ -19,6 +19,7 @@ export interface Company {
   balance: number;
   level: number;
   is_npc: boolean;
+  employee_count: number;
   expand?: {
     ceo?: User;
   };
@@ -64,6 +65,7 @@ export interface Technology {
   id: string;
   name: string;
   description: string;
+  cost: number;
   required_level: number;
   item_unlocked: string[]; // Relation to items
   expand?: {

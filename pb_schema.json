@@ -122,7 +122,6 @@
                 "system": false,
                 "type": "bool"
             },
-
             {
                 "cascadeDelete": false,
                 "collectionId": "pbc_3866053794",
@@ -316,7 +315,6 @@
                 "system": false,
                 "type": "number"
             },
-
             {
                 "hidden": false,
                 "id": "bool183031268",
@@ -325,6 +323,18 @@
                 "required": false,
                 "system": false,
                 "type": "bool"
+            },
+            {
+                "hidden": false,
+                "id": "number_employee_count",
+                "max": null,
+                "min": null,
+                "name": "employee_count",
+                "onlyInt": true,
+                "presentable": false,
+                "required": false,
+                "system": false,
+                "type": "number"
             },
             {
                 "hidden": false,
@@ -354,7 +364,7 @@
         "id": "pbc_1190436199",
         "listRule": "",
         "viewRule": "  @request.auth.id = company.ceo.id",
-        "createRule": "@request.auth.id = company.ceo.id && company.tech_points >= technology.cost && company.level >= technology.required_level ",
+        "createRule": "@request.auth.id = company.ceo.id && company.balance >= technology.cost && company.level >= technology.required_level ",
         "updateRule": null,
         "deleteRule": null,
         "name": "company_techs",
@@ -695,7 +705,7 @@
                 "type": "relation"
             },
             {
-                "cascadeDelete": false,
+                "cascadeDelete": true,
                 "collectionId": "pbc_710432678",
                 "hidden": false,
                 "id": "relation521872670",
@@ -794,7 +804,8 @@
                     "Ressource Brute",
                     "Composant",
                     "Produit Fini",
-                    "Machine"
+                    "Machine",
+                    "Stockage"
                 ]
             },
             {
@@ -873,6 +884,120 @@
             },
             {
                 "hidden": false,
+                "id": "number750388082",
+                "max": null,
+                "min": null,
+                "name": "max_employee",
+                "onlyInt": false,
+                "presentable": false,
+                "required": false,
+                "system": false,
+                "type": "number"
+            },
+            {
+                "cascadeDelete": false,
+                "collectionId": "pbc_710432678",
+                "hidden": false,
+                "id": "relation2156014362",
+                "maxSelect": 999,
+                "minSelect": 0,
+                "name": "can_store",
+                "presentable": false,
+                "required": false,
+                "system": false,
+                "type": "relation"
+            },
+            {
+                "hidden": false,
+                "id": "number1165756800",
+                "max": null,
+                "min": null,
+                "name": "produce_energy",
+                "onlyInt": false,
+                "presentable": false,
+                "required": false,
+                "system": false,
+                "type": "number"
+            },
+            {
+                "cascadeDelete": false,
+                "collectionId": "pbc_710432678",
+                "hidden": false,
+                "id": "relation670470888",
+                "maxSelect": 999,
+                "minSelect": 0,
+                "name": "can_consume",
+                "presentable": false,
+                "required": false,
+                "system": false,
+                "type": "relation"
+            },
+            {
+                "hidden": false,
+                "id": "number3868786094",
+                "max": null,
+                "min": null,
+                "name": "can_store_energy",
+                "onlyInt": false,
+                "presentable": false,
+                "required": false,
+                "system": false,
+                "type": "number"
+            },
+            {
+                "hidden": false,
+                "id": "number4025542688",
+                "max": null,
+                "min": null,
+                "name": "need_energy",
+                "onlyInt": false,
+                "presentable": false,
+                "required": false,
+                "system": false,
+                "type": "number"
+            },
+            {
+                "hidden": false,
+                "id": "select139334430",
+                "maxSelect": 1,
+                "name": "energy_type",
+                "presentable": false,
+                "required": false,
+                "system": false,
+                "type": "select",
+                "values": [
+                    "Soleil",
+                    "Electricité",
+                    "Fosille",
+                    "Manuel"
+                ]
+            },
+            {
+                "hidden": false,
+                "id": "number_market_demand",
+                "max": null,
+                "min": null,
+                "name": "market_demand",
+                "onlyInt": true,
+                "presentable": false,
+                "required": false,
+                "system": false,
+                "type": "number"
+            },
+            {
+                "hidden": false,
+                "id": "number_circulating_supply",
+                "max": null,
+                "min": null,
+                "name": "circulating_supply",
+                "onlyInt": true,
+                "presentable": false,
+                "required": false,
+                "system": false,
+                "type": "number"
+            },
+            {
+                "hidden": false,
                 "id": "autodate2990389176",
                 "name": "created",
                 "onCreate": true,
@@ -895,8 +1020,6 @@
         "indexes": [
             "CREATE UNIQUE INDEX `idx_2KIYSSKtvs` ON `items` (`name`)"
         ],
-        "created": "2025-12-25 22:12:10.135Z",
-        "updated": "2025-12-30 16:16:03.547Z",
         "system": false
     },
     {
@@ -972,6 +1095,18 @@
                 "required": false,
                 "system": false,
                 "type": "date"
+            },
+            {
+                "hidden": false,
+                "id": "number2945315038",
+                "max": null,
+                "min": null,
+                "name": "stored_energy",
+                "onlyInt": false,
+                "presentable": false,
+                "required": false,
+                "system": false,
+                "type": "number"
             },
             {
                 "hidden": false,
@@ -1174,6 +1309,92 @@
                 "type": "number"
             },
             {
+                "cascadeDelete": false,
+                "collectionId": "pbc_916922426",
+                "hidden": false,
+                "id": "relation1264587087",
+                "maxSelect": 999,
+                "minSelect": 0,
+                "name": "ingredients",
+                "presentable": false,
+                "required": false,
+                "system": false,
+                "type": "relation"
+            },
+            {
+                "hidden": false,
+                "id": "autodate2990389176",
+                "name": "created",
+                "onCreate": true,
+                "onUpdate": false,
+                "presentable": false,
+                "system": false,
+                "type": "autodate"
+            },
+            {
+                "hidden": false,
+                "id": "autodate3332085495",
+                "name": "updated",
+                "onCreate": true,
+                "onUpdate": true,
+                "presentable": false,
+                "system": false,
+                "type": "autodate"
+            }
+        ],
+        "indexes": [],
+        "system": false
+    },
+    {
+        "id": "pbc_916922426",
+        "listRule": null,
+        "viewRule": null,
+        "createRule": null,
+        "updateRule": null,
+        "deleteRule": null,
+        "name": "recipes_ingredients",
+        "type": "base",
+        "fields": [
+            {
+                "autogeneratePattern": "[a-z0-9]{15}",
+                "hidden": false,
+                "id": "text3208210256",
+                "max": 15,
+                "min": 15,
+                "name": "id",
+                "pattern": "^[a-z0-9]+$",
+                "presentable": false,
+                "primaryKey": true,
+                "required": true,
+                "system": true,
+                "type": "text"
+            },
+            {
+                "cascadeDelete": false,
+                "collectionId": "pbc_710432678",
+                "hidden": false,
+                "id": "relation521872670",
+                "maxSelect": 1,
+                "minSelect": 0,
+                "name": "item",
+                "presentable": false,
+                "required": false,
+                "system": false,
+                "type": "relation"
+            },
+            {
+                "hidden": false,
+                "id": "number2683508278",
+                "max": null,
+                "min": null,
+                "name": "quantity",
+                "onlyInt": false,
+                "presentable": false,
+                "required": false,
+                "system": false,
+                "type": "number"
+            },
+            {
                 "hidden": false,
                 "id": "autodate2990389176",
                 "name": "created",
@@ -1199,8 +1420,8 @@
     },
     {
         "id": "pbc_2394133960",
-        "listRule": null,
-        "viewRule": null,
+        "listRule": "company.ceo.id = @request.auth.id",
+        "viewRule": "company.ceo.id = @request.auth.id",
         "createRule": null,
         "updateRule": null,
         "deleteRule": null,
@@ -1554,7 +1775,18 @@
                 "system": false,
                 "type": "text"
             },
-
+            {
+                "hidden": false,
+                "id": "number405181692",
+                "max": null,
+                "min": null,
+                "name": "cost",
+                "onlyInt": false,
+                "presentable": false,
+                "required": false,
+                "system": false,
+                "type": "number"
+            },
             {
                 "hidden": false,
                 "id": "number1287247780",

@@ -11,20 +11,24 @@ export async function unlockTechnology(companyId: string, technology: Technology
 
 
 
+
+        // Vérification du solde (Check balance)
+        if (company.balance < technology.cost) {
+            throw new Error(`Fonds insuffisants. Requis: ${technology.cost}, Actuel: ${company.balance}`);
+        }
+
         if (company.level < technology.required_level) {
             throw new Error(`Niveau d'entreprise insuffisant. Requis: ${technology.required_level}`);
         }
 
         // 2. Créer le lien company_techs
-        // (Le backend PB hook gère probablement déjà le coût, mais on le fait proprement ici si nécessaire)
+        // Le backend gère la déduction du solde via les hooks
         await pb.collection("company_techs").create({
             company: companyId,
             technology: technology.id
         });
 
-        // Note: Si le hook ne déduit pas les points, on devrait le faire ici.
-        // Mais selon pocketbase-rule.md, c'est mieux si le backend le gère.
-        // Néanmoins, pour la réactivité UI, on pourrait mettre à jour le store local.
+        // Refresh store happen in the component via activeCompany update
 
         console.log(`[TECH] Technologie débloquée: ${technology.name}`);
     } catch (err: unknown) {

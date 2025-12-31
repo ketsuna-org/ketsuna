@@ -159,12 +159,22 @@
 
       const pos = hexToPixel(q, r);
 
+      // Calculate Dynamic Radius
+      const baseRadius = 40;
+      // Logarithmic scale: +5px per doubling of employees
+      // 0 emp -> 40
+      // 10 emp -> ~56
+      // 100 emp -> ~73
+      // 1000 emp -> ~90
+      const empBonus = Math.log2((company.employee_count || 0) + 1) * 5;
+      const nodeRadius = Math.min(100, baseRadius + empBonus);
+
       // Apply Camera Transform
       const screenX = pos.x * camera.z + camera.x;
       const screenY = pos.y * camera.z + camera.y;
 
       // Culling (Don't draw if outside screen)
-      const size = NODE_RADIUS * camera.z;
+      const size = nodeRadius * camera.z;
       if (
         screenX + size < 0 ||
         screenX - size > canvas.width ||
@@ -238,16 +248,16 @@
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
 
-    // Emoji
-    ctx.font = `${30 * camera.z}px sans-serif`;
-    ctx.fillText("🏭", x, y - 5 * camera.z);
+    // Emoji size relative to radius
+    ctx.font = `${r * 0.6}px sans-serif`;
+    ctx.fillText("🏭", x, y - r * 0.1);
 
     // Name
     ctx.font = `bold ${12 * camera.z}px sans-serif`;
-    ctx.fillText(company.name.slice(0, 10), x, y + 20 * camera.z);
+    ctx.fillText(company.name.slice(0, 10), x, y + r + 15 * camera.z);
 
     // Level Badge
-    const badgeR = r * 0.4;
+    const badgeR = r * 0.3;
     const badgeX = x + r * 0.7;
     const badgeY = y - r * 0.7;
 
@@ -257,7 +267,7 @@
     ctx.fill();
 
     ctx.fillStyle = "#000";
-    ctx.font = `bold ${10 * camera.z}px sans-serif`;
+    ctx.font = `bold ${badgeR * 1.2}px sans-serif`;
     ctx.fillText(company.level.toString(), badgeX, badgeY);
   }
 
