@@ -94,27 +94,12 @@
             {formatMoney(company.balance)}
           </p>
         </div>
-        <div class="bg-slate-800/50 p-3 rounded-xl border border-slate-700/50">
-          <p class="text-xs text-slate-500 uppercase font-bold mb-1">
-            Réputation
-          </p>
-          <p class="text-purple-400 font-mono font-bold text-lg">
-            {company.reputation.toLocaleString()} ★
-          </p>
-        </div>
+
         <div class="bg-slate-800/50 p-3 rounded-xl border border-slate-700/50">
           <p class="text-xs text-slate-500 uppercase font-bold mb-1">
             Employés
           </p>
           <p class="text-white font-mono font-bold text-lg">???</p>
-        </div>
-        <div class="bg-slate-800/50 p-3 rounded-xl border border-slate-700/50">
-          <p class="text-xs text-slate-500 uppercase font-bold mb-1">
-            Technologie
-          </p>
-          <p class="text-cyan-400 font-mono font-bold text-lg">
-            {company.tech_points.toLocaleString()} pts
-          </p>
         </div>
       </div>
 

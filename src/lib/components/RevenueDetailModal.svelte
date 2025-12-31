@@ -1,7 +1,7 @@
 <script lang="ts">
   interface Breakdown {
     base_hourly_revenue: number;
-    reputation_hourly_bonus: number;
+
     employees_hourly_revenue: number;
     maintenance_hourly: number;
     premium_multiplier: number;
@@ -12,7 +12,7 @@
   interface DailyView {
     revenue_base: number;
     revenue_employees: number;
-    revenue_reputation: number;
+
     cost_maintenance: number;
     cost_payroll: number;
     total_revenue: number;

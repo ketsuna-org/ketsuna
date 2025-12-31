@@ -12,11 +12,9 @@ export async function levelUpCompany(company: Company, cost: number): Promise<vo
         throw new Error(`Insufficient funds: Need $${cost}, have $${company.balance}`);
     }
 
-    // In a real backend, we'd verify reputation here too against a rule, 
-    // but the client already checked it. We trust the input for this exercise.
-    
-    // We update balance and level. Tech points might also increase or unlocked via level (handled by 'technologies' collection separately usually).
-    // Let's assume level up grants +1 Tech Point as a bonus? Structure doesn't specify, but let's keep it simple: Balance decreases, Level increases.
+    // We update balance and level.
+    // Let's assume level up grants benefits like unlocking technologies via level requirements.
+    // Balance decreases, Level increases.
     
     // Use the dedicated server-side endpoint which bypasses strict field protections safely
     await pb.send("/api/company/levelup", {

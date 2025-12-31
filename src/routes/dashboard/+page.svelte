@@ -41,16 +41,13 @@
 
   // Level Up Config
   const getLevelCost = (lvl: number) => Math.floor(1000 * Math.pow(lvl, 1.5));
-  const getRepReq = (lvl: number) => lvl * 10;
 
   async function handleLevelUp() {
     if (!dashboardData) return;
 
     const currentLevel = dashboardData.company.level;
     const cost = getLevelCost(currentLevel);
-    const repReq = getRepReq(currentLevel);
     const currentBalance = dashboardData.financials.cash;
-    const currentRep = dashboardData.company.prestige; // Using prestige as reputation proxy if needed, or if mapped correctly
 
     // Note: DashboardData.company.prestige comes from user.prestige.
     // Ideally we need company.reputation.
@@ -103,15 +100,7 @@
         .collection("companies")
         .getOne(dashboardData.company.id);
 
-      if (companyFull.reputation < repReq) {
-        notifications.warning(
-          `Réputation trop basse. Besoin de ${repReq} points`
-        );
-        levelUpLoading = false;
-        return;
-      }
-
-      await levelUpCompany(companyFull, cost);
+      await levelUpCompany(companyFull as unknown as Company, cost);
 
       // Refresh dashboard data
       await loadDashboard();
@@ -429,14 +418,7 @@
                   {dashboardData.staff.total_employees}
                 </p>
               </div>
-              <div>
-                <p class="text-slate-400 text-xs font-semibold uppercase">
-                  Prestige
-                </p>
-                <p class="text-white font-medium">
-                  {dashboardData.company.prestige}
-                </p>
-              </div>
+
               <div>
                 <p class="text-slate-400 text-xs font-semibold uppercase">
                   Efficacité Moy.

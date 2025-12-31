@@ -15,7 +15,7 @@
     try {
       // Fetch all companies sorted by prestige or level
       const result = await pb.collection("companies").getFullList<Company>({
-        sort: "-level,-reputation",
+        sort: "-level",
         expand: "ceo",
         requestKey: null,
       });

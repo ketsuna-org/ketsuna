@@ -14,7 +14,6 @@
     onUnlock = null,
   } = $props<{
     technology: Technology;
-    availableTechPoints?: number;
     companyLevel?: number;
     companyId?: string;
     isOwned?: boolean;
@@ -24,9 +23,7 @@
   let isLoading = $state(false);
 
   let canUnlock = $derived(
-    !isOwned &&
-      availableTechPoints >= technology.cost &&
-      companyLevel >= technology.required_level
+    !isOwned && companyLevel >= technology.required_level
   );
 
   async function handleUnlock() {
@@ -102,25 +99,6 @@
   <!-- Requirements Grid -->
   <div class="grid grid-cols-2 gap-2 mb-4">
     <!-- Tech Points Cost -->
-    <div class="bg-slate-950/50 rounded-lg p-2 border border-slate-800/50">
-      <p class="text-[10px] text-slate-500 font-bold uppercase mb-0.5">Coût</p>
-      <div class="flex items-center gap-1.5">
-        <span
-          class="w-1.5 h-1.5 rounded-full {availableTechPoints >=
-          technology.cost
-            ? 'bg-emerald-500'
-            : 'bg-red-500'}"
-        ></span>
-        <span
-          class="text-sm font-black {availableTechPoints >= technology.cost
-            ? 'text-white'
-            : 'text-red-400'}"
-        >
-          {technology.cost}
-        </span>
-        <span class="text-[10px] text-slate-500 font-mono">PTS</span>
-      </div>
-    </div>
 
     <!-- Level Req -->
     {#if technology.required_level > 0}
@@ -189,7 +167,7 @@
           <div
             class="absolute inset-0 bg-white/20 translate-y-full group-hover/btn:translate-y-0 transition-transform duration-300"
           ></div>
-          <span class="relative">Débloquer ({technology.cost} pts)</span>
+          <span class="relative">Débloquer</span>
         {:else}
           <span>🔒 Verrouillé</span>
         {/if}
@@ -198,8 +176,6 @@
         <p class="text-[10px] text-center text-red-400/80 mt-2 font-medium">
           {#if companyLevel < technology.required_level}
             Niveau {technology.required_level} requis
-          {:else if availableTechPoints < technology.cost}
-            Manque {technology.cost - availableTechPoints} points
           {/if}
         </p>
       {/if}

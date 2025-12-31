@@ -11,7 +11,6 @@ interface ApiFinanceResponse {
     monthly_net: number;
     breakdown: {
         base_hourly_revenue: number;
-        reputation_hourly_bonus: number;
         employees_hourly_revenue: number;
         hourly_costs?: number; // Parfois agrégé
         maintenance_hourly: number;
@@ -23,7 +22,6 @@ interface ApiFinanceResponse {
     daily_view: {
         revenue_base: number;
         revenue_employees: number;
-        revenue_reputation: number;
         cost_maintenance: number;
         cost_payroll: number;
         total_revenue: number;
@@ -36,9 +34,7 @@ export interface DashboardData {
     company: {
         name: string;
         level: number;
-        prestige: number;
         ceo: string;
-        tech_points: number;
         id: string;
     };
     financials: {
@@ -71,7 +67,6 @@ export interface DashboardData {
 interface PBUser {
     id: string;
     username: string;
-    prestige?: number;
     is_premium?: boolean;
     active_company: string;
     expand?: {
@@ -84,8 +79,6 @@ interface PBCompany {
     name: string;
     balance: number;
     level: number;
-    reputation: number;
-    tech_points?: number;
 }
 
 interface PBStock {
@@ -205,9 +198,7 @@ export async function fetchDashboardData(userId: string): Promise<DashboardData>
             company: {
                 name: company.name,
                 level: company.level || 1,
-                prestige: user.prestige || 0,
                 ceo: user.username || "Anonyme",
-                tech_points: Math.round((company.tech_points || 0) * 100) / 100,
                 id: companyId
             },
             financials: {

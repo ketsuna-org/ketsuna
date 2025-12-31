@@ -122,18 +122,7 @@
                 "system": false,
                 "type": "bool"
             },
-            {
-                "hidden": false,
-                "id": "number871140916",
-                "max": null,
-                "min": null,
-                "name": "prestige_score",
-                "onlyInt": false,
-                "presentable": false,
-                "required": false,
-                "system": false,
-                "type": "number"
-            },
+
             {
                 "cascadeDelete": false,
                 "collectionId": "pbc_3866053794",
@@ -327,30 +316,7 @@
                 "system": false,
                 "type": "number"
             },
-            {
-                "hidden": false,
-                "id": "number934801170",
-                "max": null,
-                "min": null,
-                "name": "tech_points",
-                "onlyInt": false,
-                "presentable": false,
-                "required": false,
-                "system": false,
-                "type": "number"
-            },
-            {
-                "hidden": false,
-                "id": "number3390536285",
-                "max": null,
-                "min": null,
-                "name": "reputation",
-                "onlyInt": false,
-                "presentable": false,
-                "required": false,
-                "system": false,
-                "type": "number"
-            },
+
             {
                 "hidden": false,
                 "id": "bool183031268",
@@ -1588,18 +1554,7 @@
                 "system": false,
                 "type": "text"
             },
-            {
-                "hidden": false,
-                "id": "number405181692",
-                "max": null,
-                "min": null,
-                "name": "cost",
-                "onlyInt": false,
-                "presentable": false,
-                "required": false,
-                "system": false,
-                "type": "number"
-            },
+
             {
                 "hidden": false,
                 "id": "number1287247780",

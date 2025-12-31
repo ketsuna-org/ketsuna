@@ -9,9 +9,7 @@ export async function unlockTechnology(companyId: string, technology: Technology
         // 1. Récupérer l'entreprise pour vérifier les points
         const company = await pb.collection("companies").getOne(companyId, { requestKey: null });
 
-        if (company.tech_points < technology.cost) {
-            throw new Error(`Points de technologie insuffisants. Besoin: ${technology.cost.toFixed(2)}, Actuel: ${company.tech_points.toFixed(2)}`);
-        }
+
 
         if (company.level < technology.required_level) {
             throw new Error(`Niveau d'entreprise insuffisant. Requis: ${technology.required_level}`);

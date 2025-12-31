@@ -104,26 +104,6 @@
           </p>
         </div>
       </div>
-
-      {#if dashboardData}
-        <div
-          class="bg-linear-to-br from-indigo-900/50 to-indigo-800/30 border border-indigo-700/30 rounded-2xl p-4 shadow-lg backdrop-blur-sm relative overflow-hidden group min-w-40"
-        >
-          <div
-            class="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity"
-          >
-            <span class="text-3xl">🧬</span>
-          </div>
-          <p
-            class="text-indigo-400/80 text-[10px] font-bold uppercase tracking-widest mb-1"
-          >
-            Points Recherche
-          </p>
-          <p class="text-white text-2xl font-black mt-1 tracking-tight">
-            {dashboardData.company.tech_points}
-          </p>
-        </div>
-      {/if}
     </header>
 
     {#if error}
@@ -217,31 +197,6 @@
             </p>
           </div>
         </div>
-
-        <div
-          class="bg-slate-900/50 border border-slate-700/50 rounded-2xl p-6 backdrop-blur-sm relative overflow-hidden"
-        >
-          <div
-            class="absolute -right-4 -top-4 w-24 h-24 bg-indigo-500/5 rounded-full blur-2xl"
-          ></div>
-          <div class="relative z-10">
-            <p
-              class="text-xs text-slate-400 font-bold uppercase tracking-wider mb-2"
-            >
-              Solde Tech
-            </p>
-            <div class="flex items-center gap-2">
-              <span class="text-3xl font-black text-indigo-400">
-                {dashboardData?.company.tech_points || 0}
-              </span>
-              <span
-                class="text-xs bg-indigo-500/10 text-indigo-300 px-2 py-0.5 rounded border border-indigo-500/20 font-bold"
-                >PTS</span
-              >
-            </div>
-            <p class="text-xs text-slate-500 mt-1">Disponibles pour dépenser</p>
-          </div>
-        </div>
       </div>
 
       <!-- Tech Tree by Level -->
@@ -266,13 +221,11 @@
               class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pl-5 md:pl-0 border-l-2 border-slate-800 md:border-l-0 ml-5 md:ml-0 pb-4 md:pb-0"
             >
               {#each techs as tech (tech.id)}
-                <TechCard
-                  technology={tech}
-                  availableTechPoints={dashboardData?.company.tech_points || 0}
-                  companyLevel={dashboardData?.company.level || 1}
-                  companyId={$activeCompany?.id || ""}
-                  isOwned={tech.isOwned}
-                  onUnlock={handleTechUnlock}
+                technology={tech}
+                companyLevel={dashboardData?.company.level || 1}
+                companyId={$activeCompany?.id || ""}
+                isOwned={tech.isOwned}
+                onUnlock={handleTechUnlock}
                 />
               {/each}
             </div>
@@ -306,16 +259,13 @@
                       </p>
                       <div class="flex gap-3 text-xs text-slate-400 mt-1">
                         <span class="flex items-center gap-1"
-                          >💰 {tech.cost} pts</span
-                        >
-                        <span class="flex items-center gap-1"
                           >📈 Niv {tech.required_level}</span
                         >
                       </div>
                     </div>
                   </div>
                   <div class="text-right">
-                    {#if dashboardData.company.tech_points >= tech.cost && dashboardData.company.level >= tech.required_level}
+                    {#if dashboardData.company.level >= tech.required_level}
                       <span
                         class="text-[10px] font-bold bg-emerald-500/10 text-emerald-400 px-2 py-1 rounded border border-emerald-500/20 uppercase tracking-wide"
                         >Disponible</span
