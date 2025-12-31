@@ -26,6 +26,7 @@
 
   let isLoading = false;
   let showEmployeeModal = false;
+  let showAssignedEmployees = false; // Collapsed by default
 
   // Recette de la machine (définie dans l'item)
   $: machineItem = machine.expand?.machine;
@@ -71,10 +72,10 @@
       machineItem.product &&
       (machineItem.production_time || 0) > 0
     ) {
-      total = machineItem.production_time;
+      total = machineItem.production_time || 0;
     }
 
-    if (total > 0) {
+    if (total > 0 && machine.production_started_at) {
       const start = new Date(machine.production_started_at).getTime();
       const elapsed = (now - start) / 1000;
 
@@ -85,7 +86,8 @@
       if (newProgress >= 100) {
         setTimeout(() => {
           progress = 0;
-          onUpdate?.();
+          // Note: on ne call pas onUpdate() ici pour éviter les refresh en boucle.
+          // Les mises à jour de données sont gérées par les subscriptions PocketBase.
         }, 1000);
       }
     } else {
@@ -110,18 +112,52 @@
   $: assignedEmployeeIds = new Set(machine.employees || []);
 
   // Employés disponibles pour assignation (exclut tous les employés occupés)
-  // Si busyEmployeeIds n'est pas fourni (ex: usage isolé), on fallback sur l'exclusion locale
-  $: availableEmployees = allEmployees.filter((emp) => {
-    if (busyEmployeeIds.size > 0) {
-      return !busyEmployeeIds.has(emp.id);
+  // Triés par efficacité décroissante
+  $: availableEmployees = allEmployees
+    .filter((emp) => {
+      if (busyEmployeeIds.size > 0) {
+        return !busyEmployeeIds.has(emp.id);
+      }
+      return !assignedEmployeeIds.has(emp.id);
+    })
+    .sort((a, b) => (b.efficiency || 1) - (a.efficiency || 1));
+
+  function getRarityInfo(rarity: number) {
+    switch (rarity) {
+      case 3:
+        return {
+          label: "Legendary",
+          color: "text-amber-400",
+          bg: "bg-amber-500/20",
+          border: "border-amber-500/50",
+        };
+      case 2:
+        return {
+          label: "Epic",
+          color: "text-purple-400",
+          bg: "bg-purple-500/20",
+          border: "border-purple-500/50",
+        };
+      case 1:
+        return {
+          label: "Rare",
+          color: "text-blue-400",
+          bg: "bg-blue-500/20",
+          border: "border-blue-500/50",
+        };
+      default:
+        return {
+          label: "Common",
+          color: "text-slate-400",
+          bg: "bg-slate-600/20",
+          border: "border-slate-600/50",
+        };
     }
-    return !assignedEmployeeIds.has(emp.id);
-  });
+  }
 
   async function handleAssignEmployee(employeeId: string) {
     isLoading = true;
     try {
-      // Ajouter l'employé à la liste
       const updatedEmployees = [...(machine.employees || []), employeeId];
 
       await pb.collection("machines").update(machine.id, {
@@ -149,6 +185,26 @@
       });
 
       notifications.success("✨ Employé désassigné");
+      onUpdate?.();
+    } catch (error: any) {
+      notifications.error(`Erreur: ${error.message}`);
+    } finally {
+      isLoading = false;
+    }
+  }
+
+  async function handleUnassignAll() {
+    if (!machine.employees || machine.employees.length === 0) return;
+
+    isLoading = true;
+    try {
+      await pb.collection("machines").update(machine.id, {
+        employees: [],
+      });
+
+      notifications.success(
+        `${machine.employees.length} employé(s) désassigné(s)`
+      );
       onUpdate?.();
     } catch (error: any) {
       notifications.error(`Erreur: ${error.message}`);
@@ -379,113 +435,163 @@
   </div>
 
   <!-- Assigned Employees -->
-  <div>
-    <div class="flex items-center justify-between mb-3">
+  <div class="relative">
+    <!-- Employee Selection Modal - NOW OPENS ABOVE -->
+    {#if showEmployeeModal}
       <div
-        class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2"
+        class="absolute bottom-full left-0 right-0 mb-2 p-4 bg-slate-900 border border-indigo-500/30 rounded-xl shadow-2xl z-20 overflow-hidden"
       >
-        <span class="w-1.5 h-1.5 rounded-full bg-slate-500"></span>
-        Opérateurs ({machine.employees?.length || 0})
-      </div>
-      <button
-        on:click={() => (showEmployeeModal = !showEmployeeModal)}
-        disabled={availableEmployees.length === 0 || isLoading}
-        class="text-xs px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md shadow-indigo-500/20 border border-indigo-500/50"
-      >
-        + Assigner
-      </button>
-    </div>
-
-    {#if machine.expand?.employees && machine.expand.employees.length > 0}
-      <div class="space-y-2">
-        {#each machine.expand.employees as employee (employee.id)}
-          <div
-            class="flex items-center justify-between bg-slate-800/80 rounded-xl p-3 border border-slate-700/50 group hover:border-slate-600 transition-colors"
+        <div class="absolute top-0 bottom-0 left-0 w-1 bg-indigo-500"></div>
+        <div class="flex items-center justify-between mb-3 pl-2">
+          <h4 class="text-sm font-bold text-white">Choisir un employé</h4>
+          <button
+            on:click={() => (showEmployeeModal = false)}
+            class="text-xs text-slate-400 hover:text-white p-1 hover:bg-slate-800 rounded"
           >
-            <div class="flex items-center gap-3">
-              <div
-                class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-300"
+            ✕
+          </button>
+        </div>
+
+        {#if availableEmployees.length > 0}
+          <div class="space-y-1 max-h-48 overflow-y-auto pr-1">
+            {#each availableEmployees as employee (employee.id)}
+              {@const rarity = getRarityInfo(employee.rarity)}
+              <button
+                on:click={() => handleAssignEmployee(employee.id)}
+                disabled={isLoading}
+                class="w-full text-left px-3 py-2.5 text-sm rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700/50 text-white transition-all disabled:opacity-50 flex items-center justify-between group"
               >
-                {employee.name.charAt(0)}
-              </div>
-              <div>
-                <p class="text-sm font-bold text-white">
-                  {employee.name}
-                </p>
-                <div class="flex gap-2 text-[10px] text-slate-400 font-medium">
+                <div class="flex items-center gap-3">
                   <span
-                    class="bg-slate-900/50 px-1.5 rounded border border-slate-800"
-                    >⚡ {(employee.efficiency || 1.0).toFixed(1)}x</span
+                    class="px-1.5 py-0.5 rounded text-[10px] font-bold {rarity.bg} {rarity.color} {rarity.border} border"
                   >
-                  <span>${employee.salary}/j</span>
+                    {rarity.label}
+                  </span>
+                  <span class="font-medium">{employee.name}</span>
                 </div>
-              </div>
-            </div>
-            <button
-              on:click={() => handleRemoveEmployee(employee.id)}
-              disabled={isLoading}
-              class="text-[10px] px-2 py-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-lg disabled:opacity-50 transition-all opacity-0 group-hover:opacity-100"
-            >
-              Retirer
-            </button>
+                <div class="flex items-center gap-2">
+                  <span class="text-xs text-slate-500">{employee.poste}</span>
+                  <span
+                    class="text-xs font-mono font-bold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20"
+                  >
+                    ⚡{(employee.efficiency || 1.0).toFixed(1)}x
+                  </span>
+                </div>
+              </button>
+            {/each}
           </div>
-        {/each}
-      </div>
-    {:else}
-      <div
-        class="p-4 border-2 border-dashed border-slate-800 rounded-xl text-center"
-      >
-        <p class="text-sm text-slate-500 font-medium">
-          Aucun opérateur assigné
-        </p>
-        <p class="text-xs text-slate-600 mt-1">
-          L'efficacité de la machine est réduite.
-        </p>
+        {:else}
+          <p class="text-xs text-slate-500 pl-2">Aucun employé disponible</p>
+        {/if}
       </div>
     {/if}
-  </div>
 
-  <!-- Employee Selection Modal -->
-  {#if showEmployeeModal}
-    <div
-      class="mt-4 p-4 bg-slate-900 border border-indigo-500/30 rounded-xl shadow-2xl relative overflow-hidden"
-    >
-      <div class="absolute top-0 bottom-0 left-0 w-1 bg-indigo-500"></div>
-      <div class="flex items-center justify-between mb-3 pl-2">
-        <h4 class="text-sm font-bold text-white">Choisir un employé</h4>
-        <button
-          on:click={() => (showEmployeeModal = false)}
-          class="text-xs text-slate-400 hover:text-white p-1 hover:bg-slate-800 rounded"
+    <div class="flex items-center justify-between mb-3">
+      <button
+        on:click={() => (showAssignedEmployees = !showAssignedEmployees)}
+        class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2 hover:text-white transition-colors"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          class="transition-transform {showAssignedEmployees
+            ? 'rotate-180'
+            : ''}"><polyline points="6 9 12 15 18 9"></polyline></svg
         >
-          ✕
+        <span
+          class="w-1.5 h-1.5 rounded-full {machine.employees &&
+          machine.employees.length > 0
+            ? 'bg-emerald-500'
+            : 'bg-slate-500'}"
+        ></span>
+        Opérateurs ({machine.employees?.length || 0})
+      </button>
+      <div class="flex items-center gap-2">
+        {#if machine.employees && machine.employees.length > 0}
+          <button
+            on:click={handleUnassignAll}
+            disabled={isLoading}
+            class="text-xs px-2.5 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-lg disabled:opacity-50 transition-all font-semibold"
+          >
+            ❌ Tout retirer
+          </button>
+        {/if}
+        <button
+          on:click={() => (showEmployeeModal = !showEmployeeModal)}
+          disabled={availableEmployees.length === 0 || isLoading}
+          class="text-xs px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md shadow-indigo-500/20 border border-indigo-500/50"
+        >
+          + Assigner
         </button>
       </div>
+    </div>
 
-      {#if availableEmployees.length > 0}
-        <div class="space-y-1 max-h-48 overflow-y-auto pr-1">
-          {#each availableEmployees as employee (employee.id)}
-            <button
-              on:click={() => handleAssignEmployee(employee.id)}
-              disabled={isLoading}
-              class="w-full text-left px-3 py-2 text-sm rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700/50 text-white transition-all disabled:opacity-50 flex items-center justify-between group"
+    {#if showAssignedEmployees}
+      {#if machine.expand?.employees && machine.expand.employees.length > 0}
+        <div class="space-y-2">
+          {#each machine.expand.employees as employee (employee.id)}
+            {@const rarity = getRarityInfo(employee.rarity)}
+            <div
+              class="flex items-center justify-between bg-slate-800/80 rounded-xl p-3 border border-slate-700/50 group hover:border-slate-600 transition-colors"
             >
-              <div class="flex items-center gap-2">
-                <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                <span class="font-medium">{employee.name}</span>
+              <div class="flex items-center gap-3">
+                <div
+                  class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold {rarity.bg} {rarity.color} {rarity.border} border"
+                >
+                  {employee.name.charAt(0)}
+                </div>
+                <div>
+                  <p
+                    class="text-sm font-bold text-white flex items-center gap-2"
+                  >
+                    {employee.name}
+                    <span
+                      class="text-[10px] px-1.5 py-0.5 rounded {rarity.bg} {rarity.color} font-bold"
+                      >{rarity.label}</span
+                    >
+                  </p>
+                  <div
+                    class="flex gap-2 text-[10px] text-slate-400 font-medium"
+                  >
+                    <span
+                      class="bg-slate-900/50 px-1.5 rounded border border-slate-800"
+                      >⚡ {(employee.efficiency || 1.0).toFixed(1)}x</span
+                    >
+                    <span>${employee.salary}/j</span>
+                  </div>
+                </div>
               </div>
-              <span
-                class="text-xs text-slate-400 font-mono group-hover:text-white transition-colors"
+              <button
+                on:click={() => handleRemoveEmployee(employee.id)}
+                disabled={isLoading}
+                class="text-[10px] px-2 py-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-lg disabled:opacity-50 transition-all opacity-0 group-hover:opacity-100"
               >
-                {(employee.efficiency || 1.0).toFixed(1)}x
-              </span>
-            </button>
+                Retirer
+              </button>
+            </div>
           {/each}
         </div>
-      {:else}
-        <p class="text-xs text-slate-500 pl-2">Aucun employé disponible</p>
+      {:else if showAssignedEmployees}
+        <div
+          class="p-4 border-2 border-dashed border-slate-800 rounded-xl text-center"
+        >
+          <p class="text-sm text-slate-500 font-medium">
+            Aucun opérateur assigné
+          </p>
+          <p class="text-xs text-slate-600 mt-1">
+            L'efficacité de la machine est réduite.
+          </p>
+        </div>
       {/if}
-    </div>
-  {/if}
+    {/if}
+  </div>
 </div>
 
 <style>

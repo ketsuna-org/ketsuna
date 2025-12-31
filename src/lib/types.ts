@@ -21,7 +21,6 @@ export interface Company {
     level: number;
     tech_points: number;
     reputation: number;
-    payroll_daily_cost: number;
     is_npc: boolean;
 }
 

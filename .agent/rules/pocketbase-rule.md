@@ -14,7 +14,7 @@ Ce PocketBase sert de backend pour un idle game / tycoon autour de sociétés, e
 Les collections principales sont :[1]
 
 - `users` (auth) : champs importants `email`, `password`, `username`, `avatar`, `is_premium`, `prestige_score`, relations `owned_companies` et `active_company`.[1]
-- `companies` : une société avec `ceo` (relation vers `users`), `name`, `balance`, `level`, `tech_points`, `reputation`, `payroll_daily_cost`, `is_npc`.[1]
+- `companies` : une société avec `ceo` (relation vers `users`), `name`, `balance`, `level`, `tech_points`, `reputation`, `is_npc`.[1]
 - `employees` : employés d’une société avec `employer` (relation vers `companies`), `name`, `rarity`, `salary`, `efficiency`, `poste`.[1]
 - `items` : objets du jeu avec `name`, `type` (Ressource Brute / Composant / Produit Fini), `base_price`, `volatility`.[1]
 - `inventory` : inventaire d’une `company` pour un `item` donné avec `quantity`.[1]

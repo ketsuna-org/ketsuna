@@ -4,7 +4,6 @@
   import { fade, slide } from "svelte/transition";
   import {
     withdrawFromReserve,
-    fetchReserveItems,
     getReserveOverview,
     type ReserveItem,
     type ReserveOverview,
@@ -12,56 +11,109 @@
   import { notifications } from "$lib/notifications";
   import { goto } from "$app/navigation";
   import FilterBar from "$lib/components/FilterBar.svelte";
+  import InfiniteScroll from "$lib/components/InfiniteScroll.svelte";
+  import pb from "$lib/pocketbase";
+
+  const PER_PAGE = 16;
 
   let reserveItems = $state<ReserveItem[]>([]);
   let overview = $state<ReserveOverview>({ used: 0, max: 0 });
   let loading = $state(true);
+  let loadingMore = $state(false);
   let withdrawingIds = $state<Record<string, boolean>>({});
   let withdrawQuantities = $state<Record<string, number>>({});
+  let currentPage = $state(1);
+  let hasMore = $state(true);
+  let totalItems = $state(0);
 
   // Filtering
   let searchQuery = $state("");
-  let filteredItems = $derived.by(() => {
-    return reserveItems.filter((res) => {
-      const item = res.expand?.item;
-      if (!item) return false;
-      if (
-        searchQuery &&
-        !item.name.toLowerCase().includes(searchQuery.toLowerCase())
-      ) {
-        return false;
-      }
-      return true;
-    });
-  });
+  let selectedFilters = $state<Record<string, string>>({});
 
-  onMount(async () => {
-    if (!$activeCompany) return;
-    loadData();
-  });
+  // Build PocketBase filter string
+  function buildFilterString(): string {
+    if (!$activeCompany) return "";
 
-  async function loadData() {
+    const parts: string[] = [`company = "${$activeCompany.id}"`];
+
+    if (searchQuery.trim()) {
+      parts.push(`item.name ~ "${searchQuery.trim()}"`);
+    }
+
+    return parts.join(" && ");
+  }
+
+  async function loadReserve(page: number = 1, append: boolean = false) {
     if (!$activeCompany) return;
-    loading = true;
+
+    if (page === 1) {
+      loading = true;
+    } else {
+      loadingMore = true;
+    }
+
     try {
-      const [items, ov] = await Promise.all([
-        fetchReserveItems($activeCompany.id),
-        getReserveOverview(),
+      const filter = buildFilterString();
+
+      const [result, ov] = await Promise.all([
+        pb.collection("reserve").getList<ReserveItem>(page, PER_PAGE, {
+          filter,
+          sort: "-quantity",
+          expand: "item",
+          requestKey: null,
+        }),
+        page === 1 ? getReserveOverview() : Promise.resolve(null),
       ]);
-      reserveItems = items;
-      overview = ov;
+
+      if (append) {
+        reserveItems = [...reserveItems, ...result.items];
+      } else {
+        reserveItems = result.items;
+      }
+
+      if (ov) {
+        overview = ov;
+      }
 
       // Init quantities
-      items.forEach((item) => {
-        withdrawQuantities[item.id] = 1;
+      result.items.forEach((item) => {
+        if (!withdrawQuantities[item.id]) {
+          withdrawQuantities[item.id] = 1;
+        }
       });
+
+      totalItems = result.totalItems;
+      hasMore = result.page < result.totalPages;
+      currentPage = result.page;
     } catch (error) {
       console.error(error);
       notifications.error("Impossible de charger la réserve");
     } finally {
       loading = false;
+      loadingMore = false;
     }
   }
+
+  function handleFilterChange(filters: {
+    searchQuery: string;
+    selectedFilters: Record<string, string>;
+  }) {
+    searchQuery = filters.searchQuery;
+    selectedFilters = filters.selectedFilters;
+    currentPage = 1;
+    hasMore = true;
+    loadReserve(1, false);
+  }
+
+  async function loadMore() {
+    if (loadingMore || !hasMore) return;
+    await loadReserve(currentPage + 1, true);
+  }
+
+  onMount(async () => {
+    if (!$activeCompany) return;
+    await loadReserve(1, false);
+  });
 
   async function handleWithdraw(resItem: ReserveItem) {
     const qty = withdrawQuantities[resItem.id] || 1;
@@ -75,7 +127,7 @@
       const result = await withdrawFromReserve(resItem.expand.item.id, qty);
       if (result.success) {
         notifications.success(`Retiré: ${qty}x ${resItem.expand.item.name}`);
-        await loadData(); // Reload to refresh grid and capacity
+        await loadReserve(1, false); // Reload to refresh grid and capacity
       }
     } catch (error: any) {
       notifications.error(error.message);
@@ -222,7 +274,19 @@
     </div>
 
     <!-- Filters -->
-    <FilterBar bind:searchQuery placeholder="Rechercher dans la réserve..." />
+    <FilterBar
+      bind:searchQuery
+      placeholder="Rechercher dans la réserve..."
+      onFilterChange={handleFilterChange}
+    />
+
+    <!-- Results count -->
+    <div class="text-sm text-slate-500 font-medium px-1">
+      Affichage de <span class="text-white font-bold"
+        >{reserveItems.length}</span
+      >
+      item(s) sur {totalItems}
+    </div>
 
     <!-- Grid -->
     {#if loading}
@@ -235,7 +299,7 @@
           ></div>
         {/each}
       </div>
-    {:else if reserveItems.length === 0}
+    {:else if reserveItems.length === 0 && !searchQuery}
       <div
         class="text-center py-20 bg-slate-900/30 rounded-3xl border border-slate-800 border-dashed backdrop-blur-sm"
       >
@@ -256,11 +320,21 @@
           Aller à l'Inventaire
         </button>
       </div>
+    {:else if reserveItems.length === 0}
+      <div
+        class="text-center py-12 bg-slate-900/30 rounded-2xl border border-slate-800"
+      >
+        <span class="text-3xl block mb-3">🔍</span>
+        <p class="text-lg font-bold text-white mb-1">Aucun résultat</p>
+        <p class="text-sm text-slate-400">
+          Aucun item ne correspond à vos critères de recherche.
+        </p>
+      </div>
     {:else}
       <div
         class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
       >
-        {#each filteredItems as res (res.id)}
+        {#each reserveItems as res (res.id)}
           <div
             transition:slide={{ duration: 300 }}
             class="bg-slate-900/40 border border-slate-800 rounded-2xl p-5 hover:border-indigo-500/30 hover:bg-slate-900/60 transition-all group flex flex-col justify-between relative overflow-hidden backdrop-blur-sm"
@@ -287,7 +361,7 @@
                   class="bg-slate-950/80 border border-slate-800 px-3 py-2 rounded-xl text-right min-w-20"
                 >
                   <div class="text-[10px] text-slate-500 font-bold mb-0.5">
-                    Title
+                    Quantité
                   </div>
                   <div
                     class="text-emerald-400 font-mono font-black text-lg leading-none"
@@ -352,6 +426,8 @@
           </div>
         {/each}
       </div>
+
+      <InfiniteScroll onLoadMore={loadMore} loading={loadingMore} {hasMore} />
     {/if}
   </div>
 </div>

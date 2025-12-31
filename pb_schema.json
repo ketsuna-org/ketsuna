@@ -353,18 +353,6 @@
             },
             {
                 "hidden": false,
-                "id": "number3242435260",
-                "max": null,
-                "min": null,
-                "name": "payroll_daily_cost",
-                "onlyInt": false,
-                "presentable": false,
-                "required": false,
-                "system": false,
-                "type": "number"
-            },
-            {
-                "hidden": false,
                 "id": "bool183031268",
                 "name": "is_npc",
                 "presentable": false,

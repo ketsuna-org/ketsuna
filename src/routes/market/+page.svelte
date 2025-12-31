@@ -2,20 +2,27 @@
   import { goto } from "$app/navigation";
   import { onMount } from "svelte";
   import { fade, fly, scale } from "svelte/transition";
-  import { buyItem, fetchMarketItems, type Item } from "$lib/services/market";
+  import { buyItem, type Item } from "$lib/services/market";
   import { fetchDashboardData, type DashboardData } from "$lib/dashboard";
   import { notifications } from "$lib/notifications";
   import { activeCompany } from "$lib/stores";
   import pb from "$lib/pocketbase";
-  import type { Company } from "$lib/types";
+  import type { Company, Recipe } from "$lib/types";
   import FilterBar from "$lib/components/FilterBar.svelte";
+  import InfiniteScroll from "$lib/components/InfiniteScroll.svelte";
+
+  const PER_PAGE = 16;
 
   let items: Item[] = $state([]);
   let dashboardData: DashboardData | null = $state(null);
   let loading = $state(true);
+  let loadingMore = $state(false);
   let buyingId = $state("");
   let error = $state("");
   let quantities: Record<string, number> = $state({});
+  let currentPage = $state(1);
+  let hasMore = $state(true);
+  let totalItems = $state(0);
 
   // Filter states
   let searchQuery = $state("");
@@ -33,35 +40,80 @@
     },
   ];
 
+  // Build PocketBase filter string
+  function buildFilterString(): string {
+    const parts: string[] = ['type != "Produit Fini"'];
+    
+    if (searchQuery.trim()) {
+      parts.push(`name ~ "${searchQuery.trim()}"`);
+    }
+    if (selectedFilters.type) {
+      parts.push(`type = "${selectedFilters.type}"`);
+    }
+    
+    return parts.join(" && ");
+  }
+
+  async function loadMarketItems(page: number = 1, append: boolean = false) {
+    if (page === 1) {
+      loading = true;
+    } else {
+      loadingMore = true;
+    }
+    
+    try {
+      const filter = buildFilterString();
+      
+      const result = await pb.collection("items").getList<Item>(page, PER_PAGE, {
+        filter,
+        sort: "name",
+        expand: "use_recipe.inputs_items,use_recipe.output_item,product",
+        requestKey: null,
+      });
+      
+      if (append) {
+        items = [...items, ...result.items];
+      } else {
+        items = result.items;
+      }
+      
+      totalItems = result.totalItems;
+      hasMore = result.page < result.totalPages;
+      currentPage = result.page;
+    } catch (err: any) {
+      error = err.message;
+    } finally {
+      loading = false;
+      loadingMore = false;
+    }
+  }
+
+  function handleFilterChange(filters: { searchQuery: string; selectedFilters: Record<string, string> }) {
+    searchQuery = filters.searchQuery;
+    selectedFilters = filters.selectedFilters;
+    currentPage = 1;
+    hasMore = true;
+    loadMarketItems(1, false);
+  }
+
+  async function loadMore() {
+    if (loadingMore || !hasMore) return;
+    await loadMarketItems(currentPage + 1, true);
+  }
+
   onMount(async () => {
     try {
       const userId = pb.authStore.model?.id;
       if (!userId) throw new Error("Non connecté");
 
-      [items, dashboardData] = await Promise.all([
-        fetchMarketItems(),
+      const [_, dashData] = await Promise.all([
+        loadMarketItems(1, false),
         fetchDashboardData(userId),
       ]);
+      dashboardData = dashData;
     } catch (err: any) {
       error = err.message;
-    } finally {
-      loading = false;
     }
-  });
-
-  const filteredItems = $derived.by(() => {
-    return items.filter((i) => {
-      // Search
-      if (
-        searchQuery &&
-        !i.name.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-        return false;
-      // Type filter
-      if (selectedFilters.type && i.type !== selectedFilters.type) return false;
-
-      return true;
-    });
   });
 
   function getQuantity(itemId: string): number {
@@ -223,7 +275,14 @@
       placeholder="Rechercher un item..."
       filters={marketFilters}
       bind:selectedFilters
+      onFilterChange={handleFilterChange}
     />
+
+    <!-- Results count -->
+    <div class="text-sm text-slate-500 font-medium px-1">
+      Affichage de <span class="text-white font-bold">{items.length}</span>
+      item(s) sur {totalItems}
+    </div>
 
     {#if loading}
       <div
@@ -235,11 +294,21 @@
           ></div>
         {/each}
       </div>
+    {:else if items.length === 0}
+      <div
+        class="text-center py-12 bg-slate-900/30 rounded-2xl border border-slate-800"
+      >
+        <span class="text-3xl block mb-3">🔍</span>
+        <p class="text-lg font-bold text-white mb-1">Aucun résultat</p>
+        <p class="text-sm text-slate-400">
+          Aucun item ne correspond à vos critères de recherche.
+        </p>
+      </div>
     {:else}
       <div
         class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
       >
-        {#each filteredItems as item (item.id)}
+        {#each items as item (item.id)}
           <div
             transition:fly={{ y: 20, duration: 400 }}
             class="group bg-slate-900/50 border border-slate-800 rounded-2xl p-6 transition-all hover:border-indigo-500/30 hover:bg-slate-900/80 hover:shadow-xl hover:shadow-indigo-500/10 flex flex-col justify-between relative overflow-hidden"
@@ -485,6 +554,12 @@
           </div>
         {/each}
       </div>
+
+      <InfiniteScroll 
+        onLoadMore={loadMore}
+        loading={loadingMore}
+        {hasMore}
+      />
     {/if}
   </div>
 </div>

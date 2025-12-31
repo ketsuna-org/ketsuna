@@ -6,6 +6,8 @@
      * @param placeholder - Placeholder for search input
      * @param filters - Array of filter options {label, value, options}
      * @param selectedFilters - Bindable object with selected filter values
+     * @param onFilterChange - Callback when filters change (debounced)
+     * @param debounceMs - Debounce delay in ms for search input (default 300)
      */
 
     interface FilterOption {
@@ -19,32 +21,55 @@
         placeholder = "Rechercher...",
         filters = [],
         selectedFilters = $bindable({} as Record<string, string>),
-        onSearch = null,
+        onFilterChange = null,
+        debounceMs = 300,
         class: className = "",
     } = $props<{
         searchQuery?: string;
         placeholder?: string;
         filters?: FilterOption[];
         selectedFilters?: Record<string, string>;
-        onSearch?: (() => void) | null;
+        onFilterChange?: ((filters: { searchQuery: string; selectedFilters: Record<string, string> }) => void) | null;
+        debounceMs?: number;
         class?: string;
     }>();
+
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+    function triggerFilterChange(immediate = false) {
+        if (debounceTimer) {
+            clearTimeout(debounceTimer);
+            debounceTimer = null;
+        }
+
+        if (!onFilterChange) return;
+
+        const doTrigger = () => {
+            onFilterChange?.({ searchQuery, selectedFilters });
+        };
+
+        if (immediate) {
+            doTrigger();
+        } else {
+            debounceTimer = setTimeout(doTrigger, debounceMs);
+        }
+    }
 
     function handleInput(e: Event) {
         const target = e.target as HTMLInputElement;
         searchQuery = target.value;
-        onSearch?.();
+        triggerFilterChange(false); // Debounced for typing
     }
 
     function handleFilterChange(filterKey: string, value: string) {
         selectedFilters = { ...selectedFilters, [filterKey]: value };
-        onSearch?.();
+        triggerFilterChange(true); // Immediate for dropdown changes
     }
 
     function clearFilters() {
         searchQuery = "";
         selectedFilters = {};
-        onSearch?.();
+        triggerFilterChange(true); // Immediate
     }
 
     let hasActiveFilters = $derived(
@@ -54,7 +79,7 @@
 </script>
 
 <div
-    class="flex flex-col sm:flex-row gap-3 mb-6 p-4 bg-slate-800/50 rounded-xl border border-slate-700 {className}"
+    class="flex flex-col sm:flex-row gap-3 p-4 bg-slate-800/50 rounded-xl border border-slate-700 {className}"
 >
     <!-- Search Input -->
     <div class="relative flex-1">

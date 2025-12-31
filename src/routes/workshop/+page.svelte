@@ -10,7 +10,10 @@
   import RecipeCard from "$lib/components/RecipeCard.svelte";
   import MachineAssignment from "$lib/components/MachineAssignment.svelte";
   import FilterBar from "$lib/components/FilterBar.svelte";
+  import InfiniteScroll from "$lib/components/InfiniteScroll.svelte";
   import { notifications } from "$lib/notifications";
+
+  const PER_PAGE = 12;
 
   let recipes: any[] = $state([]);
   let machines: Machine[] = $state([]);
@@ -19,8 +22,18 @@
   let availableMachineStock: InventoryItem[] = $state([]);
   let dashboardData: DashboardData | null = $state(null);
   let loading = $state(true);
+  let loadingMoreRecipes = $state(false);
+  let loadingMoreMachines = $state(false);
   let error = $state("");
   let activeTab = $state<"manual" | "automation">("manual");
+
+  // Pagination state
+  let recipePage = $state(1);
+  let hasMoreRecipes = $state(true);
+  let totalRecipes = $state(0);
+  let machinePage = $state(1);
+  let hasMoreMachines = $state(true);
+  let totalMachines = $state(0);
 
   // Filter states for recipes
   let recipeSearchQuery = $state("");
@@ -37,53 +50,118 @@
     },
   ];
 
-  // Filtered recipes
-  let filteredRecipes = $derived.by(() => {
-    return recipes.filter((recipe: any) => {
-      // Search filter
-      const outputName = recipe.expand?.output_item?.name || "";
-      if (
-        recipeSearchQuery &&
-        !outputName.toLowerCase().includes(recipeSearchQuery.toLowerCase())
-      ) {
-        return false;
-      }
-      // Time filter
-      if (recipeFilters.time === "fast" && recipe.production_time > 60) {
-        return false;
-      }
-      if (recipeFilters.time === "long" && recipe.production_time <= 60) {
-        return false;
-      }
-      return true;
-    });
-  });
+  // Filter states for machines
+  let machineSearchQuery = $state("");
 
   let busyEmployeeIds = $derived(
     new Set(machines.flatMap((m) => m.employees || []))
   );
 
-  // Filter states for machines
-  let machineSearchQuery = $state("");
+  // Build PocketBase filter for recipes
+  function buildRecipeFilter(): string {
+    if (!$activeCompany) return "";
 
-  // Filtered machines
-  let filteredMachines = $derived.by(() => {
-    return machines.filter((machine: Machine) => {
-      if (!machineSearchQuery) return true;
-      // machine.machine is the relation ID. expand.machine is the record.
-      // CAUTION: The type definition might need careful checking, casting as any or checking properties
-      const machineName = (machine.expand as any)?.machine?.name || "";
-      return machineName
-        .toLowerCase()
-        .includes(machineSearchQuery.toLowerCase());
-    });
-  });
+    const parts: string[] = [];
 
-  $effect(() => {
-    if ($activeCompany) {
-      loadData();
+    if (recipeSearchQuery.trim()) {
+      parts.push(`output_item.name ~ "${recipeSearchQuery.trim()}"`);
     }
-  });
+    if (recipeFilters.time === "fast") {
+      parts.push("production_time <= 60");
+    }
+    if (recipeFilters.time === "long") {
+      parts.push("production_time > 60");
+    }
+
+    return parts.join(" && ");
+  }
+
+  // Build PocketBase filter for machines
+  function buildMachineFilter(): string {
+    if (!$activeCompany) return "";
+
+    const parts: string[] = [`company = "${$activeCompany.id}"`];
+
+    if (machineSearchQuery.trim()) {
+      parts.push(`machine.name ~ "${machineSearchQuery.trim()}"`);
+    }
+
+    return parts.join(" && ");
+  }
+
+  async function loadRecipes(page: number = 1, append: boolean = false) {
+    if (!$activeCompany) return;
+
+    if (page === 1 && !append) {
+      loading = true;
+    } else {
+      loadingMoreRecipes = true;
+    }
+
+    try {
+      const filter = buildRecipeFilter();
+
+      const result = await pb.collection("recipes").getList(page, PER_PAGE, {
+        filter: filter || undefined,
+        expand: "output_item,inputs_items,required_tech",
+        sort: "production_time",
+        requestKey: null,
+      });
+
+      if (append) {
+        recipes = [...recipes, ...result.items];
+      } else {
+        recipes = result.items;
+      }
+
+      totalRecipes = result.totalItems;
+      hasMoreRecipes = result.page < result.totalPages;
+      recipePage = result.page;
+    } catch (err: any) {
+      console.error("Failed to load recipes", err);
+    } finally {
+      loading = false;
+      loadingMoreRecipes = false;
+    }
+  }
+
+  async function loadMachines(page: number = 1, append: boolean = false) {
+    if (!$activeCompany) return;
+
+    if (page === 1 && !append) {
+      // Don't set loading = true, let recipes handle that
+    } else {
+      loadingMoreMachines = true;
+    }
+
+    try {
+      const filter = buildMachineFilter();
+
+      const result = await pb
+        .collection("machines")
+        .getList<Machine>(page, PER_PAGE, {
+          filter,
+          expand: "machine.product,employees",
+          requestKey: null,
+        });
+
+      if (append) {
+        machines = [...machines, ...result.items];
+      } else {
+        machines = result.items;
+      }
+
+      totalMachines = result.totalItems;
+      hasMoreMachines = result.page < result.totalPages;
+      machinePage = result.page;
+    } catch (err: any) {
+      console.error("Failed to load machines", err);
+    } finally {
+      loadingMoreMachines = false;
+    }
+  }
+
+  // Data loading triggered by the $effect at the end of script
 
   async function loadData(silent = false) {
     if (!silent) loading = true;
@@ -93,19 +171,7 @@
       if (!userId) throw new Error("Non connecté");
       if (!$activeCompany?.id) throw new Error("Pas d'entreprise active");
 
-      const [
-        recipesData,
-        machinesData,
-        employeesData,
-        inventoryData,
-        dashData,
-      ] = await Promise.all([
-        fetchAvailableRecipes($activeCompany.id),
-        pb.collection("machines").getFullList<Machine>({
-          filter: `company="${$activeCompany.id}"`,
-          expand: "machine.product,employees",
-          requestKey: null,
-        }),
+      const [employeesData, inventoryData, dashData] = await Promise.all([
         pb.collection("employees").getFullList<Employee>({
           filter: `employer="${$activeCompany.id}"`,
           requestKey: null,
@@ -118,8 +184,9 @@
         fetchDashboardData(userId),
       ]);
 
-      recipes = recipesData;
-      machines = machinesData;
+      // Load paginated data
+      await Promise.all([loadRecipes(1, false), loadMachines(1, false)]);
+
       employees = employeesData;
       inventory = inventoryData;
       availableMachineStock = inventoryData.filter(
@@ -134,13 +201,42 @@
     }
   }
 
+  function handleRecipeFilterChange(filters: {
+    searchQuery: string;
+    selectedFilters: Record<string, string>;
+  }) {
+    recipeSearchQuery = filters.searchQuery;
+    recipeFilters = filters.selectedFilters;
+    recipePage = 1;
+    hasMoreRecipes = true;
+    loadRecipes(1, false);
+  }
+
+  function handleMachineFilterChange(filters: {
+    searchQuery: string;
+    selectedFilters: Record<string, string>;
+  }) {
+    machineSearchQuery = filters.searchQuery;
+    machinePage = 1;
+    hasMoreMachines = true;
+    loadMachines(1, false);
+  }
+
+  async function loadMoreRecipes() {
+    if (loadingMoreRecipes || !hasMoreRecipes) return;
+    await loadRecipes(recipePage + 1, true);
+  }
+
+  async function loadMoreMachines() {
+    if (loadingMoreMachines || !hasMoreMachines) return;
+    await loadMachines(machinePage + 1, true);
+  }
+
   async function handleRecipeProduce() {
     loadData(true);
   }
 
   function handleMachineUpdate() {
-    // No need for explicit loadData call as subscription will handle it,
-    // but we can call it silently to be sure
     loadData(true);
   }
 
@@ -154,7 +250,6 @@
         employees: [],
       });
       notifications.success("Machine assignée depuis le stock");
-      // loadData(true) will be called by subscription
     } catch (err: any) {
       notifications.error(err?.message || "Erreur lors de l'assignation");
     }
@@ -208,7 +303,6 @@
           if (record.company !== $activeCompany?.id) return;
 
           if (action === "create" || action === "update") {
-            // Fetch full record with expansion
             const updatedMachine = await pb
               .collection("machines")
               .getOne<Machine>(record.id, {
@@ -226,8 +320,6 @@
             machines = machines.filter((m) => m.id !== record.id);
           }
 
-          // Also trigger a silent dashboard data refresh if machines change
-          // as it might impact stats
           fetchDashboardData(pb.authStore?.record?.id as string).then(
             (data) => {
               dashboardData = data;
@@ -244,8 +336,23 @@
     if (unsubscribeMachines) unsubscribeMachines();
   });
 
-  $effect(() => {
+  // Track the company ID to avoid unnecessary reloads
+  let lastCompanyId: string | null = null;
+
+  onMount(() => {
     if ($activeCompany) {
+      lastCompanyId = $activeCompany.id;
+      loadData().then(() => {
+        subscribeToData();
+      });
+    }
+  });
+
+  // Only reload when company actually changes (ID change)
+  $effect(() => {
+    const currentId = $activeCompany?.id ?? null;
+    if (currentId && currentId !== lastCompanyId) {
+      lastCompanyId = currentId;
       loadData().then(() => {
         subscribeToData();
       });
@@ -431,12 +538,13 @@
                 <p class="text-sm text-slate-400">
                   Vous avez accès à <span class="text-white font-bold"
                     >{recipes.length}</span
-                  > recette(s)
+                  >
+                  / {totalRecipes} recette(s)
                 </p>
               </div>
             </div>
 
-            {#if recipes.length === 0}
+            {#if recipes.length === 0 && !recipeSearchQuery && !recipeFilters.time}
               <div
                 class="text-center py-16 bg-slate-950/50 rounded-xl border-2 border-dashed border-slate-800"
               >
@@ -461,22 +569,42 @@
                   placeholder="Rechercher une recette..."
                   filters={recipeFilterOptions}
                   bind:selectedFilters={recipeFilters}
+                  onFilterChange={handleRecipeFilterChange}
                 />
-                <div class="mt-3 text-xs text-slate-500 font-medium text-right">
-                  Affichage de {filteredRecipes.length} sur {recipes.length} recettes
-                </div>
               </div>
 
-              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {#each filteredRecipes as recipe (recipe.id)}
-                  <RecipeCard
-                    {recipe}
-                    {inventory}
-                    companyId={$activeCompany?.id || ""}
-                    onProduce={handleRecipeProduce}
-                  />
-                {/each}
-              </div>
+              {#if recipes.length === 0}
+                <div
+                  class="text-center py-12 bg-slate-950/50 rounded-xl border border-slate-800"
+                >
+                  <span class="text-3xl block mb-3">🔍</span>
+                  <p class="text-lg font-bold text-white mb-1">
+                    Aucun résultat
+                  </p>
+                  <p class="text-sm text-slate-400">
+                    Aucune recette ne correspond à vos critères.
+                  </p>
+                </div>
+              {:else}
+                <div
+                  class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                >
+                  {#each recipes as recipe (recipe.id)}
+                    <RecipeCard
+                      {recipe}
+                      {inventory}
+                      companyId={$activeCompany?.id || ""}
+                      onProduce={handleRecipeProduce}
+                    />
+                  {/each}
+                </div>
+
+                <InfiniteScroll
+                  onLoadMore={loadMoreRecipes}
+                  loading={loadingMoreRecipes}
+                  hasMore={hasMoreRecipes}
+                />
+              {/if}
             {/if}
           </div>
         </section>
@@ -541,7 +669,7 @@
               </div>
             {/if}
 
-            {#if machines.length === 0}
+            {#if machines.length === 0 && !machineSearchQuery}
               <div
                 class="text-center py-16 bg-slate-950/50 rounded-xl border-2 border-dashed border-slate-800"
               >
@@ -560,19 +688,46 @@
               <FilterBar
                 bind:searchQuery={machineSearchQuery}
                 placeholder="Rechercher une machine installée..."
-                class="mb-6"
+                onFilterChange={handleMachineFilterChange}
               />
 
-              <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {#each filteredMachines as machine (machine.id)}
-                  <MachineAssignment
-                    {machine}
-                    allEmployees={employees}
-                    onUpdate={handleMachineUpdate}
-                    {busyEmployeeIds}
-                  />
-                {/each}
+              <div class="text-sm text-slate-500 font-medium px-1">
+                Affichage de <span class="text-white font-bold"
+                  >{machines.length}</span
+                >
+                machine(s) sur {totalMachines}
               </div>
+
+              {#if machines.length === 0}
+                <div
+                  class="text-center py-12 bg-slate-950/50 rounded-xl border border-slate-800"
+                >
+                  <span class="text-3xl block mb-3">🔍</span>
+                  <p class="text-lg font-bold text-white mb-1">
+                    Aucun résultat
+                  </p>
+                  <p class="text-sm text-slate-400">
+                    Aucune machine ne correspond à vos critères.
+                  </p>
+                </div>
+              {:else}
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {#each machines as machine (machine.id)}
+                    <MachineAssignment
+                      {machine}
+                      allEmployees={employees}
+                      onUpdate={handleMachineUpdate}
+                      {busyEmployeeIds}
+                    />
+                  {/each}
+                </div>
+
+                <InfiniteScroll
+                  onLoadMore={loadMoreMachines}
+                  loading={loadingMoreMachines}
+                  hasMore={hasMoreMachines}
+                />
+              {/if}
             {/if}
 
             {#if employees.length === 0}

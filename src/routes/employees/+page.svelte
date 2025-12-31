@@ -3,7 +3,7 @@
   import pb from "$lib/pocketbase";
   import type { Company, Employee, Machine } from "$lib/types";
   import { onMount } from "svelte";
-  import { fade } from "svelte/transition";
+  import { fade, slide } from "svelte/transition";
   import {
     hireRandomEmployee,
     getHireCostPreview,
@@ -12,16 +12,31 @@
   import EmployeeCard from "$lib/components/EmployeeCard.svelte";
   import DeleteConfirmation from "$lib/components/DeleteConfirmation.svelte";
   import FilterBar from "$lib/components/FilterBar.svelte";
+  import InfiniteScroll from "$lib/components/InfiniteScroll.svelte";
   import { page } from "$app/stores";
   import { goto } from "$app/navigation";
   import { notifications } from "$lib/notifications";
 
+  const PER_PAGE = 20;
+
   let employees = $state<Employee[]>([]);
   let machines = $state<Machine[]>([]);
   let loading = $state(true);
+  let loadingMore = $state(false);
   let hiring = $state(false);
   let hireQuantity = $state(1);
   let costPreview = $state<HireCostPreview | null>(null);
+  let currentPage = $state(1);
+  let hasMore = $state(true);
+  let totalItems = $state(0);
+
+  // Collapsible state (collapsed by default)
+  let isListExpanded = $state(false);
+
+  // Bulk fire state
+  let bulkFireRarity = $state<string>("");
+  let showBulkFireConfirm = $state(false);
+  let bulkFiring = $state(false);
 
   // Filter states
   let searchQuery = $state("");
@@ -51,30 +66,56 @@
     },
   ];
 
-  // Filtered employees based on search and filters
-  let filteredEmployees = $derived.by(() => {
-    return employees.filter((emp) => {
-      // Search filter
-      if (
-        searchQuery &&
-        !emp.name.toLowerCase().includes(searchQuery.toLowerCase())
-      ) {
-        return false;
-      }
-      // Poste filter
-      if (selectedFilters.poste && emp.poste !== selectedFilters.poste) {
-        return false;
-      }
-      // Rarity filter
-      if (
-        selectedFilters.rarity &&
-        emp.rarity.toString() !== selectedFilters.rarity
-      ) {
-        return false;
-      }
-      return true;
-    });
+  const rarityLabels: Record<string, { label: string; color: string }> = {
+    "0": { label: "Common", color: "text-slate-400" },
+    "1": { label: "Rare", color: "text-blue-400" },
+    "2": { label: "Epic", color: "text-purple-400" },
+    "3": { label: "Legendary", color: "text-amber-400" },
+  };
+
+  // Stats derived from loaded employees
+  let employeeStats = $derived.by(() => {
+    const stats = {
+      totalSalary: 0,
+      avgEfficiency: 0,
+      byRarity: { "0": 0, "1": 0, "2": 0, "3": 0 } as Record<string, number>,
+    };
+    if (employees.length === 0) return stats;
+
+    let totalEff = 0;
+    for (const emp of employees) {
+      stats.totalSalary += emp.salary || 0;
+      totalEff += emp.efficiency || 1;
+      stats.byRarity[String(emp.rarity)] =
+        (stats.byRarity[String(emp.rarity)] || 0) + 1;
+    }
+    stats.avgEfficiency = totalEff / employees.length;
+    return stats;
   });
+
+  // Count employees to bulk fire
+  let bulkFireCount = $derived(
+    bulkFireRarity ? employeeStats.byRarity[bulkFireRarity] || 0 : 0
+  );
+
+  // Build PocketBase filter string from current filters
+  function buildFilterString(): string {
+    if (!$activeCompany) return "";
+
+    const parts: string[] = [`employer = "${$activeCompany.id}"`];
+
+    if (searchQuery.trim()) {
+      parts.push(`name ~ "${searchQuery.trim()}"`);
+    }
+    if (selectedFilters.poste) {
+      parts.push(`poste = "${selectedFilters.poste}"`);
+    }
+    if (selectedFilters.rarity) {
+      parts.push(`rarity = ${selectedFilters.rarity}`);
+    }
+
+    return parts.join(" && ");
+  }
 
   // Map employeeId -> machineName
   let employeeToMachine = $derived.by(() => {
@@ -101,7 +142,7 @@
     try {
       const result = await hireRandomEmployee($activeCompany, hireQuantity);
       employees = [...result.records, ...employees];
-      // Refresh active company to show new balance
+      totalItems += result.hiredCount;
       const updated = await pb
         .collection("companies")
         .getOne<Company>($activeCompany.id);
@@ -131,8 +172,8 @@
     try {
       await pb.collection("employees").delete(employeeToDelete.id);
       employees = employees.filter((e) => e.id !== employeeToDelete?.id);
+      totalItems = Math.max(0, totalItems - 1);
 
-      // Decrease payroll in company (reload to be safe)
       const updated = await pb
         .collection("companies")
         .getOne<Company>($activeCompany.id);
@@ -145,35 +186,121 @@
     }
   }
 
-  async function loadEmployees() {
-    if (!$activeCompany) return;
-    loading = true;
+  async function handleBulkFire() {
+    if (!bulkFireRarity || !$activeCompany || bulkFireCount === 0) return;
+
+    bulkFiring = true;
     try {
+      // Get all employees of this rarity
+      const toFire = await pb.collection("employees").getFullList<Employee>({
+        filter: `employer = "${$activeCompany.id}" && rarity = ${bulkFireRarity}`,
+        requestKey: null,
+      });
+
+      // Delete them one by one
+      let deleted = 0;
+      for (const emp of toFire) {
+        try {
+          await pb.collection("employees").delete(emp.id);
+          deleted++;
+        } catch (e) {
+          console.error("Failed to delete", emp.id, e);
+        }
+      }
+
+      // Update local state
+      employees = employees.filter((e) => String(e.rarity) !== bulkFireRarity);
+      totalItems = Math.max(0, totalItems - deleted);
+
+      const updated = await pb
+        .collection("companies")
+        .getOne<Company>($activeCompany.id);
+      activeCompany.set(updated);
+
+      notifications.success(`${deleted} employé(s) licencié(s)`);
+      showBulkFireConfirm = false;
+      bulkFireRarity = "";
+    } catch (e: any) {
+      notifications.error("Erreur: " + e.message);
+    } finally {
+      bulkFiring = false;
+    }
+  }
+
+  async function loadEmployees(page: number = 1, append: boolean = false) {
+    if (!$activeCompany) return;
+
+    if (page === 1) {
+      loading = true;
+    } else {
+      loadingMore = true;
+    }
+
+    try {
+      const filter = buildFilterString();
+
       const [empResult, machineResult, preview] = await Promise.all([
-        pb.collection("employees").getList<Employee>(1, 50, {
-          filter: `employer = "${$activeCompany.id}"`,
+        pb.collection("employees").getList<Employee>(page, PER_PAGE, {
+          filter,
           sort: "-efficiency",
+          requestKey: null,
         }),
-        pb.collection("machines").getList<Machine>(1, 100, {
-          filter: `company = "${$activeCompany.id}"`,
-          expand: "machine",
-        }),
-        getHireCostPreview(),
+        page === 1
+          ? pb.collection("machines").getList<Machine>(1, 100, {
+              filter: `company = "${$activeCompany.id}"`,
+              expand: "machine",
+              requestKey: null,
+            })
+          : Promise.resolve(null),
+        page === 1 ? getHireCostPreview() : Promise.resolve(null),
       ]);
-      employees = empResult.items;
-      machines = machineResult.items;
-      costPreview = preview;
+
+      if (append) {
+        employees = [...employees, ...empResult.items];
+      } else {
+        employees = empResult.items;
+      }
+
+      if (machineResult) {
+        machines = machineResult.items;
+      }
+      if (preview) {
+        costPreview = preview;
+      }
+
+      totalItems = empResult.totalItems;
+      hasMore = empResult.page < empResult.totalPages;
+      currentPage = empResult.page;
     } catch (e) {
       console.error("Failed to load employees", e);
     } finally {
       loading = false;
+      loadingMore = false;
     }
   }
 
-  // Reload when company changes (e.g. init)
+  function handleFilterChange(filters: {
+    searchQuery: string;
+    selectedFilters: Record<string, string>;
+  }) {
+    searchQuery = filters.searchQuery;
+    selectedFilters = filters.selectedFilters;
+    currentPage = 1;
+    hasMore = true;
+    loadEmployees(1, false);
+  }
+
+  async function loadMore() {
+    if (loadingMore || !hasMore) return;
+    await loadEmployees(currentPage + 1, true);
+  }
+
+  // Reload when company changes
   $effect(() => {
     if ($activeCompany) {
-      loadEmployees();
+      currentPage = 1;
+      hasMore = true;
+      loadEmployees(1, false);
     }
   });
 </script>
@@ -212,7 +339,6 @@
       <div
         class="flex items-center gap-4 bg-slate-900/80 p-2 rounded-2xl border border-slate-800 shadow-lg backdrop-blur-sm"
       >
-        <!-- Cost Preview Info -->
         {#if costPreview}
           <div
             class="text-xs text-slate-400 text-right hidden lg:block px-2 border-r border-slate-700/50 mr-2"
@@ -226,7 +352,6 @@
           </div>
         {/if}
 
-        <!-- Quantity Selector -->
         <div
           class="flex items-center gap-1 bg-slate-950 rounded-xl p-1 border border-slate-800"
         >
@@ -243,7 +368,6 @@
           {/each}
         </div>
 
-        <!-- Hire Button -->
         <button
           onclick={handleHire}
           disabled={hiring}
@@ -276,7 +400,7 @@
           Chargement du personnel...
         </p>
       </div>
-    {:else if employees.length === 0}
+    {:else if totalItems === 0 && !searchQuery && Object.keys(selectedFilters).filter((k) => selectedFilters[k]).length === 0}
       <div
         class="text-center py-20 bg-slate-900/30 rounded-3xl border border-slate-800 border-dashed"
       >
@@ -288,33 +412,171 @@
         </p>
       </div>
     {:else}
-      <!-- Filter Bar & Stats -->
-      <div class="flex flex-col md:flex-row justify-between items-end gap-4">
-        <div class="w-full md:w-auto flex-1">
-          <FilterBar
-            bind:searchQuery
-            placeholder="Rechercher un employé..."
-            filters={employeeFilters}
-            bind:selectedFilters
-          />
+      <!-- Stats Summary Card -->
+      <div class="bg-slate-900/50 rounded-2xl border border-slate-800 p-5">
+        <div class="flex flex-col lg:flex-row justify-between gap-6">
+          <!-- Stats -->
+          <div class="flex flex-wrap gap-6">
+            <div>
+              <p class="text-[10px] text-slate-500 font-bold uppercase mb-1">
+                Effectif total
+              </p>
+              <p class="text-2xl font-black text-white">{totalItems}</p>
+            </div>
+            <div>
+              <p class="text-[10px] text-slate-500 font-bold uppercase mb-1">
+                Salaires / jour
+              </p>
+              <p class="text-2xl font-black text-red-400">
+                {employeeStats.totalSalary.toLocaleString()}€
+              </p>
+            </div>
+            <div>
+              <p class="text-[10px] text-slate-500 font-bold uppercase mb-1">
+                Efficacité moy.
+              </p>
+              <p class="text-2xl font-black text-emerald-400">
+                {employeeStats.avgEfficiency.toFixed(1)}%
+              </p>
+            </div>
+            <div class="flex gap-3 items-end">
+              {#each Object.entries(employeeStats.byRarity) as [rarity, count]}
+                {#if count > 0}
+                  <div class="text-center">
+                    <p
+                      class="text-lg font-black {rarityLabels[rarity]?.color ||
+                        'text-slate-400'}"
+                    >
+                      {count}
+                    </p>
+                    <p class="text-[10px] text-slate-500">
+                      {rarityLabels[rarity]?.label}
+                    </p>
+                  </div>
+                {/if}
+              {/each}
+            </div>
+          </div>
+
+          <!-- Bulk Fire Section -->
+          <div
+            class="flex items-center gap-3 bg-slate-950/50 p-3 rounded-xl border border-slate-800"
+          >
+            <select
+              bind:value={bulkFireRarity}
+              class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-red-500"
+            >
+              <option value="">Licencier par rareté...</option>
+              {#each Object.entries(rarityLabels) as [value, info]}
+                {#if employeeStats.byRarity[value] > 0}
+                  <option {value}
+                    >{info.label} ({employeeStats.byRarity[value]})</option
+                  >
+                {/if}
+              {/each}
+            </select>
+            <button
+              onclick={() => (showBulkFireConfirm = true)}
+              disabled={!bulkFireRarity || bulkFireCount === 0}
+              class="px-4 py-2 bg-red-600/20 hover:bg-red-600/30 text-red-400 font-bold rounded-lg border border-red-500/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm flex items-center gap-2"
+            >
+              🔥 Licencier {bulkFireCount > 0 ? `(${bulkFireCount})` : ""}
+            </button>
+          </div>
         </div>
-        <div
-          class="text-sm font-bold text-slate-400 px-3 py-2 bg-slate-900/50 rounded-xl border border-slate-800"
+
+        <!-- Expand/Collapse Toggle -->
+        <button
+          onclick={() => (isListExpanded = !isListExpanded)}
+          class="mt-4 w-full flex items-center justify-center gap-2 py-2 text-sm text-slate-400 hover:text-white transition-colors"
         >
-          <span class="text-white">{filteredEmployees.length}</span>
-          <span class="text-slate-500 font-normal">employés affichés</span>
-        </div>
+          {#if isListExpanded}
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              ><polyline points="18 15 12 9 6 15"></polyline></svg
+            >
+            Masquer la liste des employés
+          {:else}
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              ><polyline points="6 9 12 15 18 9"></polyline></svg
+            >
+            Afficher la liste ({totalItems} employés)
+          {/if}
+        </button>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {#each filteredEmployees as emp (emp.id)}
-          <EmployeeCard
-            employee={emp}
-            onfire={requestFire}
-            assignedMachine={employeeToMachine.get(emp.id) || null}
-          />
-        {/each}
-      </div>
+      <!-- Collapsible Employee List -->
+      {#if isListExpanded}
+        <div transition:slide={{ duration: 300 }}>
+          <!-- Filter Bar & Stats -->
+          <div
+            class="flex flex-col md:flex-row justify-between items-end gap-4 mb-6"
+          >
+            <div class="w-full md:w-auto flex-1">
+              <FilterBar
+                bind:searchQuery
+                placeholder="Rechercher un employé..."
+                filters={employeeFilters}
+                bind:selectedFilters
+                onFilterChange={handleFilterChange}
+              />
+            </div>
+            <div
+              class="text-sm font-bold text-slate-400 px-3 py-2 bg-slate-900/50 rounded-xl border border-slate-800"
+            >
+              <span class="text-white">{employees.length}</span>
+              <span class="text-slate-500 font-normal"
+                >/ {totalItems} employés</span
+              >
+            </div>
+          </div>
+
+          {#if employees.length === 0}
+            <div
+              class="text-center py-12 bg-slate-900/30 rounded-2xl border border-slate-800"
+            >
+              <span class="text-3xl block mb-3">🔍</span>
+              <p class="text-lg font-bold text-white mb-1">Aucun résultat</p>
+              <p class="text-sm text-slate-400">
+                Aucun employé ne correspond à vos critères de recherche.
+              </p>
+            </div>
+          {:else}
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {#each employees as emp (emp.id)}
+                <EmployeeCard
+                  employee={emp}
+                  onfire={requestFire}
+                  assignedMachine={employeeToMachine.get(emp.id) || null}
+                />
+              {/each}
+            </div>
+
+            <InfiniteScroll
+              onLoadMore={loadMore}
+              loading={loadingMore}
+              {hasMore}
+            />
+          {/if}
+        </div>
+      {/if}
     {/if}
   </div>
 </div>
@@ -326,5 +588,15 @@
     confirmText="Licencier"
     onConfirm={confirmFire}
     onCancel={cancelFire}
+  />
+{/if}
+
+{#if showBulkFireConfirm && bulkFireRarity}
+  <DeleteConfirmation
+    title="Licenciement groupé"
+    message={`Voulez-vous vraiment licencier <strong>tous les ${bulkFireCount} employés ${rarityLabels[bulkFireRarity]?.label}</strong> ? Cette action est irréversible.`}
+    confirmText={bulkFiring ? "En cours..." : `Licencier ${bulkFireCount}`}
+    onConfirm={handleBulkFire}
+    onCancel={() => (showBulkFireConfirm = false)}
   />
 {/if}
