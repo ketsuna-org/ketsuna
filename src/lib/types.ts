@@ -20,6 +20,7 @@ export interface Company {
   level: number;
   is_npc: boolean;
   employee_count: number;
+  machine_count?: number;
   expand?: {
     ceo?: User;
   };
@@ -48,6 +49,7 @@ export interface Item {
   produce_energy?: number;
   can_store_energy?: number;
   need_energy?: number;
+  max_employee?: number;
   can_consume?: string; // Relation to item (fuel)
   expand?: {
     product?: Item;

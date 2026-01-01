@@ -99,7 +99,9 @@
           <p class="text-xs text-slate-500 uppercase font-bold mb-1">
             Employés
           </p>
-          <p class="text-white font-mono font-bold text-lg">???</p>
+          <p class="text-white font-mono font-bold text-lg">
+            {company.employee_count ?? 0}
+          </p>
         </div>
       </div>
 

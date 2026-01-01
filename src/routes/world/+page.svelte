@@ -2,7 +2,7 @@
   import { onMount } from "svelte";
   import { fade } from "svelte/transition";
   import pb from "$lib/pocketbase";
-  import type { Company } from "$lib/types";
+  import type { Company, Machine } from "$lib/types";
   import WorldMap from "$lib/components/WorldMap.svelte";
   import CompanyDetailModal from "$lib/components/CompanyDetailModal.svelte";
   import { notifications } from "$lib/notifications";
@@ -19,7 +19,43 @@
         expand: "ceo",
         requestKey: null,
       });
-      companies = result;
+
+      // Fetch employee and machine counts for all companies in parallel
+      const countPromises = result.map(async (company) => {
+        const [empRes, machineRes] = await Promise.all([
+          pb.collection("employees").getList(1, 1, {
+            filter: `employer = "${company.id}"`,
+            requestKey: null,
+          }),
+          pb.collection("machines").getList(1, 1, {
+            filter: `company = "${company.id}"`,
+            requestKey: null,
+          }),
+        ]);
+        return {
+          companyId: company.id,
+          employeeCount: empRes.totalItems,
+          machineCount: machineRes.totalItems,
+        };
+      });
+
+      const counts = await Promise.all(countPromises);
+
+      // Create a map for quick lookup
+      const countMap = new Map<string, { emp: number; machines: number }>();
+      for (const c of counts) {
+        countMap.set(c.companyId, {
+          emp: c.employeeCount,
+          machines: c.machineCount,
+        });
+      }
+
+      // Enrich companies with counts
+      companies = result.map((company) => ({
+        ...company,
+        employee_count: countMap.get(company.id)?.emp || 0,
+        machine_count: countMap.get(company.id)?.machines || 0,
+      }));
     } catch (err: any) {
       console.error("Failed to load world map", err);
       notifications.error("Impossible de charger la carte du monde");

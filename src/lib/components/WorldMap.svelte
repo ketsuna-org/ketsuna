@@ -232,15 +232,55 @@
     r: number,
     company: Company
   ) {
+    // Draw machines orbiting around the company first (behind the main node)
+    const machineCount = company.machine_count || 0;
+    if (machineCount > 0) {
+      const orbitRadius = r + 20 * camera.z;
+      const machineR = 8 * camera.z;
+      const visibleMachines = Math.min(machineCount, 12);
+
+      for (let i = 0; i < visibleMachines; i++) {
+        const angle = (i / visibleMachines) * Math.PI * 2 - Math.PI / 2;
+        const mx = x + Math.cos(angle) * orbitRadius;
+        const my = y + Math.sin(angle) * orbitRadius;
+
+        ctx.beginPath();
+        ctx.arc(mx, my, machineR, 0, Math.PI * 2);
+        ctx.fillStyle = "#1e293b";
+        ctx.fill();
+        ctx.strokeStyle = "#475569";
+        ctx.lineWidth = 1 * camera.z;
+        ctx.stroke();
+
+        ctx.fillStyle = "#94a3b8";
+        ctx.font = `${machineR * 1.2}px sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("⚙️", mx, my);
+      }
+
+      if (machineCount > visibleMachines) {
+        const extraAngle = Math.PI / 4;
+        const ex = x + Math.cos(extraAngle) * (orbitRadius + 15 * camera.z);
+        const ey = y + Math.sin(extraAngle) * (orbitRadius + 15 * camera.z);
+
+        ctx.fillStyle = "#64748b";
+        ctx.font = `bold ${10 * camera.z}px sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(`+${machineCount - visibleMachines}`, ex, ey);
+      }
+    }
+
     // Circle Bg
     ctx.beginPath();
     ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fillStyle = "#0f172a"; // slate-900
+    ctx.fillStyle = "#0f172a";
     ctx.fill();
 
     // Border
     ctx.lineWidth = 2 * camera.z;
-    ctx.strokeStyle = company.is_npc ? "#3b82f6" : "#6366f1"; // Blue for NPC, Indigo for Users
+    ctx.strokeStyle = company.is_npc ? "#3b82f6" : "#6366f1";
     ctx.stroke();
 
     // Icon/Text
@@ -248,27 +288,52 @@
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
 
-    // Emoji size relative to radius
-    ctx.font = `${r * 0.6}px sans-serif`;
-    ctx.fillText("🏭", x, y - r * 0.1);
+    // Factory emoji
+    ctx.font = `${r * 0.5}px sans-serif`;
+    ctx.fillText("🏭", x, y - r * 0.15);
+
+    // Employee count below the factory icon
+    const empCount = company.employee_count || 0;
+    ctx.font = `bold ${10 * camera.z}px sans-serif`;
+    ctx.fillStyle = "#94a3b8";
+    ctx.fillText(`👥 ${empCount}`, x, y + r * 0.35);
 
     // Name
+    ctx.fillStyle = "#fff";
     ctx.font = `bold ${12 * camera.z}px sans-serif`;
-    ctx.fillText(company.name.slice(0, 10), x, y + r + 15 * camera.z);
+    ctx.fillText(company.name.slice(0, 12), x, y + r + 15 * camera.z);
 
-    // Level Badge
-    const badgeR = r * 0.3;
-    const badgeX = x + r * 0.7;
-    const badgeY = y - r * 0.7;
+    // Level Badge (top right)
+    const badgeR = r * 0.28;
+    const badgeX = x + r * 0.72;
+    const badgeY = y - r * 0.72;
 
     ctx.beginPath();
     ctx.arc(badgeX, badgeY, badgeR, 0, Math.PI * 2);
-    ctx.fillStyle = "#f59e0b"; // amber-500
+    ctx.fillStyle = "#f59e0b";
     ctx.fill();
 
     ctx.fillStyle = "#000";
-    ctx.font = `bold ${badgeR * 1.2}px sans-serif`;
+    ctx.font = `bold ${badgeR * 1.1}px sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
     ctx.fillText(company.level.toString(), badgeX, badgeY);
+
+    // Machine count badge (bottom left)
+    if (machineCount > 0) {
+      const mcBadgeR = r * 0.25;
+      const mcBadgeX = x - r * 0.72;
+      const mcBadgeY = y + r * 0.72;
+
+      ctx.beginPath();
+      ctx.arc(mcBadgeX, mcBadgeY, mcBadgeR, 0, Math.PI * 2);
+      ctx.fillStyle = "#475569";
+      ctx.fill();
+
+      ctx.fillStyle = "#fff";
+      ctx.font = `bold ${mcBadgeR * 1.0}px sans-serif`;
+      ctx.fillText(machineCount.toString(), mcBadgeX, mcBadgeY);
+    }
   }
 
   // --- Interaction Handlers ---

@@ -84,6 +84,58 @@
       .length
   );
 
+  // Calculate missing employees for optimal production
+  let missingEmployeesCount = $derived.by(() => {
+    let missing = 0;
+    for (const machine of machines) {
+      const maxEmp = machine.expand?.machine?.max_employee || 1;
+      const currentEmp = machine.employees?.length || 0;
+      if (currentEmp < maxEmp) {
+        missing += maxEmp - currentEmp;
+      }
+    }
+    return missing;
+  });
+
+  // Available employees (not assigned to any machine)
+  let availableEmployees = $derived(
+    employees
+      .filter((emp) => !busyEmployeeIds.has(emp.id))
+      .sort((a, b) => (b.efficiency || 1) - (a.efficiency || 1))
+  );
+
+  // Auto-assign state
+  let isAutoAssigning = $state(false);
+
+  // Auto-assign function: call the backend endpoint
+  async function autoAssignEmployees() {
+    if (isAutoAssigning || availableEmployees.length === 0) return;
+
+    isAutoAssigning = true;
+
+    try {
+      const response = await pb.send("/api/machines/auto-assign", {
+        method: "POST",
+      });
+
+      if (response.assignedCount > 0) {
+        notifications.success(
+          `✨ ${response.assignedCount} employé(s) assigné(s) automatiquement`
+        );
+        // Refresh data
+        loadData(true);
+      } else {
+        notifications.info(
+          response.message || "Aucun employé disponible à assigner"
+        );
+      }
+    } catch (error: any) {
+      notifications.error(`Erreur: ${error.message}`);
+    } finally {
+      isAutoAssigning = false;
+    }
+  }
+
   async function fetchBusyEmployees() {
     if (!$activeCompany?.id) return new Set<string>();
     try {
@@ -682,6 +734,59 @@
                 <p class="text-sm text-slate-400">
                   Assignez des employés et configurez vos machines et stockage.
                 </p>
+
+                <!-- Missing employees indicator and auto-assign button -->
+                {#if machines.length > 0}
+                  <div class="flex flex-wrap items-center gap-3 mt-3">
+                    {#if missingEmployeesCount > 0}
+                      <div
+                        class="flex items-center gap-2 px-3 py-1.5 bg-amber-500/10 border border-amber-500/30 rounded-lg"
+                      >
+                        <span class="text-amber-400">⚠️</span>
+                        <span class="text-xs text-amber-300 font-medium">
+                          <span class="font-bold">{missingEmployeesCount}</span>
+                          employé(s) manquant(s) pour production optimale
+                        </span>
+                      </div>
+                    {:else}
+                      <div
+                        class="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/30 rounded-lg"
+                      >
+                        <span class="text-emerald-400">✅</span>
+                        <span class="text-xs text-emerald-300 font-medium">
+                          Toutes les machines sont optimales
+                        </span>
+                      </div>
+                    {/if}
+
+                    {#if availableEmployees.length > 0 && missingEmployeesCount > 0}
+                      <button
+                        onclick={autoAssignEmployees}
+                        disabled={isAutoAssigning}
+                        class="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-700 disabled:cursor-wait text-white text-sm font-bold rounded-lg transition-all shadow-md hover:shadow-indigo-500/25"
+                      >
+                        {#if isAutoAssigning}
+                          <span
+                            class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"
+                          ></span>
+                          <span>Assignation...</span>
+                        {:else}
+                          <span>🎯</span>
+                          <span
+                            >Auto-assigner ({Math.min(
+                              availableEmployees.length,
+                              missingEmployeesCount
+                            )})</span
+                          >
+                        {/if}
+                      </button>
+                    {/if}
+
+                    <span class="text-[10px] text-slate-500 font-medium">
+                      {availableEmployees.length} employé(s) disponible(s)
+                    </span>
+                  </div>
+                {/if}
               </div>
 
               <!-- Sub-tabs for Machine Types -->
