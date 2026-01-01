@@ -30,6 +30,14 @@
   let hasMore = $state(true);
   let totalItems = $state(0);
 
+  // Real rarity counts from database (not just loaded employees)
+  let rarityCounts = $state<Record<string, number>>({
+    "0": 0,
+    "1": 0,
+    "2": 0,
+    "3": 0,
+  });
+
   // Collapsible state (collapsed by default)
   let isListExpanded = $state(false);
 
@@ -51,6 +59,11 @@
         { label: "Technicien", value: "Technicien" },
         { label: "Ingénieur", value: "Ingénieur" },
         { label: "Superviseur", value: "Superviseur" },
+        { label: "Manutentionnaire", value: "Manutentionnaire" },
+        { label: "Opérateur", value: "Opérateur" },
+        { label: "Analyste", value: "Analyste" },
+        { label: "Logisticien", value: "Logisticien" },
+        { label: "Contremaître", value: "Contremaître" },
         { label: "Directeur", value: "Directeur" },
       ],
     },
@@ -93,9 +106,9 @@
     return stats;
   });
 
-  // Count employees to bulk fire
+  // Count employees to bulk fire (use real DB counts, not just loaded employees)
   let bulkFireCount = $derived(
-    bulkFireRarity ? employeeStats.byRarity[bulkFireRarity] || 0 : 0
+    bulkFireRarity ? rarityCounts[bulkFireRarity] || 0 : 0
   );
 
   // Build PocketBase filter string from current filters
@@ -239,21 +252,37 @@
     try {
       const filter = buildFilterString();
 
-      const [empResult, machineResult, preview] = await Promise.all([
-        pb.collection("employees").getList<Employee>(page, PER_PAGE, {
-          filter,
-          sort: "-efficiency",
-          requestKey: null,
-        }),
+      // On first page, also fetch total counts per rarity for accurate bulk fire counts
+      const rarityCountPromises =
         page === 1
-          ? pb.collection("machines").getList<Machine>(1, 100, {
-              filter: `company = "${$activeCompany.id}"`,
-              expand: "machine",
-              requestKey: null,
-            })
-          : Promise.resolve(null),
-        page === 1 ? getHireCostPreview() : Promise.resolve(null),
-      ]);
+          ? ["0", "1", "2", "3"].map((rarity) =>
+              pb
+                .collection("employees")
+                .getList<Employee>(1, 1, {
+                  filter: `employer = "${$activeCompany!.id}" && rarity = ${rarity}`,
+                  requestKey: null,
+                })
+                .then((res) => ({ rarity, count: res.totalItems }))
+            )
+          : [];
+
+      const [empResult, machineResult, preview, ...rarityResults] =
+        await Promise.all([
+          pb.collection("employees").getList<Employee>(page, PER_PAGE, {
+            filter,
+            sort: "-efficiency",
+            requestKey: null,
+          }),
+          page === 1
+            ? pb.collection("machines").getList<Machine>(1, 100, {
+                filter: `company = "${$activeCompany.id}"`,
+                expand: "machine",
+                requestKey: null,
+              })
+            : Promise.resolve(null),
+          page === 1 ? getHireCostPreview() : Promise.resolve(null),
+          ...rarityCountPromises,
+        ]);
 
       if (append) {
         employees = [...employees, ...empResult.items];
@@ -266,6 +295,20 @@
       }
       if (preview) {
         costPreview = preview;
+      }
+
+      // Update rarity counts from DB results
+      if (rarityResults.length > 0) {
+        const newCounts: Record<string, number> = {
+          "0": 0,
+          "1": 0,
+          "2": 0,
+          "3": 0,
+        };
+        for (const res of rarityResults) {
+          newCounts[res.rarity] = res.count;
+        }
+        rarityCounts = newCounts;
       }
 
       totalItems = empResult.totalItems;
@@ -440,7 +483,7 @@
               </p>
             </div>
             <div class="flex gap-3 items-end">
-              {#each Object.entries(employeeStats.byRarity) as [rarity, count]}
+              {#each Object.entries(rarityCounts) as [rarity, count]}
                 {#if count > 0}
                   <div class="text-center">
                     <p
@@ -468,10 +511,8 @@
             >
               <option value="">Licencier par rareté...</option>
               {#each Object.entries(rarityLabels) as [value, info]}
-                {#if employeeStats.byRarity[value] > 0}
-                  <option {value}
-                    >{info.label} ({employeeStats.byRarity[value]})</option
-                  >
+                {#if rarityCounts[value] > 0}
+                  <option {value}>{info.label} ({rarityCounts[value]})</option>
                 {/if}
               {/each}
             </select>
