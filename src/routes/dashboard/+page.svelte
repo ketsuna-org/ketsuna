@@ -3,6 +3,7 @@
   import { onMount } from "svelte";
   import pb from "$lib/pocketbase";
   import { fetchDashboardData, type DashboardData } from "$lib/dashboard";
+  import { fetchEnergyStatus, type EnergyStatus } from "$lib/services/energy";
   import RevenueDetailModal from "$lib/components/RevenueDetailModal.svelte";
   import CreateCompanyForm from "$lib/components/CreateCompanyForm.svelte";
   import { levelUpCompany } from "$lib/services/company";
@@ -13,6 +14,7 @@
   const user = pb.authStore.model;
 
   let dashboardData = $state<DashboardData | null>(null);
+  let energyStatus = $state<EnergyStatus | null>(null);
   let loading = $state(true);
   let error = $state("");
   let isRevenueModalOpen = $state(false);
@@ -122,6 +124,12 @@
     loading = true;
     try {
       dashboardData = await fetchDashboardData(user.id);
+      // Fetch energy status in parallel (non-blocking)
+      try {
+        energyStatus = await fetchEnergyStatus();
+      } catch {
+        energyStatus = null; // Energy status is optional
+      }
       showCreateCompany = false;
     } catch (err: any) {
       if (
@@ -354,6 +362,134 @@
           <p class="text-[10px] text-indigo-200 mt-2 font-medium">
             Projection sur 30 jours
           </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Energy Status Section -->
+    {@const energy = energyStatus ?? {
+      energyProduced: 0,
+      energyDemand: 0,
+      energyStored: 0,
+      maxEnergyStored: 0,
+      energyRatio: 1,
+      isSolarActive: false,
+      productionSpeed: 1,
+    }}
+    <section class="py-4 px-4">
+      <div class="max-w-7xl mx-auto">
+        <div
+          class="bg-slate-900/50 border rounded-2xl p-6 backdrop-blur-sm {energy.productionSpeed <
+          1
+            ? 'border-amber-500/50'
+            : 'border-slate-700/50'}"
+        >
+          <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+            <span>⚡</span> Statut Énergétique
+            {#if energy.isSolarActive}
+              <span
+                class="text-xs bg-amber-500/20 text-amber-400 px-2 py-1 rounded-full ml-2"
+              >
+                ☀️ Solaire actif
+              </span>
+            {:else}
+              <span
+                class="text-xs bg-slate-700 text-slate-400 px-2 py-1 rounded-full ml-2"
+              >
+                🌙 Solaire inactif
+              </span>
+            {/if}
+          </h2>
+
+          <div class="grid md:grid-cols-4 gap-4">
+            <!-- Production -->
+            <div
+              class="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50"
+            >
+              <p class="text-slate-400 text-xs font-semibold uppercase mb-1">
+                Production
+              </p>
+              <p class="text-emerald-400 text-2xl font-black">
+                {energy.energyProduced.toLocaleString("fr-FR")}
+              </p>
+              <p class="text-slate-500 text-xs">kWh/cycle</p>
+            </div>
+
+            <!-- Consumption -->
+            <div
+              class="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50"
+            >
+              <p class="text-slate-400 text-xs font-semibold uppercase mb-1">
+                Demande
+              </p>
+              <p class="text-red-400 text-2xl font-black">
+                {energy.energyDemand.toLocaleString("fr-FR")}
+              </p>
+              <p class="text-slate-500 text-xs">kWh/cycle</p>
+            </div>
+
+            <!-- Storage -->
+            <div
+              class="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50"
+            >
+              <p class="text-slate-400 text-xs font-semibold uppercase mb-1">
+                Stockage
+              </p>
+              <p class="text-blue-400 text-2xl font-black">
+                {energy.energyStored.toLocaleString("fr-FR")}
+              </p>
+              <p class="text-slate-500 text-xs">
+                / {energy.maxEnergyStored.toLocaleString("fr-FR")} kWh
+              </p>
+            </div>
+
+            <!-- Production Speed -->
+            <div
+              class="bg-slate-800/50 rounded-xl p-4 border {energy.productionSpeed <
+              1
+                ? 'border-amber-500/50'
+                : 'border-emerald-500/30'}"
+            >
+              <p class="text-slate-400 text-xs font-semibold uppercase mb-1">
+                Vitesse Production
+              </p>
+              <p
+                class="{energy.productionSpeed >= 1
+                  ? 'text-emerald-400'
+                  : energy.productionSpeed >= 0.5
+                    ? 'text-amber-400'
+                    : 'text-red-400'} text-2xl font-black"
+              >
+                {Math.round(energy.productionSpeed * 100)}%
+              </p>
+              {#if energy.productionSpeed < 1}
+                <p class="text-amber-400 text-xs mt-1">
+                  ⚠️ Déficit énergétique
+                </p>
+              {:else}
+                <p class="text-slate-500 text-xs">Optimal</p>
+              {/if}
+            </div>
+          </div>
+
+          {#if energy.productionSpeed < 1}
+            <div
+              class="mt-4 bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 flex items-center gap-3"
+            >
+              <span class="text-2xl">⚠️</span>
+              <div>
+                <p class="text-amber-400 font-bold text-sm">
+                  Déficit énergétique détecté
+                </p>
+                <p class="text-amber-300/70 text-xs">
+                  Vos machines fonctionnent à {Math.round(
+                    energy.productionSpeed * 100
+                  )}% de leur vitesse normale. Augmentez votre production
+                  d'énergie pour optimiser la production.
+                </p>
+              </div>
+            </div>
+          {/if}
         </div>
       </div>
     </section>
