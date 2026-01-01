@@ -72,6 +72,13 @@
       description: "Récoltez des ressources manuellement",
     },
     {
+      label: "Exploration",
+      href: "/exploration",
+      icon: "🔭",
+      color: "from-teal-600 to-emerald-800",
+      description: "Découvrez des gisements",
+    },
+    {
       label: "Monde",
       href: "/world",
       icon: "🌍",

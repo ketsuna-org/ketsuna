@@ -370,8 +370,6 @@
             }
         ],
         "indexes": [],
-        "created": "2025-12-25 21:49:14.086Z",
-        "updated": "2025-12-31 23:36:47.469Z",
         "system": false
     },
     {
@@ -423,6 +421,104 @@
                 "required": false,
                 "system": false,
                 "type": "relation"
+            },
+            {
+                "hidden": false,
+                "id": "autodate2990389176",
+                "name": "created",
+                "onCreate": true,
+                "onUpdate": false,
+                "presentable": false,
+                "system": false,
+                "type": "autodate"
+            },
+            {
+                "hidden": false,
+                "id": "autodate3332085495",
+                "name": "updated",
+                "onCreate": true,
+                "onUpdate": true,
+                "presentable": false,
+                "system": false,
+                "type": "autodate"
+            }
+        ],
+        "indexes": [],
+        "system": false
+    },
+    {
+        "id": "pbc_80790663",
+        "listRule": null,
+        "viewRule": null,
+        "createRule": null,
+        "updateRule": null,
+        "deleteRule": null,
+        "name": "deposits",
+        "type": "base",
+        "fields": [
+            {
+                "autogeneratePattern": "[a-z0-9]{15}",
+                "hidden": false,
+                "id": "text3208210256",
+                "max": 15,
+                "min": 15,
+                "name": "id",
+                "pattern": "^[a-z0-9]+$",
+                "presentable": false,
+                "primaryKey": true,
+                "required": true,
+                "system": true,
+                "type": "text"
+            },
+            {
+                "cascadeDelete": false,
+                "collectionId": "pbc_3866053794",
+                "hidden": false,
+                "id": "relation1337919823",
+                "maxSelect": 1,
+                "minSelect": 0,
+                "name": "company",
+                "presentable": false,
+                "required": false,
+                "system": false,
+                "type": "relation"
+            },
+            {
+                "cascadeDelete": false,
+                "collectionId": "pbc_710432678",
+                "hidden": false,
+                "id": "relation2476688708",
+                "maxSelect": 1,
+                "minSelect": 0,
+                "name": "ressource",
+                "presentable": false,
+                "required": false,
+                "system": false,
+                "type": "relation"
+            },
+            {
+                "hidden": false,
+                "id": "number2683508278",
+                "max": null,
+                "min": null,
+                "name": "quantity",
+                "onlyInt": false,
+                "presentable": false,
+                "required": false,
+                "system": false,
+                "type": "number"
+            },
+            {
+                "hidden": false,
+                "id": "number3936387714",
+                "max": null,
+                "min": null,
+                "name": "richness",
+                "onlyInt": false,
+                "presentable": false,
+                "required": false,
+                "system": false,
+                "type": "number"
             },
             {
                 "hidden": false,
@@ -548,6 +644,106 @@
                 "required": false,
                 "system": false,
                 "type": "text"
+            },
+            {
+                "hidden": false,
+                "id": "autodate2990389176",
+                "name": "created",
+                "onCreate": true,
+                "onUpdate": false,
+                "presentable": false,
+                "system": false,
+                "type": "autodate"
+            },
+            {
+                "hidden": false,
+                "id": "autodate3332085495",
+                "name": "updated",
+                "onCreate": true,
+                "onUpdate": true,
+                "presentable": false,
+                "system": false,
+                "type": "autodate"
+            }
+        ],
+        "indexes": [],
+        "system": false
+    },
+    {
+        "id": "pbc_508716593",
+        "listRule": null,
+        "viewRule": null,
+        "createRule": null,
+        "updateRule": null,
+        "deleteRule": null,
+        "name": "explorations",
+        "type": "base",
+        "fields": [
+            {
+                "autogeneratePattern": "[a-z0-9]{15}",
+                "hidden": false,
+                "id": "text3208210256",
+                "max": 15,
+                "min": 15,
+                "name": "id",
+                "pattern": "^[a-z0-9]+$",
+                "presentable": false,
+                "primaryKey": true,
+                "required": true,
+                "system": true,
+                "type": "text"
+            },
+            {
+                "cascadeDelete": false,
+                "collectionId": "pbc_3866053794",
+                "hidden": false,
+                "id": "relation1337919823",
+                "maxSelect": 1,
+                "minSelect": 0,
+                "name": "company",
+                "presentable": false,
+                "required": false,
+                "system": false,
+                "type": "relation"
+            },
+            {
+                "cascadeDelete": false,
+                "collectionId": "pbc_710432678",
+                "hidden": false,
+                "id": "relation1715086463",
+                "maxSelect": 1,
+                "minSelect": 0,
+                "name": "target_resource",
+                "presentable": false,
+                "required": false,
+                "system": false,
+                "type": "relation"
+            },
+            {
+                "hidden": false,
+                "id": "select2063623452",
+                "maxSelect": 1,
+                "name": "status",
+                "presentable": false,
+                "required": false,
+                "system": false,
+                "type": "select",
+                "values": [
+                    "En cours",
+                    "Echec",
+                    "Succès"
+                ]
+            },
+            {
+                "hidden": false,
+                "id": "date1096160257",
+                "max": "",
+                "min": "",
+                "name": "end_time",
+                "presentable": false,
+                "required": false,
+                "system": false,
+                "type": "date"
             },
             {
                 "hidden": false,
@@ -1047,8 +1243,8 @@
     },
     {
         "id": "pbc_2978010612",
-        "listRule": "company.ceo.id = @request.auth.id",
-        "viewRule": "company.ceo.id = @request.auth.id",
+        "listRule": "",
+        "viewRule": "",
         "createRule": "company.ceo.id = @request.auth.id",
         "updateRule": "company.ceo.id = @request.auth.id",
         "deleteRule": "company.ceo.id = @request.auth.id",
@@ -1130,6 +1326,19 @@
                 "required": false,
                 "system": false,
                 "type": "number"
+            },
+            {
+                "cascadeDelete": false,
+                "collectionId": "pbc_80790663",
+                "hidden": false,
+                "id": "relation2514197817",
+                "maxSelect": 1,
+                "minSelect": 0,
+                "name": "deposit",
+                "presentable": false,
+                "required": false,
+                "system": false,
+                "type": "relation"
             },
             {
                 "hidden": false,
@@ -1370,8 +1579,8 @@
     },
     {
         "id": "pbc_916922426",
-        "listRule": null,
-        "viewRule": null,
+        "listRule": "",
+        "viewRule": "",
         "createRule": null,
         "updateRule": null,
         "deleteRule": null,

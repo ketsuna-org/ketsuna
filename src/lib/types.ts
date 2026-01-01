@@ -124,14 +124,28 @@ export interface Recipe {
   };
 }
 
+export interface Deposit {
+  id: string;
+  company: string;
+  ressource: string; // Relation to Item
+  quantity: number;
+  richness: number;
+  expand?: {
+    ressource?: Item;
+  };
+}
+
 export interface Machine {
   id: string;
   company: string;
   machine: string; // Relation to Item (type: Machine)
   employees: string[]; // Relation to Employees
   production_started_at?: string; // ISO date string
+  deposit?: string; // Relation to Deposit
+  stored_energy?: number;
   expand?: {
     machine?: Item;
     employees?: Employee[];
+    deposit?: Deposit;
   };
 }
