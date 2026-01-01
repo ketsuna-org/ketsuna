@@ -462,16 +462,21 @@
           if (record.company !== $activeCompany?.id) return;
 
           if (action === "update") {
-            // Local merge only - preserve expand data
+            // Local merge only - preserve expand data (especially expand.machine for type filtering)
             const index = machines.findIndex((m) => m.id === record.id);
             if (index > -1) {
-              // Only update fields that change frequently (stored_energy, production_started_at, employees)
+              // Preserve existing expand data while updating specific fields
               machines[index] = {
                 ...machines[index],
                 stored_energy: record.stored_energy,
                 production_started_at: record.production_started_at,
                 employees: record.employees,
                 deposit: record.deposit,
+                // Keep expand.machine intact, only update expand.deposit if needed
+                expand: {
+                  ...machines[index].expand,
+                  // Note: deposit expand may be stale, but it's updated locally in MachineAssignment
+                },
               };
               machines = [...machines];
             }
