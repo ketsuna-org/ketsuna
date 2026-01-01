@@ -81,6 +81,16 @@
       total = machineItem.production_time || 0;
     }
 
+    // Apply energy slowdown modifier if machine needs energy and is running slow
+    if (
+      total > 0 &&
+      energyStatus &&
+      energyStatus.productionSpeed < 1 &&
+      (machineItem?.need_energy ?? 0) > 0
+    ) {
+      total = total / energyStatus.productionSpeed;
+    }
+
     if (total > 0 && machine.production_started_at) {
       const start = new Date(machine.production_started_at).getTime();
       const elapsed = (now - start) / 1000;
