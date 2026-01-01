@@ -19,13 +19,13 @@
   let machines: Machine[] = $state([]);
   let employees: Employee[] = $state([]);
   let inventory: InventoryItem[] = $state([]);
-  let availableMachineStock: InventoryItem[] = $state([]);
   let dashboardData: DashboardData | null = $state(null);
   let loading = $state(true);
   let loadingMoreRecipes = $state(false);
   let loadingMoreMachines = $state(false);
   let error = $state("");
   let activeTab = $state<"manual" | "automation">("manual");
+  let machineTypeTab = $state<"machines" | "stockage">("machines");
 
   // Pagination state
   let recipePage = $state(1);
@@ -54,6 +54,34 @@
   let machineSearchQuery = $state("");
 
   let busyEmployeeIds = $state(new Set<string>());
+
+  // Derived: Filter machines and stock by type
+  let currentTypeFilter = $derived(
+    machineTypeTab === "machines" ? "Machine" : "Stockage"
+  );
+
+  // Dynamically compute available stock based on selected type tab
+  let availableMachineStock = $derived(
+    inventory.filter(
+      (inv) =>
+        inv.expand?.item?.type === currentTypeFilter && (inv.quantity || 0) > 0
+    )
+  );
+
+  // Filter displayed machines by type
+  let filteredMachinesByType = $derived(
+    machines.filter((m) => m.expand?.machine?.type === currentTypeFilter)
+  );
+
+  // Count machines by type for badges
+  let machineTypeCount = $derived(
+    machines.filter((m) => (m.expand?.machine?.type as string) === "Machine")
+      .length
+  );
+  let stockageTypeCount = $derived(
+    machines.filter((m) => (m.expand?.machine?.type as string) === "Stockage")
+      .length
+  );
 
   async function fetchBusyEmployees() {
     if (!$activeCompany?.id) return new Set<string>();
@@ -209,9 +237,6 @@
       employees = employeesData;
       busyEmployeeIds = busySet;
       inventory = inventoryData;
-      availableMachineStock = inventoryData.filter(
-        (inv) => inv.expand?.item?.type === "Machine" && (inv.quantity || 0) > 0
-      );
       dashboardData = dashData;
     } catch (err: any) {
       error = err.message;
@@ -640,14 +665,53 @@
           class="bg-slate-900/50 border border-slate-800 rounded-2xl p-6 backdrop-blur-sm"
         >
           <div class="space-y-6">
-            <div>
-              <h2 class="text-xl font-bold text-white mb-2">
-                Gestion des machines
-              </h2>
-              <p class="text-sm text-slate-400">
-                Assignez des employés et configurez les recettes à produire
-                automatiquement.
-              </p>
+            <div
+              class="flex flex-col md:flex-row md:items-center md:justify-between gap-4"
+            >
+              <div>
+                <h2 class="text-xl font-bold text-white mb-2">
+                  Gestion des infrastructures
+                </h2>
+                <p class="text-sm text-slate-400">
+                  Assignez des employés et configurez vos machines et stockage.
+                </p>
+              </div>
+
+              <!-- Sub-tabs for Machine Types -->
+              <div
+                class="flex gap-2 bg-slate-800/50 p-1 rounded-xl border border-slate-700/50"
+              >
+                <button
+                  onclick={() => (machineTypeTab = "machines")}
+                  class="px-4 py-2 text-sm font-semibold rounded-lg flex items-center gap-2 transition-all {machineTypeTab ===
+                  'machines'
+                    ? 'bg-indigo-600 text-white shadow-lg'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-700/50'}"
+                >
+                  <span>🤖</span> Machines
+                  {#if machineTypeCount > 0}
+                    <span
+                      class="text-[10px] bg-black/30 px-1.5 py-0.5 rounded-full"
+                      >{machineTypeCount}</span
+                    >
+                  {/if}
+                </button>
+                <button
+                  onclick={() => (machineTypeTab = "stockage")}
+                  class="px-4 py-2 text-sm font-semibold rounded-lg flex items-center gap-2 transition-all {machineTypeTab ===
+                  'stockage'
+                    ? 'bg-emerald-600 text-white shadow-lg'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-700/50'}"
+                >
+                  <span>🔋</span> Stockage
+                  {#if stockageTypeCount > 0}
+                    <span
+                      class="text-[10px] bg-black/30 px-1.5 py-0.5 rounded-full"
+                      >{stockageTypeCount}</span
+                    >
+                  {/if}
+                </button>
+              </div>
             </div>
 
             {#if availableMachineStock.length > 0}
@@ -692,7 +756,7 @@
               </div>
             {/if}
 
-            {#if machines.length === 0 && !machineSearchQuery}
+            {#if filteredMachinesByType.length === 0 && !machineSearchQuery}
               <div
                 class="text-center py-16 bg-slate-950/50 rounded-xl border-2 border-dashed border-slate-800"
               >
@@ -716,12 +780,12 @@
 
               <div class="text-sm text-slate-500 font-medium px-1">
                 Affichage de <span class="text-white font-bold"
-                  >{machines.length}</span
+                  >{filteredMachinesByType.length}</span
                 >
-                machine(s) sur {totalMachines}
+                {machineTypeTab === "machines" ? "machine(s)" : "stockage(s)"}
               </div>
 
-              {#if machines.length === 0}
+              {#if filteredMachinesByType.length === 0}
                 <div
                   class="text-center py-12 bg-slate-950/50 rounded-xl border border-slate-800"
                 >
@@ -735,7 +799,7 @@
                 </div>
               {:else}
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {#each machines as machine (machine.id)}
+                  {#each filteredMachinesByType as machine (machine.id)}
                     <MachineAssignment
                       {machine}
                       allEmployees={employees}
