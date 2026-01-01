@@ -51,36 +51,6 @@
     const cost = getLevelCost(currentLevel);
     const currentBalance = dashboardData.financials.cash;
 
-    // Note: DashboardData.company.prestige comes from user.prestige.
-    // Ideally we need company.reputation.
-    // Looking at fetchDashboardData in dashboard.ts, it seems 'reputation' isn't explicitly in 'company' object,
-    // only 'prestige'. However, the original company page used 'reputation'.
-    // Let's check dashboard.ts types again. DashboardData.company has: name, level, prestige, ceo, tech_points, id.
-    // It seems 'reputation' was missed in previous DashboardData definition or mapped to prestige?
-    // In dashboard.ts: prestige: user.prestige || 0.
-    // And company.reputation is fetched in PBCompany but not exposed in DashboardData.company directly?
-    // Wait, dashboard.ts line 87 defines reputation in PBCompany.
-    // Line 208 maps prestige to user.prestige.
-    // We should probably rely on what we have.
-    // If reputation is critical for level up, we might need it.
-    // BUT! For now, let's assume the user wants the UI logic.
-    // Limitation: We might not have 'reputation' in dashboardData.company.
-    // Let's check if we can simply pass the 'company' object to the service.
-    // The service `levelUpCompany` likely takes a full company object.
-    // dashboardData.company is a simplified object.
-
-    // To be safe and simple: We will re-fetch the full company object for the level up action/check
-    // OR we will update dashboardData to include reputation.
-    // Given I can't easily change dashboard.ts right now without expanding scope too much (though I should),
-    // I'll try to use what I have or fetch fresh data.
-
-    // Actually, the previous code on company page used $activeCompany store.
-    // Maybe we should update the $activeCompany store when dashboard loads?
-    // dashboard.ts doesn't seem to update the store.
-
-    // Let's implement the UI and simple checks.
-    // If we need strict checks, the server/service will handle it.
-
     if (currentBalance < cost) {
       notifications.error(
         `Fonds insuffisants. Besoin de ${formatCurrency(cost)}`
@@ -88,16 +58,8 @@
       return;
     }
 
-    // We'll skip reputation check strictly here if we don't have it, or assume prestige is close enough for now?
-    // Or better, let's fetch the real company ID and do it properly.
-
     levelUpLoading = true;
     try {
-      // We need a proper Company object for the service usually, or at least ID.
-      // Let's construct a minimal one or fetch it.
-      // Assuming levelUpCompany takes {id, balance, level, ...}
-
-      // Quick fetch to get latest state and full object
       const companyFull = await pb
         .collection("companies")
         .getOne(dashboardData.company.id);
@@ -140,7 +102,6 @@
         error = "";
       } else {
         // Fallback for my explicit error throw in dashboard.ts
-        // "L'utilisateur n'a pas d'entreprise active"
         if (err.message === "L'utilisateur n'a pas d'entreprise active") {
           showCreateCompany = true;
           error = "";
@@ -410,7 +371,7 @@
                 Production
               </p>
               <p class="text-emerald-400 text-2xl font-black">
-                {energy.energyProduced.toLocaleString("fr-FR")}
+                {(energy.energyProduced ?? 0).toLocaleString("fr-FR")}
               </p>
               <p class="text-slate-500 text-xs">kWh/cycle</p>
             </div>
@@ -423,7 +384,7 @@
                 Demande
               </p>
               <p class="text-red-400 text-2xl font-black">
-                {energy.energyDemand.toLocaleString("fr-FR")}
+                {(energy.energyDemand ?? 0).toLocaleString("fr-FR")}
               </p>
               <p class="text-slate-500 text-xs">kWh/cycle</p>
             </div>
@@ -436,10 +397,10 @@
                 Stockage
               </p>
               <p class="text-blue-400 text-2xl font-black">
-                {energy.energyStored.toLocaleString("fr-FR")}
+                {(energy.energyStored ?? 0).toLocaleString("fr-FR")}
               </p>
               <p class="text-slate-500 text-xs">
-                / {energy.maxEnergyStored.toLocaleString("fr-FR")} kWh
+                / {(energy.maxEnergyStored ?? 0).toLocaleString("fr-FR")} kWh
               </p>
             </div>
 
@@ -460,7 +421,7 @@
                     ? 'text-amber-400'
                     : 'text-red-400'} text-2xl font-black"
               >
-                {Math.round(energy.productionSpeed * 100)}%
+                {Math.round((energy.productionSpeed ?? 1) * 100)}%
               </p>
               {#if energy.productionSpeed < 1}
                 <p class="text-amber-400 text-xs mt-1">
