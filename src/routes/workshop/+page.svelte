@@ -6,7 +6,7 @@
   import { fetchDashboardData, type DashboardData } from "$lib/dashboard";
   import { activeCompany } from "$lib/stores";
   import pb from "$lib/pocketbase";
-  import type { Machine, Employee, InventoryItem } from "$lib/types";
+  import type { Machine, Employee, InventoryItem } from "$lib/pocketbase";
   import RecipeCard from "$lib/components/RecipeCard.svelte";
   import MachineAssignment from "$lib/components/MachineAssignment.svelte";
   import FilterBar from "$lib/components/FilterBar.svelte";
@@ -129,8 +129,9 @@
         notifications.success(
           `✨ ${response.assignedCount} employé(s) assigné(s) automatiquement`
         );
-        // Refresh data
-        loadData(true);
+        // Update busy list - the realtime subscription will handle machines update
+        const busy = await fetchBusyEmployees();
+        busyEmployeeIds = busy;
       } else {
         notifications.info(
           response.message || "Aucun employé disponible à assigner"
@@ -348,11 +349,27 @@
   }
 
   async function handleRecipeProduce() {
-    loadData(true);
+    // No need to refresh - realtime subscription will handle inventory updates
   }
 
   function handleMachineUpdate() {
-    loadData(true);
+    // No need to refresh - realtime subscription handles updates
+  }
+
+  async function refreshInventory() {
+    if (!$activeCompany?.id) return;
+    try {
+      const inventoryData = await pb
+        .collection("inventory")
+        .getFullList<InventoryItem>({
+          filter: `company="${$activeCompany.id}"`,
+          expand: "item",
+          requestKey: null,
+        });
+      inventory = inventoryData;
+    } catch (e) {
+      console.warn("Inventory refresh failed", e);
+    }
   }
 
   // Création d'une assignation de machine depuis le stock
@@ -370,6 +387,29 @@
     }
   }
 
+  // Debounce timer for batching updates
+  let refreshDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+  const DEBOUNCE_MS = 2000; // 2 seconds
+
+  function debouncedRefresh() {
+    if (refreshDebounceTimer) clearTimeout(refreshDebounceTimer);
+    refreshDebounceTimer = setTimeout(async () => {
+      // Only refresh energy status periodically
+      if ($activeCompany?.id) {
+        try {
+          const energyData = await pb
+            .send("/api/company/energy-status", {
+              params: { companyId: $activeCompany.id },
+            })
+            .catch(() => null);
+          if (energyData) energyStatus = energyData;
+        } catch (e) {
+          // Silently ignore
+        }
+      }
+    }, DEBOUNCE_MS);
+  }
+
   let unsubscribeInventory: () => void;
   let unsubscribeMachines: () => void;
 
@@ -378,80 +418,90 @@
     if (unsubscribeMachines) unsubscribeMachines();
 
     try {
-      // Inventory Subscription
+      // Inventory Subscription - only handle create/delete, merge updates locally
       unsubscribeInventory = await pb
         .collection("inventory")
         .subscribe("*", async ({ action, record }) => {
           if (record.company !== $activeCompany?.id) return;
 
-          if (action === "create" || action === "update") {
-            const updatedRecord = await pb
+          if (action === "update") {
+            // Local merge only - no API call
+            const index = inventory.findIndex((i) => i.id === record.id);
+            if (index > -1) {
+              inventory[index] = {
+                ...inventory[index],
+                quantity: record.quantity,
+              };
+              inventory = [...inventory]; // Trigger reactivity
+            }
+          } else if (action === "create") {
+            // New item - need to fetch with expand
+            const newItem = await pb
               .collection("inventory")
               .getOne<InventoryItem>(record.id, {
                 expand: "item",
+                requestKey: null,
               });
-
-            const index = inventory.findIndex((i) => i.id === record.id);
-            if (index > -1) {
-              inventory[index] = updatedRecord;
-            } else {
-              inventory.push(updatedRecord);
-            }
+            inventory = [...inventory, newItem];
           } else if (action === "delete") {
             inventory = inventory.filter((i) => i.id !== record.id);
           }
-
-          availableMachineStock = inventory.filter(
-            (inv) =>
-              inv.expand?.item?.type === "Machine" && (inv.quantity || 0) > 0
-          );
-
-          if (dashboardData) {
-            dashboardData.resources.inventory_count = inventory.length;
-          }
         });
 
-      // Machines Subscription
+      // Machines Subscription - minimal updates, no cascade
       unsubscribeMachines = await pb
         .collection("machines")
         .subscribe<Machine>("*", async ({ action, record }) => {
           if (record.company !== $activeCompany?.id) return;
 
-          if (action === "create" || action === "update") {
-            const updatedMachine = await pb
+          if (action === "update") {
+            // Local merge only - preserve expand data
+            const index = machines.findIndex((m) => m.id === record.id);
+            if (index > -1) {
+              // Only update fields that change frequently (stored_energy, production_started_at, employees)
+              machines[index] = {
+                ...machines[index],
+                stored_energy: record.stored_energy,
+                production_started_at: record.production_started_at,
+                employees: record.employees,
+                deposit: record.deposit,
+              };
+              machines = [...machines];
+            }
+            // Debounce energy refresh
+            debouncedRefresh();
+          } else if (action === "create") {
+            // New machine - fetch with full expand
+            const newMachine = await pb
               .collection("machines")
               .getOne<Machine>(record.id, {
                 expand: "machine.product,machine.can_consume,employees,deposit",
                 requestKey: null,
               });
-
-            const index = machines.findIndex((m) => m.id === record.id);
-            if (index > -1) {
-              machines[index] = updatedMachine;
-            } else {
-              machines = [...machines, updatedMachine];
-            }
+            machines = [...machines, newMachine];
+            // Update busy employees
+            const busy = await fetchBusyEmployees();
+            busyEmployeeIds = busy;
           } else if (action === "delete") {
             machines = machines.filter((m) => m.id !== record.id);
+            // Update busy employees
+            const busy = await fetchBusyEmployees();
+            busyEmployeeIds = busy;
           }
-
-          // Mise à jour de la liste globale des employés occupés
-          fetchBusyEmployees().then((s) => (busyEmployeeIds = s));
-
-          fetchDashboardData(pb.authStore?.record?.id as string).then(
-            (data) => {
-              dashboardData = data;
-            }
-          );
         });
     } catch (err) {
       console.error("Failed to subscribe to data", err);
     }
   }
 
-  onDestroy(() => {
+  function unsubscribeAll() {
     if (unsubscribeInventory) unsubscribeInventory();
     if (unsubscribeMachines) unsubscribeMachines();
+    if (refreshDebounceTimer) clearTimeout(refreshDebounceTimer);
+  }
+
+  onDestroy(() => {
+    unsubscribeAll();
   });
 
   // Track the company ID to avoid unnecessary reloads
@@ -471,6 +521,7 @@
     const currentId = $activeCompany?.id ?? null;
     if (currentId && currentId !== lastCompanyId) {
       lastCompanyId = currentId;
+      unsubscribeAll();
       loadData().then(() => {
         subscribeToData();
       });
@@ -928,7 +979,6 @@
                     <MachineAssignment
                       {machine}
                       allEmployees={employees}
-                      onUpdate={handleMachineUpdate}
                       {busyEmployeeIds}
                       {energyStatus}
                     />

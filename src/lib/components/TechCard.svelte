@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Technology, Company } from "$lib/types";
+  import type { Technology, Company } from "$lib/pocketbase";
   import { unlockTechnology } from "$lib/services/tech";
   import { notifications } from "$lib/notifications";
   import { activeCompany } from "$lib/stores";

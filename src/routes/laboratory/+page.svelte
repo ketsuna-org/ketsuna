@@ -6,7 +6,7 @@
   import { fetchDashboardData, type DashboardData } from "$lib/dashboard";
   import { activeCompany } from "$lib/stores";
   import pb from "$lib/pocketbase";
-  import type { Technology } from "$lib/types";
+  import type { Technology } from "$lib/pocketbase";
   import TechCard from "$lib/components/TechCard.svelte";
 
   import { notifications } from "$lib/notifications";

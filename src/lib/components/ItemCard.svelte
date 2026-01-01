@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { InventoryItem } from "$lib/types";
+  import type { InventoryItem } from "$lib/pocketbase";
   import { sellItem } from "$lib/services/inventory";
   import { createEventDispatcher } from "svelte";
 

@@ -1,5 +1,5 @@
 import pb from "$lib/pocketbase";
-import type { Item } from "$lib/types";
+import type { Item } from "$lib/pocketbase";
 
 export interface Exploration {
     id: string;

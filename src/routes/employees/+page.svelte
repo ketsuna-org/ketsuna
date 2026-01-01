@@ -1,7 +1,7 @@
 <script lang="ts">
   import { activeCompany, currentUser } from "$lib/stores";
   import pb from "$lib/pocketbase";
-  import type { Company, Employee, Machine } from "$lib/types";
+  import type { Company, Employee, Machine } from "$lib/pocketbase";
   import { onMount } from "svelte";
   import { fade, slide } from "svelte/transition";
   import {

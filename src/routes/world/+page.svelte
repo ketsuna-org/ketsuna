@@ -2,7 +2,7 @@
   import { onMount } from "svelte";
   import { fade } from "svelte/transition";
   import pb from "$lib/pocketbase";
-  import type { Company, Machine } from "$lib/types";
+  import type { Company, Machine } from "$lib/pocketbase";
   import WorldMap from "$lib/components/WorldMap.svelte";
   import CompanyDetailModal from "$lib/components/CompanyDetailModal.svelte";
   import { notifications } from "$lib/notifications";

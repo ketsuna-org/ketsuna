@@ -4,7 +4,7 @@
   import pb from "$lib/pocketbase";
   import { notifications } from "$lib/notifications";
   import { activeCompany } from "$lib/stores";
-  import type { Item, Company } from "$lib/types";
+  import type { Item, Company } from "$lib/pocketbase";
   import FilterBar from "$lib/components/FilterBar.svelte";
   import {
     type Exploration,

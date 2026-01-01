@@ -8,7 +8,7 @@
   import CreateCompanyForm from "$lib/components/CreateCompanyForm.svelte";
   import { levelUpCompany } from "$lib/services/company";
   import { notifications } from "$lib/notifications";
-  import type { Company } from "$lib/types";
+  import type { Company } from "$lib/pocketbase";
 
   // --- STATE MANAGEMENT (Svelte 5 Runes) ---
   const user = pb.authStore.model;

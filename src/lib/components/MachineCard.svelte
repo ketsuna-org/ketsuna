@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Item, Company } from "$lib/types";
+  import type { Item, Company } from "$lib/pocketbase";
   import { buyItem } from "$lib/services/market";
   import { notifications } from "$lib/notifications";
   import { activeCompany } from "$lib/stores";

@@ -1,5 +1,5 @@
 import pb from "$lib/pocketbase";
-import type { InventoryItem } from "$lib/types";
+import type { InventoryItem } from "$lib/pocketbase";
 
 export interface ReserveOverview {
     used: number;

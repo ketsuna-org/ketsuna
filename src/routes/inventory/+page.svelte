@@ -2,7 +2,7 @@
   import { onDestroy, onMount } from "svelte";
   import { activeCompany } from "$lib/stores";
   import pb from "$lib/pocketbase";
-  import type { InventoryItem, Company } from "$lib/types";
+  import type { InventoryItem, Company } from "$lib/pocketbase";
   import { fly, fade } from "svelte/transition";
   import { sellItem } from "$lib/services/inventory";
   import { notifications } from "$lib/notifications";

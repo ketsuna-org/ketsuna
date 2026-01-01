@@ -1,5 +1,5 @@
 import pb from "$lib/pocketbase";
-import type { Recipe, InventoryItem } from "$lib/types";
+import type { Recipe, InventoryItem } from "$lib/pocketbase";
 
 /**
  * Récupère toutes les recettes disponibles pour une entreprise

@@ -1,7 +1,7 @@
 <script lang="ts">
   import pb from "$lib/pocketbase";
   import { currentUser, activeCompany } from "$lib/stores";
-  import type { Company } from "$lib/types";
+  import type { Company } from "$lib/pocketbase";
 
   let { onCreated } = $props<{ onCreated?: () => void }>();
 

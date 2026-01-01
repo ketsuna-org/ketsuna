@@ -1,5 +1,5 @@
 import pb from "$lib/pocketbase";
-import type { Recipe } from "$lib/types";
+import type { Recipe } from "$lib/pocketbase";
 
 export interface Item {
     id: string;

@@ -1,5 +1,5 @@
 import pb from '$lib/pocketbase';
-import type { Company } from '$lib/types';
+import type { Company } from '$lib/pocketbase';
 
 /**
  * Handles the logic for leveling up a company.

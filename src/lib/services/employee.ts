@@ -1,5 +1,5 @@
 import pb from '$lib/pocketbase';
-import type { Company, Employee } from '$lib/types';
+import type { Company, Employee } from '$lib/pocketbase';
 
 export interface BulkHireResult {
     success: boolean;

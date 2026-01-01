@@ -1,6 +1,6 @@
 <script lang="ts">
   import { fade, scale } from "svelte/transition";
-  import type { Company } from "$lib/types";
+  import type { Company } from "$lib/pocketbase";
 
   /**
    * The company to display

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
-  import type { Company } from "$lib/types";
+  import type { Company } from "$lib/pocketbase";
 
   /**
    * List of companies to display on the map

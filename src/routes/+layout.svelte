@@ -5,7 +5,7 @@
   import { initFirebase } from "$lib/firebase";
   import pb from "$lib/pocketbase";
   import { currentUser, activeCompany } from "$lib/stores";
-  import type { Company } from "$lib/types";
+  import type { Company } from "$lib/pocketbase";
   import { goto } from "$app/navigation";
   import NotificationCenter from "$lib/components/NotificationCenter.svelte";
   import NavigationHub from "$lib/components/NavigationHub.svelte";

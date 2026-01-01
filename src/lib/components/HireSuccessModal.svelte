@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Employee } from "$lib/types";
+  import type { Employee } from "$lib/pocketbase";
   import { fade, scale, fly } from "svelte/transition";
   import { elasticOut } from "svelte/easing";
 

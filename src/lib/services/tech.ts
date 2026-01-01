@@ -1,5 +1,5 @@
 import pb from "$lib/pocketbase";
-import type { Technology } from "$lib/types";
+import type { Technology } from "$lib/pocketbase";
 
 /**
  * Débloque une technologie pour une entreprise

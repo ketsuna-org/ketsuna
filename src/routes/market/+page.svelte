@@ -7,7 +7,7 @@
   import { notifications } from "$lib/notifications";
   import { activeCompany } from "$lib/stores";
   import pb from "$lib/pocketbase";
-  import type { Company, Recipe } from "$lib/types";
+  import type { Company, Recipe } from "$lib/pocketbase";
   import FilterBar from "$lib/components/FilterBar.svelte";
   import InfiniteScroll from "$lib/components/InfiniteScroll.svelte";
 

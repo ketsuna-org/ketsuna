@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Machine, Employee, Recipe } from "$lib/types";
+  import type { Machine, Employee, Recipe } from "$lib/pocketbase";
   import pb from "$lib/pocketbase";
   import { notifications } from "$lib/notifications";
   import { onMount, onDestroy } from "svelte";
@@ -43,17 +43,29 @@
   let timeRemaining = 0;
   let progressInterval: ReturnType<typeof setInterval> | null = null;
 
-  $: if (recipeId) {
+  // Cache to avoid repeated recipe loads
+  const recipeCache = new Map<string, Recipe>();
+  let lastLoadedRecipeId: string | null = null;
+
+  $: if (recipeId && recipeId !== lastLoadedRecipeId) {
     loadMachineRecipe(recipeId);
   }
 
   async function loadMachineRecipe(id: string) {
+    // Check cache first
+    if (recipeCache.has(id)) {
+      machineRecipe = recipeCache.get(id)!;
+      lastLoadedRecipeId = id;
+      return;
+    }
     try {
       const r = await pb.collection("recipes").getOne<Recipe>(id, {
         expand: "output_item,inputs_items,ingredients.item",
         requestKey: null,
       });
+      recipeCache.set(id, r);
       machineRecipe = r;
+      lastLoadedRecipeId = id;
     } catch (error) {
       console.error("Erreur chargement recette machine", error);
     }
@@ -241,29 +253,40 @@
   // --- LOGIQUE GISEMENTS ---
   let compatibleDeposits: any[] = [];
   let showDepositDropdown = false;
+  let lastDepositKey: string | null = null; // Track to avoid repeated loads
 
   // Vérifie si c'est une machine d'extraction (produit une ressource explorable impliquant un gisement)
   $: isExtractor =
     machine.expand?.machine?.expand?.product?.is_explorable === true;
   $: currentDeposit = machine.expand?.deposit; // Si expandé
 
-  // Charge les gisements compatibles quand la machine change
-  $: if (isExtractor && machine.company) {
-    loadDeposits();
-  }
+  // Charge les gisements compatibles UNIQUEMENT à l'ouverture du dropdown
+  async function loadDepositsIfNeeded() {
+    const productItemId = machine.expand?.machine?.product;
+    const key = `${machine.company}-${productItemId}`;
 
-  async function loadDeposits() {
+    // Skip if already loaded for this machine+product combo
+    if (key === lastDepositKey && compatibleDeposits.length > 0) return;
+
     try {
-      const productItemId = machine.expand?.machine?.product;
       if (!productItemId) return;
 
       const result = await pb.collection("deposits").getFullList({
         filter: `company = '${machine.company}' && ressource = '${productItemId}' && quantity > 0`,
         sort: "-richness",
+        requestKey: null,
       });
       compatibleDeposits = result;
+      lastDepositKey = key;
     } catch (e) {
       console.error("Erreur chargement gisements", e);
+    }
+  }
+
+  function handleDepositDropdownOpen() {
+    showDepositDropdown = !showDepositDropdown;
+    if (showDepositDropdown && isExtractor) {
+      loadDepositsIfNeeded();
     }
   }
 
@@ -300,7 +323,7 @@
       }
 
       showDepositDropdown = false;
-      onUpdate?.();
+      // onUpdate?.() - Removed: let realtime subscriptions handle updates
     } catch (e: any) {
       notifications.error(`Erreur: ${e.message}`);
     } finally {
@@ -555,11 +578,11 @@
                     {fuel.name}
                   </div>
                 {/each}
-              {:else if machineItem.expand?.can_consume}
+              {:else if machineItem.expand?.can_consume && machineItem.expand.can_consume.length > 0}
                 <div
                   class="px-3 py-1.5 bg-slate-900 rounded-lg text-xs border border-slate-800 text-slate-300 font-medium"
                 >
-                  {machineItem.expand.can_consume.name}
+                  {machineItem.expand.can_consume[0].name}
                 </div>
               {:else}
                 <div
@@ -822,7 +845,7 @@
             </p>
             <div class="relative">
               <button
-                on:click={() => (showDepositDropdown = !showDepositDropdown)}
+                on:click={handleDepositDropdownOpen}
                 disabled={isLoading}
                 class="w-full py-2 bg-teal-600 hover:bg-teal-500 text-white font-bold rounded-lg text-xs transition-colors"
               >

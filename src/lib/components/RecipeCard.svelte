@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Recipe, InventoryItem, Company } from "$lib/types";
+  import type { Recipe, InventoryItem, Company } from "$lib/pocketbase";
   import {
     produceFromRecipe,
     checkRecipeRequirements,
