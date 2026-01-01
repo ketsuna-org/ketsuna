@@ -242,8 +242,9 @@
   let compatibleDeposits: any[] = [];
   let showDepositDropdown = false;
 
-  // Vérifie si c'est une machine d'extraction (produit une ressource minable)
-  $: isExtractor = machine.expand?.machine?.expand?.product?.minable === true;
+  // Vérifie si c'est une machine d'extraction (produit une ressource explorable impliquant un gisement)
+  $: isExtractor =
+    machine.expand?.machine?.expand?.product?.is_explorable === true;
   $: currentDeposit = machine.expand?.deposit; // Si expandé
 
   // Charge les gisements compatibles quand la machine change
