@@ -20,6 +20,7 @@
   let employees: Employee[] = $state([]);
   let inventory: InventoryItem[] = $state([]);
   let dashboardData: DashboardData | null = $state(null);
+  let energyStatus: any = $state(null);
   let loading = $state(true);
   let loadingMoreRecipes = $state(false);
   let loadingMoreMachines = $state(false);
@@ -216,7 +217,7 @@
       if (!userId) throw new Error("Non connecté");
       if (!$activeCompany?.id) throw new Error("Pas d'entreprise active");
 
-      const [employeesData, inventoryData, dashData, busySet] =
+      const [employeesData, inventoryData, dashData, busySet, energyData] =
         await Promise.all([
           pb.collection("employees").getFullList<Employee>({
             filter: `employer="${$activeCompany.id}"`,
@@ -229,6 +230,9 @@
           }),
           fetchDashboardData(userId),
           fetchBusyEmployees(),
+          fetch(
+            `/api/company/energy-status?companyId=${$activeCompany.id}`
+          ).then((r) => (r.ok ? r.json() : null)),
         ]);
 
       // Load paginated data
@@ -238,6 +242,7 @@
       busyEmployeeIds = busySet;
       inventory = inventoryData;
       dashboardData = dashData;
+      energyStatus = energyData;
     } catch (err: any) {
       error = err.message;
       notifications.error(error);
@@ -805,6 +810,7 @@
                       allEmployees={employees}
                       onUpdate={handleMachineUpdate}
                       {busyEmployeeIds}
+                      {energyStatus}
                     />
                   {/each}
                 </div>

@@ -24,6 +24,11 @@
    */
   export let busyEmployeeIds: Set<string> = new Set();
 
+  /**
+   * @type {any} - Statut énergétique de l'entreprise
+   */
+  export let energyStatus: any = null;
+
   let isLoading = false;
   let showEmployeeDropdown = false;
   let showAssignedEmployees = false;
@@ -257,6 +262,17 @@
 
     {#if machineRecipe}
       <div class="p-4 bg-slate-950/30 rounded-xl border border-slate-800/50">
+        {#if energyStatus && energyStatus.production_speed < 1 && (machineItem?.need_energy ?? 0) > 0}
+          <div
+            class="mb-3 p-2 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-2 animate-pulse"
+          >
+            <span class="text-red-400">⚡</span>
+            <span class="text-xs text-red-300 font-bold">
+              Sous-tension : {Math.floor(energyStatus.production_speed * 100)}%
+              Efficacité
+            </span>
+          </div>
+        {/if}
         <div class="flex flex-col gap-4 mb-4">
           <!-- Inputs -->
           {#if machineRecipe.expand?.inputs_items && machineRecipe.expand.inputs_items.length > 0}
@@ -568,6 +584,17 @@
     {:else if machineItem?.product}
       <!-- PASSIVE PRODUCTION DISPLAY -->
       <div class="p-4 bg-slate-950/30 rounded-xl border border-slate-800/50">
+        {#if energyStatus && energyStatus.production_speed < 1 && (machineItem?.need_energy ?? 0) > 0}
+          <div
+            class="mb-3 p-2 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-2"
+          >
+            <span class="text-red-400">⚡</span>
+            <span class="text-xs text-red-300 font-bold">
+              Sous-tension : {Math.floor(energyStatus.production_speed * 100)}%
+              Efficacité
+            </span>
+          </div>
+        {/if}
         <div class="flex items-center gap-2 mb-3">
           <span class="p-1 bg-slate-800 rounded text-slate-400">⚡</span>
           <p class="text-sm text-white font-bold">Production Passive</p>

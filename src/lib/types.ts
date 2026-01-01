@@ -47,6 +47,7 @@ export interface Item {
   production_time?: number; // Time in seconds for passive production
   produce_energy?: number;
   can_store_energy?: number;
+  need_energy?: number;
   can_consume?: string; // Relation to item (fuel)
   expand?: {
     product?: Item;
