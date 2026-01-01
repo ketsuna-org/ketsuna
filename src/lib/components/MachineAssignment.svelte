@@ -44,7 +44,7 @@
   async function loadMachineRecipe(id: string) {
     try {
       const r = await pb.collection("recipes").getOne<Recipe>(id, {
-        expand: "output_item,inputs_items",
+        expand: "output_item,inputs_items,ingredients.item",
         requestKey: null,
       });
       machineRecipe = r;
@@ -297,12 +297,66 @@
             </div>
           {/if}
 
+          <!-- Complex Ingredients (with specific quantity) -->
+          {#if machineRecipe.expand?.ingredients && machineRecipe.expand.ingredients.length > 0}
+            <div class="space-y-2 mt-2">
+              {#if !machineRecipe.expand?.inputs_items?.length}
+                <span class="text-xs text-slate-500 font-semibold uppercase"
+                  >Requis</span
+                >
+              {/if}
+              <div class="flex flex-wrap gap-2">
+                {#each machineRecipe.expand.ingredients as ing}
+                  <div
+                    class="flex items-center gap-2 px-3 py-1.5 bg-slate-900 rounded-lg text-xs border border-slate-800"
+                  >
+                    <span class="text-slate-300 font-medium"
+                      >{ing.expand?.item?.name || "???"}</span
+                    >
+                    <span class="text-amber-400 font-mono font-bold"
+                      >x{ing.quantity}</span
+                    >
+                  </div>
+                {/each}
+              </div>
+            </div>
+
+            <!-- Arrow Separator if not displayed above -->
+            {#if !machineRecipe.expand?.inputs_items?.length}
+              <div class="flex justify-center text-slate-600 mt-2">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  ><line x1="12" y1="5" x2="12" y2="19" /><polyline
+                    points="19 12 12 19 5 12"
+                  /></svg
+                >
+              </div>
+            {/if}
+          {/if}
+
           <!-- Output -->
           <div>
             <span
               class="text-xs text-slate-500 font-semibold uppercase block mb-2"
               >Produit</span
             >
+
+            {#if machineItem?.produce_energy && machineItem.produce_energy > 0}
+              <div
+                class="flex items-center gap-2 text-emerald-400 font-bold bg-slate-900/80 p-3 rounded-xl border border-emerald-500/20 shadow-sm mb-2 w-full"
+              >
+                <span>⚡</span>
+                <span>{machineItem.produce_energy} kWh</span>
+              </div>
+            {/if}
             <div
               class="flex items-center justify-between bg-slate-900/80 p-3 rounded-xl border border-indigo-500/20 shadow-sm"
             >
@@ -365,6 +419,151 @@
             >
           </div>
         {/if}
+      </div>
+    {:else if machineItem?.expand?.can_consume}
+      <!-- Fuel Consumption Display (Simple Generator) -->
+      <div class="p-4 bg-slate-950/30 rounded-xl border border-slate-800/50">
+        <div class="flex flex-col gap-4">
+          <!-- Fuel Input -->
+          <div class="space-y-2">
+            <div class="flex justify-between items-baseline">
+              <span class="text-xs text-slate-500 font-semibold uppercase"
+                >Carburants acceptés</span
+              >
+              <span class="text-[10px] text-amber-400 font-mono font-bold"
+                >1 / cycle (Auto)</span
+              >
+            </div>
+
+            <div class="flex flex-wrap gap-2">
+              {#if Array.isArray(machineItem.expand?.can_consume)}
+                {#each machineItem.expand.can_consume as fuel}
+                  <div
+                    class="px-3 py-1.5 bg-slate-900 rounded-lg text-xs border border-slate-800 text-slate-300 font-medium"
+                  >
+                    {fuel.name}
+                  </div>
+                {/each}
+              {:else if machineItem.expand?.can_consume}
+                <div
+                  class="px-3 py-1.5 bg-slate-900 rounded-lg text-xs border border-slate-800 text-slate-300 font-medium"
+                >
+                  {machineItem.expand.can_consume.name}
+                </div>
+              {:else}
+                <div
+                  class="px-3 py-1.5 bg-slate-900 rounded-lg text-xs border border-slate-800 text-slate-500 italic"
+                >
+                  Nom inconnu
+                </div>
+              {/if}
+            </div>
+
+            {#if Array.isArray(machineItem.expand?.can_consume) && machineItem.expand.can_consume.length > 1}
+              <p class="text-[10px] text-slate-500">
+                Utilise le premier disponible.
+              </p>
+            {/if}
+          </div>
+
+          <!-- Arrow -->
+          <div class="flex justify-center text-slate-600">
+            <svg
+              class="w-4 h-4"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              ><line x1="12" y1="5" x2="12" y2="19" /><polyline
+                points="19 12 12 19 5 12"
+              /></svg
+            >
+          </div>
+
+          <!-- Output (Energy) -->
+          <div>
+            <span
+              class="text-xs text-slate-500 font-semibold uppercase block mb-2"
+              >Production</span
+            >
+            <div
+              class="flex items-center gap-2 text-emerald-400 font-bold bg-slate-900/80 p-3 rounded-xl border border-emerald-500/20 shadow-sm w-full"
+            >
+              <span>⚡</span>
+              <span>{machineItem.produce_energy || 0} kWh</span>
+            </div>
+          </div>
+
+          <!-- Efficiency Status -->
+          {#if machine.employees && machine.employees.length > 0}
+            <div
+              class="mt-2 p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg flex items-center gap-2"
+            >
+              <span class="relative flex h-2 w-2">
+                <span
+                  class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"
+                ></span>
+                <span
+                  class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"
+                ></span>
+              </span>
+              <span class="text-xs text-emerald-400 font-bold"
+                >Générateur Actif</span
+              >
+            </div>
+          {:else}
+            <div
+              class="mt-2 p-2 bg-amber-500/10 border border-amber-500/20 rounded-lg flex items-center gap-2"
+            >
+              <span class="text-amber-400 text-xs font-bold"
+                >⚠️ Pas d'employés (Efficacité réduite)</span
+              >
+            </div>
+          {/if}
+        </div>
+      </div>
+    {:else if machineItem?.produce_energy && machineItem.produce_energy > 0}
+      <!-- Pure Energy Producer (Solar/Wind) -->
+      <div class="p-4 bg-slate-950/30 rounded-xl border border-slate-800/50">
+        <div class="flex flex-col gap-4">
+          <div class="flex items-center gap-2 mb-1">
+            <span
+              class="p-1.5 bg-slate-900 rounded-lg text-amber-400 border border-slate-800"
+              >☀️</span
+            >
+            <div>
+              <p class="text-sm text-white font-bold">Générateur Autonome</p>
+              <p class="text-[10px] text-slate-400">
+                Production d'énergie sans carburant
+              </p>
+            </div>
+          </div>
+
+          <div
+            class="p-3 bg-slate-900/50 rounded-lg border border-slate-800 flex justify-between items-center"
+          >
+            <span class="text-xs text-slate-400 font-medium uppercase"
+              >Production</span
+            >
+            <div class="flex items-center gap-1.5 text-emerald-400 font-bold">
+              <span>⚡</span>
+              <span>{machineItem.produce_energy} kWh</span>
+            </div>
+          </div>
+
+          <!-- Status indicator -->
+          <div
+            class="flex items-center gap-2 p-2 bg-slate-900/50 rounded-lg border border-slate-800"
+          >
+            <div
+              class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"
+            ></div>
+            <span class="text-xs text-slate-300">Opérationnel</span>
+          </div>
+        </div>
       </div>
     {:else if machineItem?.product}
       <!-- PASSIVE PRODUCTION DISPLAY -->

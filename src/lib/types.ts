@@ -38,16 +38,20 @@ export interface Employee {
 export interface Item {
   id: string;
   name: string;
-  type: "Ressource Brute" | "Composant" | "Produit Fini" | "Machine";
+  type: "Ressource Brute" | "Composant" | "Produit Fini" | "Machine" | "Stockage";
   base_price: number;
   volatility: number;
   product?: string; // Relation to item (for machines)
   product_quantity?: number; // Quantity produced per time unit
   use_recipe?: string; // Relation to recipe
   production_time?: number; // Time in seconds for passive production
+  produce_energy?: number;
+  can_store_energy?: number;
+  can_consume?: string; // Relation to item (fuel)
   expand?: {
     product?: Item;
     use_recipe?: Recipe;
+    can_consume?: Item;
   };
 }
 
@@ -87,11 +91,21 @@ export interface RecipeInput {
   quantity: number;
 }
 
+export interface RecipeIngredient {
+  id: string;
+  item: string;
+  quantity: number;
+  expand?: {
+    item: Item;
+  };
+}
+
 export interface Recipe {
   id: string;
   name: string;
   output_item: string; // Relation to Item
   inputs_items: string[]; // Relation to Items
+  ingredients?: string[]; // Relation to RecipeIngredients
   input_quantity: number;
   production_time: number; // in seconds
   required_tech?: string; // Relation to Technology (optional)
@@ -99,6 +113,7 @@ export interface Recipe {
     output_item?: Item;
     inputs_items?: Item[];
     required_tech?: Technology;
+    ingredients?: RecipeIngredient[];
   };
 }
 

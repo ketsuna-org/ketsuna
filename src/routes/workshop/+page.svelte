@@ -186,7 +186,7 @@
         .collection("machines")
         .getList<Machine>(page, PER_PAGE, {
           filter,
-          expand: "machine.product,employees",
+          expand: "machine.product,machine.can_consume,employees",
           requestKey: null,
         });
 
