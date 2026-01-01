@@ -262,13 +262,13 @@
 
     {#if machineRecipe}
       <div class="p-4 bg-slate-950/30 rounded-xl border border-slate-800/50">
-        {#if energyStatus && energyStatus.production_speed < 1 && (machineItem?.need_energy ?? 0) > 0}
+        {#if energyStatus && energyStatus.productionSpeed < 1 && (machineItem?.need_energy ?? 0) > 0}
           <div
             class="mb-3 p-2 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-2 animate-pulse"
           >
             <span class="text-red-400">⚡</span>
             <span class="text-xs text-red-300 font-bold">
-              Sous-tension : {Math.floor(energyStatus.production_speed * 100)}%
+              Sous-tension : {Math.floor(energyStatus.productionSpeed * 100)}%
               Efficacité
             </span>
           </div>
@@ -384,11 +384,24 @@
                   machineRecipe.name ||
                   "Item"}
               </span>
-              <span
-                class="text-xs text-indigo-300 font-mono font-bold bg-indigo-500/10 px-2 py-1 rounded-lg border border-indigo-500/20"
+              <div
+                class="text-xs text-indigo-300 font-mono font-bold bg-indigo-500/10 px-2 py-1 rounded-lg border border-indigo-500/20 flex gap-1 items-center"
               >
-                {machineRecipe.production_time}s / cycle
-              </span>
+                {#if energyStatus && energyStatus.productionSpeed < 1 && (machineItem?.need_energy ?? 0) > 0}
+                  <span class="line-through opacity-70"
+                    >{machineRecipe.production_time}s</span
+                  >
+                  <span class="text-red-400 font-bold">
+                    {Math.round(
+                      machineRecipe.production_time /
+                        energyStatus.productionSpeed
+                    )}s
+                  </span>
+                {:else}
+                  {machineRecipe.production_time}s
+                {/if}
+                <span>/ cycle</span>
+              </div>
             </div>
           </div>
         </div>
@@ -584,13 +597,13 @@
     {:else if machineItem?.product}
       <!-- PASSIVE PRODUCTION DISPLAY -->
       <div class="p-4 bg-slate-950/30 rounded-xl border border-slate-800/50">
-        {#if energyStatus && energyStatus.production_speed < 1 && (machineItem?.need_energy ?? 0) > 0}
+        {#if energyStatus && energyStatus.productionSpeed < 1 && (machineItem?.need_energy ?? 0) > 0}
           <div
             class="mb-3 p-2 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-2"
           >
             <span class="text-red-400">⚡</span>
             <span class="text-xs text-red-300 font-bold">
-              Sous-tension : {Math.floor(energyStatus.production_speed * 100)}%
+              Sous-tension : {Math.floor(energyStatus.productionSpeed * 100)}%
               Efficacité
             </span>
           </div>
@@ -615,9 +628,19 @@
               >
             </p>
             <p class="text-[10px] text-slate-500 mt-1">
-              Cycle: <span class="font-mono"
-                >{machineItem.production_time}s</span
-              >
+              Cycle:
+              {#if energyStatus && energyStatus.productionSpeed < 1 && (machineItem?.need_energy ?? 0) > 0}
+                <span class="line-through opacity-70"
+                  >{machineItem.production_time}s</span
+                >
+                <span class="text-red-400 font-bold ml-1">
+                  {Math.round(
+                    machineItem.production_time / energyStatus.productionSpeed
+                  )}s
+                </span>
+              {:else}
+                <span class="font-mono">{machineItem.production_time}s</span>
+              {/if}
             </p>
           </div>
 

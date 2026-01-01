@@ -230,9 +230,11 @@
           }),
           fetchDashboardData(userId),
           fetchBusyEmployees(),
-          fetch(
-            `/api/company/energy-status?companyId=${$activeCompany.id}`
-          ).then((r) => (r.ok ? r.json() : null)),
+          pb
+            .send("/api/company/energy-status", {
+              params: { companyId: $activeCompany.id },
+            })
+            .catch(() => null),
         ]);
 
       // Load paginated data
