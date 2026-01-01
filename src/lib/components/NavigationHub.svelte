@@ -65,6 +65,13 @@
       description: "Production manuelle et automatique",
     },
     {
+      label: "Récolte",
+      href: "/harvest",
+      icon: "⛏️",
+      color: "from-amber-500 to-yellow-600",
+      description: "Récoltez des ressources manuellement",
+    },
+    {
       label: "Monde",
       href: "/world",
       icon: "🌍",

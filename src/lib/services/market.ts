@@ -10,6 +10,9 @@ export interface Item {
     product?: string;
     product_quantity?: number;
     use_recipe?: string;
+    minable?: boolean;
+    circulating_supply?: number;
+    market_demand?: number;
     expand?: {
         use_recipe?: Recipe;
     };

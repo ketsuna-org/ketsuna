@@ -326,15 +326,27 @@
             },
             {
                 "hidden": false,
-                "id": "number_employee_count",
-                "max": null,
-                "min": null,
-                "name": "employee_count",
-                "onlyInt": true,
+                "id": "date1723017366",
+                "max": "",
+                "min": "",
+                "name": "is_producing",
                 "presentable": false,
                 "required": false,
                 "system": false,
-                "type": "number"
+                "type": "date"
+            },
+            {
+                "cascadeDelete": false,
+                "collectionId": "pbc_710432678",
+                "hidden": false,
+                "id": "relation3680932771",
+                "maxSelect": 1,
+                "minSelect": 0,
+                "name": "item_harvesting",
+                "presentable": false,
+                "required": false,
+                "system": false,
+                "type": "relation"
             },
             {
                 "hidden": false,
@@ -358,13 +370,15 @@
             }
         ],
         "indexes": [],
+        "created": "2025-12-25 21:49:14.086Z",
+        "updated": "2025-12-31 23:36:47.469Z",
         "system": false
     },
     {
         "id": "pbc_1190436199",
         "listRule": "",
         "viewRule": "  @request.auth.id = company.ceo.id",
-        "createRule": "@request.auth.id = company.ceo.id && company.balance >= technology.cost && company.level >= technology.required_level ",
+        "createRule": "@request.auth.id = company.ceo.id && company.tech_points >= technology.cost && company.level >= technology.required_level ",
         "updateRule": null,
         "deleteRule": null,
         "name": "company_techs",
@@ -974,11 +988,11 @@
             },
             {
                 "hidden": false,
-                "id": "number_market_demand",
+                "id": "number2704441224",
                 "max": null,
                 "min": null,
-                "name": "market_demand",
-                "onlyInt": true,
+                "name": "circulating_supply",
+                "onlyInt": false,
                 "presentable": false,
                 "required": false,
                 "system": false,
@@ -986,15 +1000,24 @@
             },
             {
                 "hidden": false,
-                "id": "number_circulating_supply",
+                "id": "number1646908031",
                 "max": null,
                 "min": null,
-                "name": "circulating_supply",
-                "onlyInt": true,
+                "name": "market_demand",
+                "onlyInt": false,
                 "presentable": false,
                 "required": false,
                 "system": false,
                 "type": "number"
+            },
+            {
+                "hidden": false,
+                "id": "bool1118657457",
+                "name": "minable",
+                "presentable": false,
+                "required": false,
+                "system": false,
+                "type": "bool"
             },
             {
                 "hidden": false,

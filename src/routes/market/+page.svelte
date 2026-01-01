@@ -42,15 +42,16 @@
 
   // Build PocketBase filter string
   function buildFilterString(): string {
-    const parts: string[] = ['type != "Produit Fini"'];
-    
+    // Exclude finished products and minable items (minable items can only be sold, not bought)
+    const parts: string[] = ['type != "Produit Fini"', "minable = false"];
+
     if (searchQuery.trim()) {
       parts.push(`name ~ "${searchQuery.trim()}"`);
     }
     if (selectedFilters.type) {
       parts.push(`type = "${selectedFilters.type}"`);
     }
-    
+
     return parts.join(" && ");
   }
 
@@ -60,23 +61,25 @@
     } else {
       loadingMore = true;
     }
-    
+
     try {
       const filter = buildFilterString();
-      
-      const result = await pb.collection("items").getList<Item>(page, PER_PAGE, {
-        filter,
-        sort: "name",
-        expand: "use_recipe.inputs_items,use_recipe.output_item,product",
-        requestKey: null,
-      });
-      
+
+      const result = await pb
+        .collection("items")
+        .getList<Item>(page, PER_PAGE, {
+          filter,
+          sort: "name",
+          expand: "use_recipe.inputs_items,use_recipe.output_item,product",
+          requestKey: null,
+        });
+
       if (append) {
         items = [...items, ...result.items];
       } else {
         items = result.items;
       }
-      
+
       totalItems = result.totalItems;
       hasMore = result.page < result.totalPages;
       currentPage = result.page;
@@ -88,7 +91,10 @@
     }
   }
 
-  function handleFilterChange(filters: { searchQuery: string; selectedFilters: Record<string, string> }) {
+  function handleFilterChange(filters: {
+    searchQuery: string;
+    selectedFilters: Record<string, string>;
+  }) {
     searchQuery = filters.searchQuery;
     selectedFilters = filters.selectedFilters;
     currentPage = 1;
@@ -144,6 +150,8 @@
       );
       // Reset quantity to 1
       quantities[item.id] = 1;
+      // Refresh items to update circulating_supply display
+      await loadMarketItems(1, false);
       // Refresh dashboard to show new balance
       dashboardData = await fetchDashboardData(userId);
       // Refresh activeCompany store to reflect changes
@@ -373,11 +381,25 @@
                     >
                   {/if}
                 </div>
-                <span
-                  class="text-[10px] font-bold uppercase tracking-wider bg-slate-950 border border-slate-800 px-2 py-1 rounded-lg text-slate-500"
-                >
-                  {item.type}
-                </span>
+                <div class="flex flex-col items-end gap-1">
+                  <span
+                    class="text-[10px] font-bold uppercase tracking-wider bg-slate-950 border border-slate-800 px-2 py-1 rounded-lg text-slate-500"
+                  >
+                    {item.type}
+                  </span>
+                  {#if item.circulating_supply !== undefined}
+                    <span
+                      class="text-[10px] font-bold px-2 py-1 rounded-lg {item.circulating_supply >
+                      0
+                        ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400'
+                        : 'bg-red-500/10 border border-red-500/20 text-red-400'}"
+                    >
+                      📦 {item.circulating_supply > 0
+                        ? item.circulating_supply + " dispo"
+                        : "Rupture"}
+                    </span>
+                  {/if}
+                </div>
               </div>
               <h3
                 class="text-lg font-bold text-white mb-2 leading-tight min-h-[3rem]"
@@ -456,85 +478,79 @@
               {/if}
             </div>
 
-            <div class="mt-6 space-y-3 relative z-10">
-              <!-- Price & Quantity Row -->
-              <div class="flex items-end justify-between gap-4">
-                <div class="flex-1">
-                  <span
-                    class="text-[10px] text-slate-500 uppercase font-bold tracking-wider"
-                    >Prix Unitaire</span
-                  >
-                  <div class="text-xl font-mono font-bold text-white mt-0.5">
-                    {formatCurrency(item.base_price)}
-                  </div>
-                </div>
-
-                <!-- Compact Quantity Selector -->
-                <div
-                  class="flex items-center gap-1 bg-slate-950 rounded-xl p-1 border border-slate-800"
+            <div
+              class="space-y-3 pt-4 border-t border-slate-800/50 relative z-10 mt-auto"
+            >
+              <!-- Price info row -->
+              <div class="flex items-center justify-between px-1">
+                <span class="text-xs font-medium text-slate-500"
+                  >Prix unitaire</span
                 >
-                  <button
-                    onclick={() =>
-                      setQuantity(item.id, getQuantity(item.id) - 1)}
-                    disabled={getQuantity(item.id) <= 1}
-                    class="w-7 h-7 rounded-lg bg-slate-900 hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center text-slate-400 hover:text-white font-bold transition-all text-sm border border-slate-800 disabled:border-transparent"
-                  >
-                    −
-                  </button>
-                  <input
-                    type="number"
-                    value={getQuantity(item.id)}
-                    oninput={(e) =>
-                      setQuantity(
-                        item.id,
-                        parseInt(e.currentTarget.value) || 1
-                      )}
-                    min="1"
-                    class="w-10 bg-transparent text-center font-mono font-bold text-white text-sm focus:outline-none"
-                  />
-                  <button
-                    onclick={() =>
-                      setQuantity(item.id, getQuantity(item.id) + 1)}
-                    class="w-7 h-7 rounded-lg bg-slate-900 hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white font-bold transition-all text-sm border border-slate-800"
-                  >
-                    +
-                  </button>
-                </div>
+                <span class="font-mono font-bold text-white text-lg"
+                  >{formatCurrency(item.base_price)}</span
+                >
               </div>
 
-              <!-- Total Price -->
-              {#if getQuantity(item.id) > 1}
-                <div
-                  class="flex items-center justify-between px-3 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-xl"
+              <!-- Qty Selector - Full Width like Inventory -->
+              <div
+                class="flex items-center gap-1 bg-slate-950 rounded-xl p-1 border border-slate-800 w-full"
+              >
+                <button
+                  onclick={() => setQuantity(item.id, getQuantity(item.id) - 1)}
+                  disabled={getQuantity(item.id) <= 1}
+                  class="w-10 h-10 rounded-lg bg-slate-900 hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white transition-all disabled:opacity-30 disabled:hover:bg-slate-900 border border-slate-800 font-bold text-lg"
+                  >−</button
                 >
-                  <span class="text-xs text-emerald-400 font-semibold">
-                    Total ({getQuantity(item.id)})
-                  </span>
-                  <span class="text-sm font-mono font-bold text-emerald-400">
-                    {formatCurrency(item.base_price * getQuantity(item.id))}
-                  </span>
-                </div>
-              {/if}
+                <input
+                  type="number"
+                  class="flex-1 min-w-0 h-10 bg-slate-900 border border-slate-700 rounded-lg text-center font-mono font-bold text-base text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  value={getQuantity(item.id)}
+                  oninput={(e) =>
+                    setQuantity(item.id, parseInt(e.currentTarget.value) || 1)}
+                  min="1"
+                />
+                <button
+                  onclick={() => setQuantity(item.id, getQuantity(item.id) + 1)}
+                  disabled={(item.circulating_supply ?? Infinity) <=
+                    getQuantity(item.id)}
+                  class="w-10 h-10 rounded-lg bg-slate-900 hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white transition-all disabled:opacity-30 disabled:hover:bg-slate-900 border border-slate-800 font-bold text-lg"
+                  >+</button
+                >
+              </div>
+
+              <!-- Total Price Box -->
+              <div
+                class="flex items-center justify-between px-3 py-2.5 bg-indigo-500/10 border border-indigo-500/20 rounded-xl"
+              >
+                <span class="text-xs text-indigo-400 font-semibold">
+                  Total ({getQuantity(item.id)} unité{getQuantity(item.id) > 1
+                    ? "s"
+                    : ""})
+                </span>
+                <span class="text-base font-mono font-bold text-indigo-300">
+                  {formatCurrency(item.base_price * getQuantity(item.id))}
+                </span>
+              </div>
 
               <!-- Buy Button -->
               <button
                 onclick={() => handleBuy(item)}
                 disabled={buyingId === item.id ||
                   (dashboardData?.financials.cash || 0) <
-                    item.base_price * getQuantity(item.id)}
-                class="w-full py-2.5 px-4 rounded-xl font-bold transition-all flex items-center justify-center gap-2 group/btn relative overflow-hidden text-sm {buyingId ===
-                item.id
-                  ? 'bg-slate-800 cursor-wait text-slate-400'
-                  : 'bg-indigo-600 text-white hover:bg-indigo-500 shadow-lg shadow-indigo-600/20 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:bg-slate-800 disabled:text-slate-500'}"
+                    item.base_price * getQuantity(item.id) ||
+                  (item.circulating_supply ?? 1) <= 0}
+                class="w-full h-11 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-indigo-900/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 border border-indigo-500/50"
               >
                 {#if buyingId === item.id}
                   <div
-                    class="w-4 h-4 border-2 border-slate-500 border-t-white rounded-full animate-spin"
+                    class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"
                   ></div>
+                {:else if (item.circulating_supply ?? 1) <= 0}
+                  <span>Rupture de stock</span>
                 {:else}
                   <span>Acheter</span>
                   <svg
-                    class="w-4 h-4 group-hover/btn:translate-x-1 transition-transform"
+                    class="w-4 h-4"
                     xmlns="http://www.w3.org/2000/svg"
                     width="18"
                     height="18"
@@ -555,11 +571,7 @@
         {/each}
       </div>
 
-      <InfiniteScroll 
-        onLoadMore={loadMore}
-        loading={loadingMore}
-        {hasMore}
-      />
+      <InfiniteScroll onLoadMore={loadMore} loading={loadingMore} {hasMore} />
     {/if}
   </div>
 </div>
