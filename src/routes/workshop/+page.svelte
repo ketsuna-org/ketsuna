@@ -356,6 +356,13 @@
     // No need to refresh - realtime subscription handles updates
   }
 
+  function handleMachineDelete(machineId: string) {
+    // Immediate local update (fallback if realtime fails)
+    machines = machines.filter((m) => m.id !== machineId);
+    // Also refresh inventory since machine was returned to stock
+    refreshInventory();
+  }
+
   async function refreshInventory() {
     if (!$activeCompany?.id) return;
     try {
@@ -981,6 +988,7 @@
                       allEmployees={employees}
                       {busyEmployeeIds}
                       {energyStatus}
+                      onDelete={handleMachineDelete}
                     />
                   {/each}
                 </div>

@@ -4,6 +4,7 @@
   import { notifications } from "$lib/notifications";
   import { onMount, onDestroy } from "svelte";
   import { slide } from "svelte/transition";
+  import DeleteConfirmation from "$lib/components/DeleteConfirmation.svelte";
 
   /**
    * @type {Machine} - La machine à configurer
@@ -19,6 +20,11 @@
    * @type {() => void} - Callback pour rafraîchir après changement
    */
   export let onUpdate: (() => void) | null = null;
+
+  /**
+   * @type {(machineId: string) => void} - Callback quand une machine est supprimée
+   */
+  export let onDelete: ((machineId: string) => void) | null = null;
 
   /**
    * @type {Set<string>} - Ensemble des IDs d'employés déjà assignés (globalement)
@@ -330,6 +336,29 @@
       isLoading = false;
     }
   }
+
+  // --- DELETE LOGIC ---
+  let showDeleteModal = false;
+
+  function requestDeleteMachine() {
+    showDeleteModal = true;
+  }
+
+  async function confirmDeleteMachine() {
+    isLoading = true;
+    try {
+      await pb.collection("machines").delete(machine.id);
+      notifications.success("Machine retirée et renvoyée au stock");
+      // UI update is handled by realtime subscription in parent
+      showDeleteModal = false;
+      // Call parent callback for immediate update fallback
+      onDelete?.(machine.id);
+    } catch (e: any) {
+      notifications.error(`Erreur lors de la suppression: ${e.message}`);
+    } finally {
+      isLoading = false;
+    }
+  }
 </script>
 
 <div
@@ -349,10 +378,38 @@
         Configuration & production
       </p>
     </div>
-    <div
-      class="px-2 py-1 rounded-lg bg-slate-950 border border-slate-800 text-[10px] font-mono text-slate-400"
-    >
-      ID: {machine.id.slice(0, 8)}
+    <div class="flex flex-col items-end gap-1">
+      <button
+        on:click={requestDeleteMachine}
+        disabled={isLoading}
+        class="text-slate-500 hover:text-red-400 p-1 rounded-lg hover:bg-red-500/10 transition-colors"
+        title="Retirer la machine"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          ><path d="M3 6h18" /><path
+            d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"
+          /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /><line
+            x1="10"
+            x2="10"
+            y1="11"
+            y2="17"
+          /><line x1="14" x2="14" y1="11" y2="17" /></svg
+        >
+      </button>
+      <div
+        class="px-2 py-0.5 rounded-lg bg-slate-950 border border-slate-800 text-[10px] font-mono text-slate-400"
+      >
+        ID: {machine.id.slice(0, 8)}
+      </div>
     </div>
   </div>
 
@@ -1066,6 +1123,18 @@
     {/if}
   </div>
 </div>
+
+{#if showDeleteModal}
+  <DeleteConfirmation
+    title="Retirer la machine"
+    message="Voulez-vous vraiment retirer la machine <strong>{machine.expand
+      ?.machine
+      ?.name}</strong> ?<br><br>Elle sera désassignée et retournera dans votre inventaire. Les employés seront libérés."
+    confirmText="Retirer la machine"
+    onConfirm={confirmDeleteMachine}
+    onCancel={() => (showDeleteModal = false)}
+  />
+{/if}
 
 <style>
   ::-webkit-scrollbar {

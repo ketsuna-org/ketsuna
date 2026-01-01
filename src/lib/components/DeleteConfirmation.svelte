@@ -4,6 +4,7 @@
    * This component follows the project's code conduct rule for CRUD actions.
    */
   import { fade, scale } from "svelte/transition";
+  import { portal } from "$lib/actions/portal";
 
   interface Props {
     title: string;
@@ -59,7 +60,8 @@
 </script>
 
 <div
-  class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md"
+  use:portal
+  class="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md"
   transition:fade={{ duration: 200 }}
 >
   <div
