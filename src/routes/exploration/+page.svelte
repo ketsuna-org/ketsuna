@@ -14,7 +14,7 @@
   } from "$lib/services/exploration";
 
   let loading = $state(true);
-  let minableItems = $state<Item[]>([]);
+  let explorableItems = $state<Item[]>([]);
   let activeExplorations = $state<Exploration[]>([]);
   let myDeposits = $state<Deposit[]>([]);
   let selectedTab = $state<"explore" | "deposits">("explore");
@@ -30,12 +30,13 @@
     if (!$activeCompany) return;
     loading = true;
     try {
-      // 1. Load minable items (Catalog)
+      // 1. Load explorable items (Catalog)
+      // Note: User must add 'is_explorable' (bool) to items collection
       const itemsResult = await pb.collection("items").getList<Item>(1, 50, {
-        filter: "minable = true",
+        filter: "is_explorable = true",
         sort: "name",
       });
-      minableItems = itemsResult.items;
+      explorableItems = itemsResult.items;
 
       // 2. Load active explorations
       activeExplorations = await getExplorations();
@@ -206,7 +207,7 @@
     <div
       class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
     >
-      {#each minableItems as item (item.id)}
+      {#each explorableItems as item (item.id)}
         <div
           class="group relative bg-gray-900/40 hover:bg-gray-800/60 rounded-2xl border border-white/5 hover:border-amber-500/30 p-6 transition-all duration-300 hover:shadow-2xl hover:shadow-amber-500/10 hover:-translate-y-1"
         >

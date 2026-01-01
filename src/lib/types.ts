@@ -54,6 +54,7 @@ export interface Item {
   energy_type?: "Soleil" | "Fosille" | "Nucleaire" | string; // Energy source type
   required_tech?: string; // Relation to technology (optional)
   minable?: boolean;
+  is_explorable?: boolean; // Can be found via exploration missions
   expand?: {
     product?: Item;
     use_recipe?: Recipe;
