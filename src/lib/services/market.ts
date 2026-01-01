@@ -17,6 +17,7 @@ export interface Item {
     need_energy?: number;
     produce_energy?: number;
     can_store_energy?: number;
+    energy_type?: string;
     // Machine capacity
     max_employee?: number;
     expand?: {

@@ -40,21 +40,6 @@
     },
   ];
 
-  // Build PocketBase filter string
-  function buildFilterString(): string {
-    // Exclude finished products and minable items (minable items can only be sold, not bought)
-    const parts: string[] = ['type != "Produit Fini"', "minable = false"];
-
-    if (searchQuery.trim()) {
-      parts.push(`name ~ "${searchQuery.trim()}"`);
-    }
-    if (selectedFilters.type) {
-      parts.push(`type = "${selectedFilters.type}"`);
-    }
-
-    return parts.join(" && ");
-  }
-
   async function loadMarketItems(page: number = 1, append: boolean = false) {
     if (page === 1) {
       loading = true;
@@ -63,28 +48,30 @@
     }
 
     try {
-      const filter = buildFilterString();
-
-      const result = await pb
-        .collection("items")
-        .getList<Item>(page, PER_PAGE, {
-          filter,
+      // Use new backend endpoint for robust filtering
+      const result = await pb.send("/api/market/list", {
+        method: "POST",
+        body: {
+          page,
+          perPage: PER_PAGE,
           sort: "name",
-          expand: "use_recipe.inputs_items,use_recipe.output_item,product",
-          requestKey: null,
-        });
+          search: searchQuery,
+          type: selectedFilters.type || "",
+        },
+      });
 
       if (append) {
-        items = [...items, ...result.items];
+        items = [...items, ...(result.items || [])];
       } else {
-        items = result.items;
+        items = result.items || [];
       }
 
-      totalItems = result.totalItems;
-      hasMore = result.page < result.totalPages;
-      currentPage = result.page;
+      totalItems = result.totalItems || 0;
+      hasMore = page < (result.totalPages || 0);
+      currentPage = page;
     } catch (err: any) {
       error = err.message;
+      console.error("Market load error:", err);
     } finally {
       loading = false;
       loadingMore = false;
@@ -479,7 +466,16 @@
 
               {#if item.type === "Machine" || item.type === "Stockage"}
                 <div class="flex flex-wrap gap-2 mt-3">
-                  {#if item.need_energy && item.need_energy > 0}
+                  {#if item.energy_type === "Soleil"}
+                    <div
+                      class="flex items-center gap-1.5 text-xs bg-yellow-500/10 text-yellow-400 px-2 py-1 rounded-lg border border-yellow-500/20"
+                      title="Fonctionne uniquement de 8h à 18h UTC"
+                    >
+                      <span>☀️</span>
+                      <span>Solaire (8h-18h)</span>
+                    </div>
+                  {/if}
+                  {#if item.need_energy && item.need_energy > 0 && item.energy_type !== "Soleil"}
                     <div
                       class="flex items-center gap-1.5 text-xs bg-red-500/10 text-red-400 px-2 py-1 rounded-lg border border-red-500/20"
                     >

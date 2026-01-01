@@ -51,10 +51,14 @@ export interface Item {
   need_energy?: number;
   max_employee?: number;
   can_consume?: string; // Relation to item (fuel)
+  energy_type?: "Soleil" | "Fosille" | "Nucleaire" | string; // Energy source type
+  required_tech?: string; // Relation to technology (optional)
+  minable?: boolean;
   expand?: {
     product?: Item;
     use_recipe?: Recipe;
     can_consume?: Item;
+    required_tech?: Technology;
   };
 }
 
