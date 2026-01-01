@@ -476,6 +476,43 @@
                   <span>Volatilité: {(item.volatility * 100).toFixed(1)}%</span>
                 </div>
               {/if}
+
+              {#if item.type === "Machine" || item.type === "Stockage"}
+                <div class="flex flex-wrap gap-2 mt-3">
+                  {#if item.need_energy && item.need_energy > 0}
+                    <div
+                      class="flex items-center gap-1.5 text-xs bg-red-500/10 text-red-400 px-2 py-1 rounded-lg border border-red-500/20"
+                    >
+                      <span>⚡</span>
+                      <span>Conso: {item.need_energy} kW</span>
+                    </div>
+                  {/if}
+                  {#if item.produce_energy && item.produce_energy > 0}
+                    <div
+                      class="flex items-center gap-1.5 text-xs bg-emerald-500/10 text-emerald-400 px-2 py-1 rounded-lg border border-emerald-500/20"
+                    >
+                      <span>🔋</span>
+                      <span>Prod: +{item.produce_energy} kW</span>
+                    </div>
+                  {/if}
+                  {#if item.can_store_energy && item.can_store_energy > 0}
+                    <div
+                      class="flex items-center gap-1.5 text-xs bg-cyan-500/10 text-cyan-400 px-2 py-1 rounded-lg border border-cyan-500/20"
+                    >
+                      <span>🔌</span>
+                      <span>Stock: {item.can_store_energy} kWh</span>
+                    </div>
+                  {/if}
+                  {#if item.max_employee && item.max_employee > 1}
+                    <div
+                      class="flex items-center gap-1.5 text-xs bg-indigo-500/10 text-indigo-400 px-2 py-1 rounded-lg border border-indigo-500/20"
+                    >
+                      <span>👥</span>
+                      <span>Max: {item.max_employee} emp.</span>
+                    </div>
+                  {/if}
+                </div>
+              {/if}
             </div>
 
             <div

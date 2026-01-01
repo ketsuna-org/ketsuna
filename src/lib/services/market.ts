@@ -4,7 +4,7 @@ import type { Recipe } from "$lib/types";
 export interface Item {
     id: string;
     name: string;
-    type: "Ressource Brute" | "Composant" | "Produit Fini" | "Machine";
+    type: "Ressource Brute" | "Composant" | "Produit Fini" | "Machine" | "Stockage";
     base_price: number;
     volatility: number;
     product?: string;
@@ -13,6 +13,12 @@ export interface Item {
     minable?: boolean;
     circulating_supply?: number;
     market_demand?: number;
+    // Energy properties
+    need_energy?: number;
+    produce_energy?: number;
+    can_store_energy?: number;
+    // Machine capacity
+    max_employee?: number;
     expand?: {
         use_recipe?: Recipe;
     };

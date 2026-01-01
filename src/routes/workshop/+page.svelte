@@ -84,20 +84,27 @@
       .length
   );
 
-  // Calculate missing employees for optimal production
-  let missingEmployeesCount = $derived.by(() => {
-    let missing = 0;
-    for (const machine of machines) {
-      const maxEmp = machine.expand?.machine?.max_employee || 1;
-      const currentEmp = machine.employees?.length || 0;
-      if (currentEmp < maxEmp) {
-        missing += maxEmp - currentEmp;
-      }
-    }
-    return missing;
+  // Machine stats from backend API (accurate totals across ALL machines)
+  let machineStats = $state({
+    totalMachines: 0,
+    totalMaxEmployees: 0,
+    currentAssigned: 0,
+    missingEmployees: 0,
+    availableEmployees: 0,
+    totalEmployees: 0,
   });
 
-  // Available employees (not assigned to any machine)
+  // Fetch accurate machine stats from backend
+  async function loadMachineStats() {
+    try {
+      const stats = await pb.send("/api/machines/stats", { method: "GET" });
+      machineStats = stats;
+    } catch (e) {
+      console.error("Failed to load machine stats", e);
+    }
+  }
+
+  // Available employees list (for the auto-assign button preview)
   let availableEmployees = $derived(
     employees
       .filter((emp) => !busyEmployeeIds.has(emp.id))
@@ -289,8 +296,12 @@
             .catch(() => null),
         ]);
 
-      // Load paginated data
-      await Promise.all([loadRecipes(1, false), loadMachines(1, false)]);
+      // Load paginated data and machine stats
+      await Promise.all([
+        loadRecipes(1, false),
+        loadMachines(1, false),
+        loadMachineStats(),
+      ]);
 
       employees = employeesData;
       busyEmployeeIds = busySet;
@@ -738,13 +749,15 @@
                 <!-- Missing employees indicator and auto-assign button -->
                 {#if machines.length > 0}
                   <div class="flex flex-wrap items-center gap-3 mt-3">
-                    {#if missingEmployeesCount > 0}
+                    {#if machineStats.missingEmployees > 0}
                       <div
                         class="flex items-center gap-2 px-3 py-1.5 bg-amber-500/10 border border-amber-500/30 rounded-lg"
                       >
                         <span class="text-amber-400">⚠️</span>
                         <span class="text-xs text-amber-300 font-medium">
-                          <span class="font-bold">{missingEmployeesCount}</span>
+                          <span class="font-bold"
+                            >{machineStats.missingEmployees}</span
+                          >
                           employé(s) manquant(s) pour production optimale
                         </span>
                       </div>
@@ -759,7 +772,7 @@
                       </div>
                     {/if}
 
-                    {#if availableEmployees.length > 0 && missingEmployeesCount > 0}
+                    {#if availableEmployees.length > 0 && machineStats.missingEmployees > 0}
                       <button
                         onclick={autoAssignEmployees}
                         disabled={isAutoAssigning}
@@ -775,7 +788,7 @@
                           <span
                             >Auto-assigner ({Math.min(
                               availableEmployees.length,
-                              missingEmployeesCount
+                              machineStats.missingEmployees
                             )})</span
                           >
                         {/if}
