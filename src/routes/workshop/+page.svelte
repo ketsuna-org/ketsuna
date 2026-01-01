@@ -421,7 +421,7 @@
             const updatedMachine = await pb
               .collection("machines")
               .getOne<Machine>(record.id, {
-                expand: "machine.product,employees",
+                expand: "machine.product,machine.can_consume,employees,deposit",
                 requestKey: null,
               });
 

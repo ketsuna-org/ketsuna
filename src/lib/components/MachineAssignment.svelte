@@ -275,21 +275,32 @@
         body: { machineId: machine.id, depositId: depositId },
       });
 
-      // Hack: update local machine object optimistically or reload?
-      // The realtime subscription or parent reload should handle it.
-      // Let's force a small local update for UI responsivenes
+      // Hack: update local machine object optimistically with spread for reactivity
       if (depositId === "") {
-        machine.deposit = "";
-        if (machine.expand) machine.expand.deposit = undefined;
+        const newExpand = machine.expand ? { ...machine.expand } : {};
+        newExpand.deposit = undefined; // Force undefined to clear
+
+        machine = {
+          ...machine,
+          deposit: "",
+          expand: newExpand,
+        };
         notifications.success("Gisement désassigné");
       } else {
         const dep = compatibleDeposits.find((d) => d.id === depositId);
-        machine.deposit = depositId;
-        if (!machine.expand) machine.expand = {};
-        machine.expand.deposit = dep;
+        const newExpand = machine.expand ? { ...machine.expand } : {};
+        newExpand.deposit = dep;
+
+        machine = {
+          ...machine,
+          deposit: depositId,
+          expand: newExpand,
+        };
         notifications.success("Gisement assigné !");
       }
+
       showDepositDropdown = false;
+      onUpdate?.();
     } catch (e: any) {
       notifications.error(`Erreur: ${e.message}`);
     } finally {
@@ -299,9 +310,10 @@
 </script>
 
 <div
-  class="border border-slate-700/50 rounded-2xl p-6 bg-slate-900/50 backdrop-blur-sm hover:border-slate-600/50 transition-colors {showEmployeeDropdown
+  class="border border-slate-700/50 rounded-2xl p-6 bg-slate-900/50 backdrop-blur-sm hover:border-slate-600/50 transition-colors {showEmployeeDropdown ||
+  showDepositDropdown
     ? 'relative z-50'
-    : ''}"
+    : 'relative'}"
 >
   <!-- Machine Header -->
   <div class="mb-6 flex items-start justify-between">
@@ -820,7 +832,7 @@
               {#if showDepositDropdown}
                 <div
                   transition:slide
-                  class="absolute top-full left-0 right-0 mt-2 bg-slate-900 border border-slate-700 rounded-xl shadow-xl z-20 max-h-48 overflow-y-auto"
+                  class="absolute top-full left-0 right-0 mt-2 bg-slate-900 border border-slate-700 rounded-xl shadow-xl z-50 max-h-48 overflow-y-auto"
                 >
                   {#if compatibleDeposits.length > 0}
                     {#each compatibleDeposits as dep}
