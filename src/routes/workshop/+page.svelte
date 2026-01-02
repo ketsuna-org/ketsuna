@@ -10,7 +10,9 @@
   import RecipeCard from "$lib/components/RecipeCard.svelte";
   import MachineAssignment from "$lib/components/MachineAssignment.svelte";
   import FilterBar from "$lib/components/FilterBar.svelte";
-  import InfiniteScroll from "$lib/components/InfiniteScroll.svelte";
+  import MachineAssignment from "$lib/components/MachineAssignment.svelte";
+  import FilterBar from "$lib/components/FilterBar.svelte";
+  import Pagination from "$lib/components/Pagination.svelte";
   import { notifications } from "$lib/notifications";
 
   const PER_PAGE = 12;
@@ -162,7 +164,9 @@
         // Refresh machines to show new assignments
         await loadMachines(1, false);
       } else {
-        notifications.info("Aucun gisement compatible trouvé pour vos machines");
+        notifications.info(
+          "Aucun gisement compatible trouvé pour vos machines"
+        );
       }
     } catch (error: any) {
       notifications.error(`Erreur: ${error.message}`);
@@ -811,10 +815,10 @@
                   {/each}
                 </div>
 
-                <InfiniteScroll
-                  onLoadMore={loadMoreRecipes}
-                  loading={loadingMoreRecipes}
-                  hasMore={hasMoreRecipes}
+                <Pagination
+                  currentPage={recipePage}
+                  totalPages={Math.ceil(totalRecipes / PER_PAGE)}
+                  on:pageChange={(e) => loadRecipes(e.detail, false)}
                 />
               {/if}
             {/if}
@@ -890,7 +894,7 @@
                     {/if}
 
                     <!-- Auto-assign deposits button -->
-                    {#if machines.some(m => m.expand?.machine?.expand?.product?.is_explorable && !m.deposit)}
+                    {#if machines.some((m) => m.expand?.machine?.expand?.product?.is_explorable && !m.deposit)}
                       <button
                         onclick={autoAssignDeposits}
                         disabled={isAutoAssigningDeposits}
@@ -1048,10 +1052,10 @@
                   {/each}
                 </div>
 
-                <InfiniteScroll
-                  onLoadMore={loadMoreMachines}
-                  loading={loadingMoreMachines}
-                  hasMore={hasMoreMachines}
+                <Pagination
+                  currentPage={machinePage}
+                  totalPages={Math.ceil(totalMachines / PER_PAGE)}
+                  on:pageChange={(e) => loadMachines(e.detail, false)}
                 />
               {/if}
             {/if}
