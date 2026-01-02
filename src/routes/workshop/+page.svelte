@@ -144,6 +144,33 @@
     }
   }
 
+  // Auto-assign deposits
+  let isAutoAssigningDeposits = $state(false);
+
+  async function autoAssignDeposits() {
+    if (isAutoAssigningDeposits) return;
+    isAutoAssigningDeposits = true;
+    try {
+      const response = await pb.send("/api/machines/auto-assign-deposits", {
+        method: "POST",
+      });
+
+      if (response.assignedCount > 0) {
+        notifications.success(
+          `✨ ${response.assignedCount} gisement(s) assigné(s) automatiquement`
+        );
+        // Refresh machines to show new assignments
+        await loadMachines(1, false);
+      } else {
+        notifications.info("Aucun gisement compatible trouvé pour vos machines");
+      }
+    } catch (error: any) {
+      notifications.error(`Erreur: ${error.message}`);
+    } finally {
+      isAutoAssigningDeposits = false;
+    }
+  }
+
   async function fetchBusyEmployees() {
     if (!$activeCompany?.id) return new Set<string>();
     try {
@@ -858,6 +885,25 @@
                               machineStats.missingEmployees
                             )})</span
                           >
+                        {/if}
+                      </button>
+                    {/if}
+
+                    <!-- Auto-assign deposits button -->
+                    {#if machines.some(m => m.expand?.machine?.expand?.product?.is_explorable && !m.deposit)}
+                      <button
+                        onclick={autoAssignDeposits}
+                        disabled={isAutoAssigningDeposits}
+                        class="flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-500 disabled:bg-slate-700 disabled:cursor-wait text-white text-sm font-bold rounded-lg transition-all shadow-md hover:shadow-amber-500/25"
+                      >
+                        {#if isAutoAssigningDeposits}
+                          <span
+                            class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"
+                          ></span>
+                          <span>Assignation...</span>
+                        {:else}
+                          <span>⛏️</span>
+                          <span>Auto-assigner Gisements</span>
                         {/if}
                       </button>
                     {/if}
