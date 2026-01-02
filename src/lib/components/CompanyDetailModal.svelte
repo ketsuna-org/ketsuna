@@ -87,7 +87,9 @@
 
       <!-- Stats Grid -->
       <div class="grid grid-cols-2 gap-4 mt-6">
-        <div class="bg-slate-800/50 p-3 rounded-xl border border-slate-700/50">
+        <div
+          class="col-span-2 bg-slate-800/50 p-3 rounded-xl border border-slate-700/50"
+        >
           <p class="text-xs text-slate-500 uppercase font-bold mb-1">
             Trésorerie
           </p>
@@ -102,6 +104,15 @@
           </p>
           <p class="text-white font-mono font-bold text-lg">
             {company.employee_count ?? 0}
+          </p>
+        </div>
+
+        <div class="bg-slate-800/50 p-3 rounded-xl border border-slate-700/50">
+          <p class="text-xs text-slate-500 uppercase font-bold mb-1">
+            Machines
+          </p>
+          <p class="text-white font-mono font-bold text-lg">
+            {company.machine_count ?? 0}
           </p>
         </div>
       </div>
