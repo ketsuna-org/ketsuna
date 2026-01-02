@@ -82,6 +82,11 @@
   }
 </script>
 
+<svelte:head>
+  <title>{isLogin ? "Connexion" : "Inscription"} | Ketsuna: Iron Symphony</title
+  >
+</svelte:head>
+
 <div
   class="min-h-screen bg-background flex items-center justify-center px-4 py-8"
 >

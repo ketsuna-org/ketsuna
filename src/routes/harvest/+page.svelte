@@ -126,6 +126,10 @@
   });
 </script>
 
+<svelte:head>
+  <title>Récolte | Ketsuna: Iron Symphony</title>
+</svelte:head>
+
 <div class="min-h-screen bg-slate-950 text-slate-200 p-6">
   <div class="max-w-5xl mx-auto space-y-8">
     <!-- Header -->

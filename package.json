@@ -34,7 +34,10 @@
 		"vite": "^7.2.6"
 	},
 	"dependencies": {
+		"@types/marked": "^6.0.0",
 		"firebase": "^12.7.0",
+		"gray-matter": "^4.0.3",
+		"marked": "^17.0.1",
 		"pocketbase": "^0.26.5"
 	}
 }

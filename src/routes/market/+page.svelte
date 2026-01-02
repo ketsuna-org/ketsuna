@@ -1,6 +1,6 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
-  import { onMount } from "svelte";
+  import { onMount, onDestroy } from "svelte";
   import { fade, fly, scale } from "svelte/transition";
   import { buyItem, type Item } from "$lib/services/market";
   import { fetchDashboardData, type DashboardData } from "$lib/dashboard";
@@ -161,6 +161,10 @@
     }).format(val);
   }
 </script>
+
+<svelte:head>
+  <title>Marché | Ketsuna: Iron Symphony</title>
+</svelte:head>
 
 <div class="min-h-screen bg-slate-950 text-slate-200 p-6">
   <div class="max-w-7xl mx-auto space-y-8">

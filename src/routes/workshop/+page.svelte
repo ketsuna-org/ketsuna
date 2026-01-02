@@ -541,6 +541,10 @@
   });
 </script>
 
+<svelte:head>
+  <title>Workshop | Ketsuna: Iron Symphony</title>
+</svelte:head>
+
 <div
   class="min-h-screen bg-slate-950 text-slate-200 font-sans selection:bg-indigo-500/30"
 >

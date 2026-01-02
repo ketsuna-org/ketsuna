@@ -1,16 +1,4 @@
-<script lang="ts">
-  import { goto } from "$app/navigation";
-  import pb from "$lib/pocketbase";
-  import { fade, fly } from "svelte/transition";
-
-  function startPlaying() {
-    if (pb.authStore.isValid) {
-      goto("/dashboard");
-    } else {
-      goto("/login");
-    }
-  }
-
+<script context="module">
   const pillars = [
     {
       name: "Terra-Forma",
@@ -85,6 +73,24 @@
     },
   ];
 </script>
+
+<script lang="ts">
+  import { goto } from "$app/navigation";
+  import pb from "$lib/pocketbase";
+  import { fade, fly } from "svelte/transition";
+
+  function startPlaying() {
+    if (pb.authStore.isValid) {
+      goto("/dashboard");
+    } else {
+      goto("/login");
+    }
+  }
+</script>
+
+<svelte:head>
+  <title>Ketsuna: Iron Symphony</title>
+</svelte:head>
 
 <div
   class="min-h-screen bg-slate-950 text-slate-200 font-sans selection:bg-indigo-500/30"

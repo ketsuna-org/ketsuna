@@ -290,6 +290,10 @@
   });
 </script>
 
+<svelte:head>
+  <title>Inventaire | Ketsuna: Iron Symphony</title>
+</svelte:head>
+
 <div class="min-h-screen bg-slate-950 text-slate-200 p-6">
   <div class="max-w-7xl mx-auto space-y-8">
     <!-- Header -->

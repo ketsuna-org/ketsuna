@@ -70,7 +70,7 @@
 </script>
 
 <svelte:head>
-  <title>Ketsuna - Carte du Monde</title>
+  <title>Carte du Monde | Ketsuna: Iron Symphony</title>
 </svelte:head>
 
 <div class="h-screen w-screen bg-slate-950 overflow-hidden relative">

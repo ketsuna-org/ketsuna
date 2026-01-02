@@ -10,6 +10,7 @@
   import NotificationCenter from "$lib/components/NotificationCenter.svelte";
   import NavigationHub from "$lib/components/NavigationHub.svelte";
   import NavFab from "$lib/components/NavFab.svelte";
+  import Footer from "$lib/components/Footer.svelte";
 
   let { children } = $props();
 
@@ -41,7 +42,14 @@
 <svelte:head>
   <link rel="icon" href={favicon} />
 </svelte:head>
-{@render children()}
+
+<div class="flex flex-col min-h-screen">
+  <div class="flex-grow">
+    {@render children()}
+  </div>
+  <Footer />
+</div>
+
 <NotificationCenter />
 
 <!-- Navigation Hub (Global) -->

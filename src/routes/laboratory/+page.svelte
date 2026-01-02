@@ -12,6 +12,7 @@
   import { notifications } from "$lib/notifications";
 
   let technologies: Array<Technology & { isOwned: boolean }> = $state([]);
+
   let dashboardData: DashboardData | null = $state(null);
   let loading = $state(true);
   let error = $state("");
@@ -68,6 +69,10 @@
     loadData();
   }
 </script>
+
+<svelte:head>
+  <title>Laboratoire | Ketsuna: Iron Symphony</title>
+</svelte:head>
 
 <div class="min-h-screen bg-slate-950 text-slate-200 p-6">
   <div class="max-w-7xl mx-auto space-y-8">
