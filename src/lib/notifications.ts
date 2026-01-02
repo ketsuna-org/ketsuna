@@ -12,7 +12,7 @@ export interface Notification {
 function createNotificationStore() {
     const { subscribe, update } = writable<Notification[]>([]);
 
-    function send(message: string, type: NotificationType = 'info', duration = 5000) {
+    function send(message: string, type: NotificationType = 'info', duration = 1000) {
         const id = Math.random().toString(36).substring(2, 9);
         update(n => [...n, { id, type, message, duration }]);
 

@@ -12,9 +12,9 @@
   export let machine: Machine;
 
   /**
-   * @type {Employee[]} - Tous les employés disponibles
+   * @type {Employee[]} - Employés disponibles pour assignation (déjà filtrés)
    */
-  export let allEmployees: Employee[] = [];
+  export let availableEmployees: Employee[] = [];
 
   /**
    * @type {() => void} - Callback pour rafraîchir après changement
@@ -120,11 +120,8 @@
       timeRemaining = Math.max(0, total - elapsed);
 
       if (newProgress >= 100) {
-        setTimeout(() => {
-          progress = 0;
-          // Note: on ne call pas onUpdate() ici pour éviter les refresh en boucle.
-          // Les mises à jour de données sont gérées par les subscriptions PocketBase.
-        }, 1000);
+        progress = 100;
+        timeRemaining = 0;
       }
     } else {
       progress = 0;
@@ -146,15 +143,6 @@
 
   // Employés actuellement assignés
   $: assignedEmployeeIds = new Set(machine.employees || []);
-
-  // Employés disponibles pour assignation (exclut tous les employés occupés globalement)
-  // Triés par efficacité décroissante
-  $: availableEmployees = allEmployees
-    .filter((emp) => {
-      // Exclure les employés déjà assignés à n'importe quelle machine
-      return !busyEmployeeIds.has(emp.id);
-    })
-    .sort((a, b) => (b.efficiency || 1) - (a.efficiency || 1));
 
   // Employés filtrés par la recherche
   $: filteredAvailableEmployees = availableEmployees.filter((emp) => {
@@ -221,7 +209,7 @@
     isLoading = true;
     try {
       const updatedEmployees = (machine.employees || []).filter(
-        (id) => id !== employeeId
+        (id) => id !== employeeId,
       );
 
       await pb.collection("machines").update(machine.id, {
@@ -247,7 +235,7 @@
       });
 
       notifications.success(
-        `${machine.employees.length} employé(s) désassigné(s)`
+        `${machine.employees.length} employé(s) désassigné(s)`,
       );
       // onUpdate?.(); - Removed to prevent refresh, let realtime sub handle it
     } catch (error: any) {
@@ -557,7 +545,7 @@
                   <span class="text-red-400 font-bold">
                     {Math.round(
                       machineRecipe.production_time /
-                        energyStatus.productionSpeed
+                        energyStatus.productionSpeed,
                     )}s
                   </span>
                 {:else}
@@ -798,7 +786,7 @@
                 >
                 <span class="text-red-400 font-bold ml-1">
                   {Math.round(
-                    machineItem.production_time / energyStatus.productionSpeed
+                    machineItem.production_time / energyStatus.productionSpeed,
                   )}s
                 </span>
               {:else}

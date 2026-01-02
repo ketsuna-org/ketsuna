@@ -1,36 +1,68 @@
 <script lang="ts">
-  import { goto } from "$app/navigation";
   import { onMount, onDestroy } from "svelte";
   import { fade } from "svelte/transition";
-  import { fetchAvailableRecipes } from "$lib/services/recipe";
-  import { fetchDashboardData, type DashboardData } from "$lib/dashboard";
   import { activeCompany } from "$lib/stores";
   import pb from "$lib/pocketbase";
   import type { Machine, Employee, InventoryItem } from "$lib/pocketbase";
+  import { notifications } from "$lib/notifications";
+
+  // Components
   import RecipeCard from "$lib/components/RecipeCard.svelte";
   import MachineAssignment from "$lib/components/MachineAssignment.svelte";
   import FilterBar from "$lib/components/FilterBar.svelte";
-  import MachineAssignment from "$lib/components/MachineAssignment.svelte";
-  import FilterBar from "$lib/components/FilterBar.svelte";
   import Pagination from "$lib/components/Pagination.svelte";
-  import { notifications } from "$lib/notifications";
+  import WorkshopStats from "$lib/components/WorkshopStats.svelte";
+  import WorkshopTabs from "$lib/components/WorkshopTabs.svelte";
+  import MachineStockPanel from "$lib/components/MachineStockPanel.svelte";
+  import AutoAssignPanel from "$lib/components/AutoAssignPanel.svelte";
+
+  // Services
+  import {
+    loadWorkshopData,
+    loadRecipes as loadRecipesService,
+    loadMachines as loadMachinesService,
+    loadMachineStats,
+    fetchBusyEmployees,
+    refreshEnergyStatus,
+    refreshInventory,
+    assignMachineFromStock as assignMachineService,
+    autoAssignEmployees as autoAssignEmployeesService,
+    autoAssignDeposits as autoAssignDepositsService,
+    subscribeToWorkshopData,
+    type MachineStats,
+    type EnergyStatus,
+  } from "$lib/services/workshop";
+  import type { DashboardData } from "$lib/dashboard";
 
   const PER_PAGE = 12;
 
+  // --- State ---
   let recipes: any[] = $state([]);
   let machines: Machine[] = $state([]);
   let employees: Employee[] = $state([]);
   let inventory: InventoryItem[] = $state([]);
   let dashboardData: DashboardData | null = $state(null);
-  let energyStatus: any = $state(null);
+  let energyStatus: EnergyStatus | null = $state(null);
+  let machineStats: MachineStats = $state({
+    totalMachines: 0,
+    totalMaxEmployees: 0,
+    currentAssigned: 0,
+    missingEmployees: 0,
+    availableEmployees: 0,
+    totalEmployees: 0,
+    machineTypeCount: 0,
+    stockageTypeCount: 0,
+  });
+
   let loading = $state(true);
   let loadingMoreRecipes = $state(false);
   let loadingMoreMachines = $state(false);
   let error = $state("");
+
   let activeTab = $state<"manual" | "automation">("manual");
   let machineTypeTab = $state<"machines" | "stockage">("machines");
 
-  // Pagination state
+  // Pagination
   let recipePage = $state(1);
   let hasMoreRecipes = $state(true);
   let totalRecipes = $state(0);
@@ -38,9 +70,10 @@
   let hasMoreMachines = $state(true);
   let totalMachines = $state(0);
 
-  // Filter states for recipes
+  // Filters
   let recipeSearchQuery = $state("");
   let recipeFilters = $state<Record<string, string>>({});
+  let machineSearchQuery = $state("");
 
   const recipeFilterOptions = [
     {
@@ -53,179 +86,40 @@
     },
   ];
 
-  // Filter states for machines
-  let machineSearchQuery = $state("");
-
+  // Busy employees tracking
   let busyEmployeeIds = $state(new Set<string>());
 
-  // Derived: Filter machines and stock by type
+  // Auto-assign states
+  let isAutoAssigning = $state(false);
+  let isAutoAssigningDeposits = $state(false);
+
+  // --- Derived State ---
   let currentTypeFilter = $derived(
-    machineTypeTab === "machines" ? "Machine" : "Stockage"
+    machineTypeTab === "machines" ? "Machine" : "Stockage",
   );
 
-  // Dynamically compute available stock based on selected type tab
   let availableMachineStock = $derived(
     inventory.filter(
       (inv) =>
-        inv.expand?.item?.type === currentTypeFilter && (inv.quantity || 0) > 0
-    )
+        inv.expand?.item?.type === currentTypeFilter && (inv.quantity || 0) > 0,
+    ),
   );
 
-  // Filter displayed machines by type
   let filteredMachinesByType = $derived(
-    machines.filter((m) => m.expand?.machine?.type === currentTypeFilter)
+    machines.filter((m) => m.expand?.machine?.type === currentTypeFilter),
   );
 
-  // Count machines by type for badges
-  let machineTypeCount = $derived(
-    machines.filter((m) => (m.expand?.machine?.type as string) === "Machine")
-      .length
-  );
-  let stockageTypeCount = $derived(
-    machines.filter((m) => (m.expand?.machine?.type as string) === "Stockage")
-      .length
-  );
+  let machineTypeCount = $derived(machineStats.machineTypeCount);
 
-  // Machine stats from backend API (accurate totals across ALL machines)
-  let machineStats = $state({
-    totalMachines: 0,
-    totalMaxEmployees: 0,
-    currentAssigned: 0,
-    missingEmployees: 0,
-    availableEmployees: 0,
-    totalEmployees: 0,
-  });
+  let stockageTypeCount = $derived(machineStats.stockageTypeCount);
 
-  // Fetch accurate machine stats from backend
-  async function loadMachineStats() {
-    try {
-      const stats = await pb.send("/api/machines/stats", { method: "GET" });
-      machineStats = stats;
-    } catch (e) {
-      console.error("Failed to load machine stats", e);
-    }
-  }
-
-  // Available employees list (for the auto-assign button preview)
   let availableEmployees = $derived(
     employees
       .filter((emp) => !busyEmployeeIds.has(emp.id))
-      .sort((a, b) => (b.efficiency || 1) - (a.efficiency || 1))
+      .sort((a, b) => (b.efficiency || 1) - (a.efficiency || 1)),
   );
 
-  // Auto-assign state
-  let isAutoAssigning = $state(false);
-
-  // Auto-assign function: call the backend endpoint
-  async function autoAssignEmployees() {
-    if (isAutoAssigning || availableEmployees.length === 0) return;
-
-    isAutoAssigning = true;
-
-    try {
-      const response = await pb.send("/api/machines/auto-assign", {
-        method: "POST",
-      });
-
-      if (response.assignedCount > 0) {
-        notifications.success(
-          `✨ ${response.assignedCount} employé(s) assigné(s) automatiquement`
-        );
-        // Update busy list - the realtime subscription will handle machines update
-        const busy = await fetchBusyEmployees();
-        busyEmployeeIds = busy;
-      } else {
-        notifications.info(
-          response.message || "Aucun employé disponible à assigner"
-        );
-      }
-    } catch (error: any) {
-      notifications.error(`Erreur: ${error.message}`);
-    } finally {
-      isAutoAssigning = false;
-    }
-  }
-
-  // Auto-assign deposits
-  let isAutoAssigningDeposits = $state(false);
-
-  async function autoAssignDeposits() {
-    if (isAutoAssigningDeposits) return;
-    isAutoAssigningDeposits = true;
-    try {
-      const response = await pb.send("/api/machines/auto-assign-deposits", {
-        method: "POST",
-      });
-
-      if (response.assignedCount > 0) {
-        notifications.success(
-          `✨ ${response.assignedCount} gisement(s) assigné(s) automatiquement`
-        );
-        // Refresh machines to show new assignments
-        await loadMachines(1, false);
-      } else {
-        notifications.info(
-          "Aucun gisement compatible trouvé pour vos machines"
-        );
-      }
-    } catch (error: any) {
-      notifications.error(`Erreur: ${error.message}`);
-    } finally {
-      isAutoAssigningDeposits = false;
-    }
-  }
-
-  async function fetchBusyEmployees() {
-    if (!$activeCompany?.id) return new Set<string>();
-    try {
-      const allMachines = await pb.collection("machines").getFullList({
-        filter: `company="${$activeCompany.id}"`,
-        fields: "employees",
-        requestKey: null,
-      });
-      const s = new Set<string>();
-      allMachines.forEach((m) => {
-        if (m.employees) m.employees.forEach((id: string) => s.add(id));
-      });
-      return s;
-    } catch (e) {
-      console.warn("Failed to fetch busy employees", e);
-      return new Set<string>();
-    }
-  }
-
-  // Build PocketBase filter for recipes
-  function buildRecipeFilter(): string {
-    if (!$activeCompany) return "";
-
-    const parts: string[] = [];
-
-    if (recipeSearchQuery.trim()) {
-      parts.push(`output_item.name ~ "${recipeSearchQuery.trim()}"`);
-    }
-    if (recipeFilters.time === "fast") {
-      parts.push("production_time <= 60");
-    }
-    if (recipeFilters.time === "long") {
-      parts.push("production_time > 60");
-    }
-
-    return parts.join(" && ");
-  }
-
-  // Build PocketBase filter for machines
-  function buildMachineFilter(): string {
-    if (!$activeCompany) return "";
-
-    const parts: string[] = [`company = "${$activeCompany.id}"`];
-
-    if (machineSearchQuery.trim()) {
-      parts.push(`machine.name ~ "${machineSearchQuery.trim()}"`);
-    }
-
-    return parts.join(" && ");
-  }
-
+  // --- Data Loading ---
   async function loadRecipes(page: number = 1, append: boolean = false) {
     if (!$activeCompany) return;
 
@@ -236,23 +130,14 @@
     }
 
     try {
-      const filter = buildRecipeFilter();
-
-      const result = await pb.collection("recipes").getList(page, PER_PAGE, {
-        filter: filter || undefined,
-        expand: "output_item,inputs_items,required_tech",
-        sort: "production_time",
-        requestKey: null,
+      const result = await loadRecipesService(page, PER_PAGE, {
+        searchQuery: recipeSearchQuery,
+        time: recipeFilters.time as "fast" | "long" | undefined,
       });
 
-      if (append) {
-        recipes = [...recipes, ...result.items];
-      } else {
-        recipes = result.items;
-      }
-
+      recipes = append ? [...recipes, ...result.items] : result.items;
       totalRecipes = result.totalItems;
-      hasMoreRecipes = result.page < result.totalPages;
+      hasMoreRecipes = result.hasMore;
       recipePage = result.page;
     } catch (err: any) {
       console.error("Failed to load recipes", err);
@@ -265,31 +150,23 @@
   async function loadMachines(page: number = 1, append: boolean = false) {
     if (!$activeCompany) return;
 
-    if (page === 1 && !append) {
-      // Don't set loading = true, let recipes handle that
-    } else {
+    if (page > 1 || append) {
       loadingMoreMachines = true;
     }
 
     try {
-      const filter = buildMachineFilter();
+      const result = await loadMachinesService(
+        $activeCompany.id,
+        page,
+        PER_PAGE,
+        {
+          searchQuery: machineSearchQuery,
+        },
+      );
 
-      const result = await pb
-        .collection("machines")
-        .getList<Machine>(page, PER_PAGE, {
-          filter,
-          expand: "machine.product,machine.can_consume,employees,deposit",
-          requestKey: null,
-        });
-
-      if (append) {
-        machines = [...machines, ...result.items];
-      } else {
-        machines = result.items;
-      }
-
+      machines = append ? [...machines, ...result.items] : result.items;
       totalMachines = result.totalItems;
-      hasMoreMachines = result.page < result.totalPages;
+      hasMoreMachines = result.hasMore;
       machinePage = result.page;
     } catch (err: any) {
       console.error("Failed to load machines", err);
@@ -298,48 +175,29 @@
     }
   }
 
-  // Data loading triggered by the $effect at the end of script
-
   async function loadData(silent = false) {
     if (!silent) loading = true;
     error = "";
+
     try {
       const userId = pb.authStore.model?.id;
       if (!userId) throw new Error("Non connecté");
       if (!$activeCompany?.id) throw new Error("Pas d'entreprise active");
 
-      const [employeesData, inventoryData, dashData, busySet, energyData] =
-        await Promise.all([
-          pb.collection("employees").getFullList<Employee>({
-            filter: `employer="${$activeCompany.id}"`,
-            requestKey: null,
-          }),
-          pb.collection("inventory").getFullList<InventoryItem>({
-            filter: `company="${$activeCompany.id}"`,
-            expand: "item",
-            requestKey: null,
-          }),
-          fetchDashboardData(userId),
-          fetchBusyEmployees(),
-          pb
-            .send("/api/company/energy-status", {
-              params: { companyId: $activeCompany.id },
-            })
-            .catch(() => null),
-        ]);
+      const workshopData = await loadWorkshopData(userId, $activeCompany.id);
 
-      // Load paginated data and machine stats
+      employees = workshopData.employees;
+      inventory = workshopData.inventory;
+      dashboardData = workshopData.dashboardData;
+      energyStatus = workshopData.energyStatus;
+      busyEmployeeIds = workshopData.busyEmployeeIds;
+
+      // Load paginated data and stats
       await Promise.all([
         loadRecipes(1, false),
         loadMachines(1, false),
-        loadMachineStats(),
+        loadMachineStats().then((stats) => (machineStats = stats)),
       ]);
-
-      employees = employeesData;
-      busyEmployeeIds = busySet;
-      inventory = inventoryData;
-      dashboardData = dashData;
-      energyStatus = energyData;
     } catch (err: any) {
       error = err.message;
       notifications.error(error);
@@ -348,6 +206,7 @@
     }
   }
 
+  // --- Filter Handlers ---
   function handleRecipeFilterChange(filters: {
     searchQuery: string;
     selectedFilters: Record<string, string>;
@@ -369,111 +228,105 @@
     loadMachines(1, false);
   }
 
-  async function loadMoreRecipes() {
-    if (loadingMoreRecipes || !hasMoreRecipes) return;
-    await loadRecipes(recipePage + 1, true);
-  }
-
-  async function loadMoreMachines() {
-    if (loadingMoreMachines || !hasMoreMachines) return;
-    await loadMachines(machinePage + 1, true);
-  }
-
-  async function handleRecipeProduce() {
-    // No need to refresh - realtime subscription will handle inventory updates
-  }
-
-  function handleMachineUpdate() {
-    // No need to refresh - realtime subscription handles updates
-  }
-
-  function handleMachineDelete(machineId: string) {
-    // Immediate local update (fallback if realtime fails)
-    machines = machines.filter((m) => m.id !== machineId);
-    // Also refresh inventory since machine was returned to stock
-    refreshInventory();
-  }
-
-  async function refreshInventory() {
-    if (!$activeCompany?.id) return;
-    try {
-      const inventoryData = await pb
-        .collection("inventory")
-        .getFullList<InventoryItem>({
-          filter: `company="${$activeCompany.id}"`,
-          expand: "item",
-          requestKey: null,
-        });
-      inventory = inventoryData;
-    } catch (e) {
-      console.warn("Inventory refresh failed", e);
-    }
-  }
-
-  // Création d'une assignation de machine depuis le stock
-  async function assignMachineFromStock(itemId: string) {
+  // --- Actions ---
+  async function handleAssignMachineFromStock(itemId: string) {
     if (!itemId || !$activeCompany?.id) return;
     try {
-      await pb.collection("machines").create({
-        company: $activeCompany.id,
-        machine: itemId,
-        employees: [],
-      });
+      await assignMachineService($activeCompany.id, itemId);
       notifications.success("Machine assignée depuis le stock");
     } catch (err: any) {
       notifications.error(err?.message || "Erreur lors de l'assignation");
     }
   }
 
-  // Debounce timer for batching updates
-  let refreshDebounceTimer: ReturnType<typeof setTimeout> | null = null;
-  const DEBOUNCE_MS = 2000; // 2 seconds
+  async function handleAutoAssignEmployees() {
+    if (isAutoAssigning || availableEmployees.length === 0) return;
 
-  function debouncedRefresh() {
+    isAutoAssigning = true;
+    try {
+      const response = await autoAssignEmployeesService();
+      if (response.assignedCount > 0) {
+        notifications.success(
+          `✨ ${response.assignedCount} employé(s) assigné(s) automatiquement`,
+        );
+        busyEmployeeIds = await fetchBusyEmployees($activeCompany!.id);
+      } else {
+        notifications.info(
+          response.message || "Aucun employé disponible à assigner",
+        );
+      }
+    } catch (err: any) {
+      notifications.error(`Erreur: ${err.message}`);
+    } finally {
+      isAutoAssigning = false;
+    }
+  }
+
+  async function handleAutoAssignDeposits() {
+    if (isAutoAssigningDeposits) return;
+
+    isAutoAssigningDeposits = true;
+    try {
+      const response = await autoAssignDepositsService();
+      if (response.assignedCount > 0) {
+        notifications.success(
+          `✨ ${response.assignedCount} gisement(s) assigné(s) automatiquement`,
+        );
+        await loadMachines(1, false);
+      } else {
+        notifications.info(
+          "Aucun gisement compatible trouvé pour vos machines",
+        );
+      }
+    } catch (err: any) {
+      notifications.error(`Erreur: ${err.message}`);
+    } finally {
+      isAutoAssigningDeposits = false;
+    }
+  }
+
+  function handleMachineDelete(machineId: string) {
+    machines = machines.filter((m) => m.id !== machineId);
+    refreshInventory($activeCompany!.id).then((inv) => (inventory = inv));
+  }
+
+  // --- Realtime Subscriptions ---
+  let unsubscribeInventory: (() => void) | null = null;
+  let unsubscribeMachines: (() => void) | null = null;
+  let refreshDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+  const DEBOUNCE_MS = 2000;
+
+  function debouncedEnergyRefresh() {
     if (refreshDebounceTimer) clearTimeout(refreshDebounceTimer);
     refreshDebounceTimer = setTimeout(async () => {
-      // Only refresh energy status periodically
       if ($activeCompany?.id) {
-        try {
-          const energyData = await pb
-            .send("/api/company/energy-status", {
-              params: { companyId: $activeCompany.id },
-            })
-            .catch(() => null);
-          if (energyData) energyStatus = energyData;
-        } catch (e) {
-          // Silently ignore
-        }
+        const data = await refreshEnergyStatus($activeCompany.id);
+        if (data) energyStatus = data;
       }
     }, DEBOUNCE_MS);
   }
-
-  let unsubscribeInventory: () => void;
-  let unsubscribeMachines: () => void;
 
   async function subscribeToData() {
     if (unsubscribeInventory) unsubscribeInventory();
     if (unsubscribeMachines) unsubscribeMachines();
 
     try {
-      // Inventory Subscription - only handle create/delete, merge updates locally
+      // Inventory Subscription
       unsubscribeInventory = await pb
         .collection("inventory")
         .subscribe("*", async ({ action, record }) => {
           if (record.company !== $activeCompany?.id) return;
 
           if (action === "update") {
-            // Local merge only - no API call
             const index = inventory.findIndex((i) => i.id === record.id);
             if (index > -1) {
               inventory[index] = {
                 ...inventory[index],
                 quantity: record.quantity,
               };
-              inventory = [...inventory]; // Trigger reactivity
+              inventory = [...inventory];
             }
           } else if (action === "create") {
-            // New item - need to fetch with expand
             const newItem = await pb
               .collection("inventory")
               .getOne<InventoryItem>(record.id, {
@@ -486,35 +339,30 @@
           }
         });
 
-      // Machines Subscription - minimal updates, no cascade
+      // Machines Subscription
       unsubscribeMachines = await pb
         .collection("machines")
         .subscribe<Machine>("*", async ({ action, record }) => {
           if (record.company !== $activeCompany?.id) return;
 
           if (action === "update") {
-            // Local merge only - preserve expand data (especially expand.machine for type filtering)
             const index = machines.findIndex((m) => m.id === record.id);
             if (index > -1) {
-              // Preserve existing expand data while updating specific fields
               machines[index] = {
                 ...machines[index],
                 stored_energy: record.stored_energy,
                 production_started_at: record.production_started_at,
                 employees: record.employees,
                 deposit: record.deposit,
-                // Keep expand.machine intact, only update expand.deposit if needed
-                expand: {
-                  ...machines[index].expand,
-                  // Note: deposit expand may be stale, but it's updated locally in MachineAssignment
-                },
+                expand: { ...machines[index].expand },
               };
               machines = [...machines];
             }
-            // Debounce energy refresh
-            debouncedRefresh();
+            // Refresh stats and busy employees on update
+            busyEmployeeIds = await fetchBusyEmployees($activeCompany!.id);
+            machineStats = await loadMachineStats();
+            debouncedEnergyRefresh();
           } else if (action === "create") {
-            // New machine - fetch with full expand
             const newMachine = await pb
               .collection("machines")
               .getOne<Machine>(record.id, {
@@ -522,14 +370,12 @@
                 requestKey: null,
               });
             machines = [...machines, newMachine];
-            // Update busy employees
-            const busy = await fetchBusyEmployees();
-            busyEmployeeIds = busy;
+            busyEmployeeIds = await fetchBusyEmployees($activeCompany!.id);
+            machineStats = await loadMachineStats();
           } else if (action === "delete") {
             machines = machines.filter((m) => m.id !== record.id);
-            // Update busy employees
-            const busy = await fetchBusyEmployees();
-            busyEmployeeIds = busy;
+            busyEmployeeIds = await fetchBusyEmployees($activeCompany!.id);
+            machineStats = await loadMachineStats();
           }
         });
     } catch (err) {
@@ -543,31 +389,24 @@
     if (refreshDebounceTimer) clearTimeout(refreshDebounceTimer);
   }
 
-  onDestroy(() => {
-    unsubscribeAll();
-  });
-
-  // Track the company ID to avoid unnecessary reloads
+  // --- Lifecycle ---
   let lastCompanyId: string | null = null;
 
   onMount(() => {
     if ($activeCompany) {
       lastCompanyId = $activeCompany.id;
-      loadData().then(() => {
-        subscribeToData();
-      });
+      loadData().then(() => subscribeToData());
     }
   });
 
-  // Only reload when company actually changes (ID change)
+  onDestroy(() => unsubscribeAll());
+
   $effect(() => {
     const currentId = $activeCompany?.id ?? null;
     if (currentId && currentId !== lastCompanyId) {
       lastCompanyId = currentId;
       unsubscribeAll();
-      loadData().then(() => {
-        subscribeToData();
-      });
+      loadData().then(() => subscribeToData());
     }
   });
 </script>
@@ -613,47 +452,10 @@
         </div>
       </div>
 
-      {#if dashboardData}
-        <div class="flex flex-wrap gap-4">
-          <!-- Items in Stock Card -->
-          <div
-            class="bg-linear-to-br from-emerald-900/50 to-emerald-800/30 border border-emerald-700/30 rounded-2xl p-4 shadow-lg backdrop-blur-sm relative overflow-hidden group min-w-40"
-          >
-            <div
-              class="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity"
-            >
-              <span class="text-3xl">📦</span>
-            </div>
-            <p
-              class="text-emerald-400/80 text-[10px] font-bold uppercase tracking-widest mb-1"
-            >
-              Items en Stock
-            </p>
-            <p class="text-white text-2xl font-black mt-1 tracking-tight">
-              {dashboardData.resources.inventory_count}
-            </p>
-          </div>
-
-          <!-- Machines Card -->
-          <div
-            class="bg-linear-to-br from-amber-900/50 to-amber-800/30 border border-amber-700/30 rounded-2xl p-4 shadow-lg backdrop-blur-sm relative overflow-hidden group min-w-40"
-          >
-            <div
-              class="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity"
-            >
-              <span class="text-3xl">🏭</span>
-            </div>
-            <p
-              class="text-amber-400/80 text-[10px] font-bold uppercase tracking-widest mb-1"
-            >
-              Machines
-            </p>
-            <p class="text-white text-2xl font-black mt-1 tracking-tight">
-              {machines.length}
-            </p>
-          </div>
-        </div>
-      {/if}
+      <WorkshopStats
+        {dashboardData}
+        machineCount={machineStats.totalMachines}
+      />
     </header>
 
     {#if error}
@@ -674,70 +476,7 @@
       </div>
     {:else}
       <!-- Tab Navigation -->
-      <div class="flex gap-2 border-b border-slate-800">
-        <button
-          onclick={() => (activeTab = "manual")}
-          class="px-6 py-3 font-semibold transition-all flex items-center gap-2 text-sm rounded-t-xl {activeTab ===
-          'manual'
-            ? 'bg-slate-900 text-indigo-400 border-t border-x border-slate-800'
-            : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900/30'}"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            ><path
-              d="m15 12-8.5 8.5c-.83.83-2.17.83-3 0 0 0 0 0 0 0a2.12 2.12 0 0 1 0-3L12 9"
-            /><path d="M17.64 15 22 10.64" /><path
-              d="m20.91 11.7-1.25-1.25c-.6-.6-.93-1.4-.93-2.25V7.86c0-.55-.45-1-1-1H14c-.55 0-1 .45-1 1v3.38c0 .85-.33 1.66-.93 2.26l-1.25 1.25a2.83 2.83 0 0 0 0 4 .19.19 0 0 0 .28 0l7.8-7.8a.19.19 0 0 0 0-.28 2.83 2.83 0 0 0 0-4z"
-            /></svg
-          >
-          Production Manuelle
-        </button>
-        <button
-          onclick={() => (activeTab = "automation")}
-          class="px-6 py-3 font-semibold transition-all flex items-center gap-2 text-sm rounded-t-xl {activeTab ===
-          'automation'
-            ? 'bg-slate-900 text-indigo-400 border-t border-x border-slate-800'
-            : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900/30'}"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            ><rect width="18" height="10" x="3" y="11" rx="2" /><circle
-              cx="12"
-              cy="5"
-              r="2"
-            /><path d="M12 7v4" /><line x1="8" y1="16" x2="8" y2="16" /><line
-              x1="16"
-              y1="16"
-              x2="16"
-              y2="16"
-            /></svg
-          >
-          Automatisation
-          {#if machines.length > 0}
-            <span
-              class="ml-1 text-[10px] bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded-full border border-indigo-500/30"
-            >
-              {machines.length}
-            </span>
-          {/if}
-        </button>
-      </div>
+      <WorkshopTabs bind:activeTab machineCount={machineStats.totalMachines} />
 
       <!-- Manual Production Tab -->
       {#if activeTab === "manual"}
@@ -810,7 +549,7 @@
                       {recipe}
                       {inventory}
                       companyId={$activeCompany?.id || ""}
-                      onProduce={handleRecipeProduce}
+                      onProduce={() => {}}
                     />
                   {/each}
                 </div>
@@ -844,79 +583,15 @@
                   Assignez des employés et configurez vos machines et stockage.
                 </p>
 
-                <!-- Missing employees indicator and auto-assign button -->
-                {#if machines.length > 0}
-                  <div class="flex flex-wrap items-center gap-3 mt-3">
-                    {#if machineStats.missingEmployees > 0}
-                      <div
-                        class="flex items-center gap-2 px-3 py-1.5 bg-amber-500/10 border border-amber-500/30 rounded-lg"
-                      >
-                        <span class="text-amber-400">⚠️</span>
-                        <span class="text-xs text-amber-300 font-medium">
-                          <span class="font-bold"
-                            >{machineStats.missingEmployees}</span
-                          >
-                          employé(s) manquant(s) pour production optimale
-                        </span>
-                      </div>
-                    {:else}
-                      <div
-                        class="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/30 rounded-lg"
-                      >
-                        <span class="text-emerald-400">✅</span>
-                        <span class="text-xs text-emerald-300 font-medium">
-                          Toutes les machines sont optimales
-                        </span>
-                      </div>
-                    {/if}
-
-                    {#if availableEmployees.length > 0 && machineStats.missingEmployees > 0}
-                      <button
-                        onclick={autoAssignEmployees}
-                        disabled={isAutoAssigning}
-                        class="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-700 disabled:cursor-wait text-white text-sm font-bold rounded-lg transition-all shadow-md hover:shadow-indigo-500/25"
-                      >
-                        {#if isAutoAssigning}
-                          <span
-                            class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"
-                          ></span>
-                          <span>Assignation...</span>
-                        {:else}
-                          <span>🎯</span>
-                          <span
-                            >Auto-assigner ({Math.min(
-                              availableEmployees.length,
-                              machineStats.missingEmployees
-                            )})</span
-                          >
-                        {/if}
-                      </button>
-                    {/if}
-
-                    <!-- Auto-assign deposits button -->
-                    {#if machines.some((m) => m.expand?.machine?.expand?.product?.is_explorable && !m.deposit)}
-                      <button
-                        onclick={autoAssignDeposits}
-                        disabled={isAutoAssigningDeposits}
-                        class="flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-500 disabled:bg-slate-700 disabled:cursor-wait text-white text-sm font-bold rounded-lg transition-all shadow-md hover:shadow-amber-500/25"
-                      >
-                        {#if isAutoAssigningDeposits}
-                          <span
-                            class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"
-                          ></span>
-                          <span>Assignation...</span>
-                        {:else}
-                          <span>⛏️</span>
-                          <span>Auto-assigner Gisements</span>
-                        {/if}
-                      </button>
-                    {/if}
-
-                    <span class="text-[10px] text-slate-500 font-medium">
-                      {availableEmployees.length} employé(s) disponible(s)
-                    </span>
-                  </div>
-                {/if}
+                <AutoAssignPanel
+                  {machines}
+                  {machineStats}
+                  {availableEmployees}
+                  {isAutoAssigning}
+                  {isAutoAssigningDeposits}
+                  onAutoAssignEmployees={handleAutoAssignEmployees}
+                  onAutoAssignDeposits={handleAutoAssignDeposits}
+                />
               </div>
 
               <!-- Sub-tabs for Machine Types -->
@@ -956,47 +631,10 @@
               </div>
             </div>
 
-            {#if availableMachineStock.length > 0}
-              <div
-                class="mb-6 p-5 bg-linear-to-r from-slate-900 to-slate-800 border border-indigo-500/20 rounded-xl shadow-lg relative overflow-hidden"
-              >
-                <div class="absolute top-0 right-0 p-3 opacity-10">
-                  <span class="text-6xl">🏭</span>
-                </div>
-                <div
-                  class="flex items-center justify-between mb-4 relative z-10"
-                >
-                  <div
-                    class="text-base text-white font-bold flex items-center gap-2"
-                  >
-                    <span
-                      class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"
-                    ></span>
-                    Machines en stock ({availableMachineStock.length})
-                  </div>
-                  <div
-                    class="text-xs text-slate-400 font-medium bg-slate-950/50 px-3 py-1 rounded-full border border-slate-700"
-                  >
-                    Cliquez pour installer
-                  </div>
-                </div>
-                <div class="flex flex-wrap gap-2 relative z-10">
-                  {#each availableMachineStock as inv (inv.id)}
-                    <button
-                      class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white text-sm font-semibold rounded-lg border border-indigo-400/30 transition-all shadow-md hover:shadow-indigo-500/20 flex items-center gap-2"
-                      onclick={() => assignMachineFromStock(inv.item)}
-                    >
-                      <span>🏗️</span>
-                      {inv.expand?.item?.name || "Machine"}
-                      <span
-                        class="bg-black/20 px-1.5 py-0.5 rounded text-xs ml-1"
-                        >x{inv.quantity}</span
-                      >
-                    </button>
-                  {/each}
-                </div>
-              </div>
-            {/if}
+            <MachineStockPanel
+              availableStock={availableMachineStock}
+              onAssign={handleAssignMachineFromStock}
+            />
 
             {#if filteredMachinesByType.length === 0 && !machineSearchQuery}
               <div
@@ -1044,7 +682,7 @@
                   {#each filteredMachinesByType as machine (machine.id)}
                     <MachineAssignment
                       {machine}
-                      allEmployees={employees}
+                      {availableEmployees}
                       {busyEmployeeIds}
                       {energyStatus}
                       onDelete={handleMachineDelete}
