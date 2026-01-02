@@ -1,4 +1,5 @@
-import Pocketbase, { LocalAuthStore, RecordService } from "pocketbase";
+import Pocketbase, { LocalAuthStore } from "pocketbase";
+import type { RecordService } from "pocketbase";
 
 // ============================================================================
 // Base Record Type (common fields for all collections)

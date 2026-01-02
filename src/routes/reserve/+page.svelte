@@ -378,6 +378,7 @@
               <!-- Action Area -->
               <div class="pt-4 mt-2 border-t border-slate-800/50">
                 <label
+                  for="withdraw-{res.id}"
                   class="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wide"
                 >
                   Retirer vers inventaire
@@ -385,6 +386,7 @@
                 <div class="flex gap-2">
                   <div class="relative flex-1">
                     <input
+                      id="withdraw-{res.id}"
                       type="number"
                       bind:value={withdrawQuantities[res.id]}
                       min="1"

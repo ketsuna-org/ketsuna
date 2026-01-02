@@ -26,7 +26,9 @@
 <div
   transition:fade={{ duration: 150 }}
   class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-  onclick={onCancel}
+  onclick={(e) => {
+    if (e.target === e.currentTarget) onCancel();
+  }}
   onkeydown={(e) => e.key === "Escape" && onCancel()}
   role="dialog"
   aria-modal="true"
@@ -36,8 +38,6 @@
   <div
     transition:scale={{ duration: 200, start: 0.95 }}
     class="bg-slate-900 rounded-3xl border border-slate-800 shadow-2xl max-w-md w-full p-8 relative overflow-hidden"
-    onclick={(e) => e.stopPropagation()}
-    onkeydown={(e) => e.stopPropagation()}
     role="document"
   >
     <!-- Glow effect -->

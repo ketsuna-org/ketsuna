@@ -19,6 +19,7 @@
   /**
    * @type {() => void} - Callback pour rafraîchir après changement
    */
+  // svelte-ignore export_let_unused
   export let onUpdate: (() => void) | null = null;
 
   /**

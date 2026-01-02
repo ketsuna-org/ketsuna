@@ -12,7 +12,7 @@ const config = {
 		adapter: adapter({
 			pages: 'build',
 			assets: 'build',
-			fallback: 'index.html',  // SPA fallback for client-side routing
+			fallback: '404.html', // Fallback for dynamic/SPA routes
 			precompress: false,
 			strict: true
 		})

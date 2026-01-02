@@ -392,8 +392,15 @@
     >
       <!-- Backdrop -->
       <div
-        class="absolute inset-0 bg-black/80 backdrop-blur-sm"
+        class="absolute inset-0 bg-black/80 backdrop-blur-sm focus:outline-none"
+        role="button"
+        tabindex="0"
         onclick={() => (confirmItem = null)}
+        onkeydown={(e) => {
+          if (e.key === "Escape" || e.key === "Enter" || e.key === " ")
+            confirmItem = null;
+        }}
+        aria-label="Fermer la modale"
       ></div>
 
       <!-- Modal Content -->

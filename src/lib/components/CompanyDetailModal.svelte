@@ -28,13 +28,13 @@
   role="dialog"
   aria-modal="true"
   tabindex="-1"
-  on:click={onClose}
+  on:click|self={onClose}
+  on:keydown={(e) => e.key === "Escape" && onClose()}
 >
   <!-- Modal Content -->
   <div
-    class="bg-slate-900 border border-slate-700/50 rounded-2xl shadow-2xl w-full max-w-md relative overflow-hidden"
+    class="bg-slate-900 border border-slate-700/50 rounded-2xl shadow-2xl w-full max-w-md relative overflow-hidden focus:outline-none"
     transition:scale={{ duration: 250, start: 0.95 }}
-    on:click|stopPropagation
   >
     <!-- Header Gradient -->
     <div class="h-24 bg-gradient-to-br from-indigo-600 to-purple-700 relative">
@@ -45,6 +45,7 @@
       </div>
       <button
         on:click={onClose}
+        aria-label="Fermer"
         class="absolute top-4 right-4 text-white/70 hover:text-white bg-black/20 hover:bg-black/40 rounded-full p-1.5 transition-colors"
       >
         <svg
