@@ -2,623 +2,129 @@
   import { goto } from "$app/navigation";
   import { onMount } from "svelte";
   import pb from "$lib/pocketbase";
-  import { fetchDashboardData, type DashboardData } from "$lib/dashboard";
-  import { fetchEnergyStatus, type EnergyStatus } from "$lib/services/energy";
-  import RevenueDetailModal from "$lib/components/RevenueDetailModal.svelte";
-  import CreateCompanyForm from "$lib/components/CreateCompanyForm.svelte";
-  import { levelUpCompany } from "$lib/services/company";
-  import { notifications } from "$lib/notifications";
-  import type { Company } from "$lib/pocketbase";
+  import { activeCompany } from "$lib/stores";
+  import type { CanvasNode } from "$lib/canvas/canvasTypes";
+  import CompanyCanvas from "$lib/components/CompanyCanvas.svelte";
+  import BottomPanel from "$lib/components/BottomPanel.svelte";
+  import InventoryToolbar from "$lib/components/InventoryToolbar.svelte";
 
-  // --- STATE MANAGEMENT (Svelte 5 Runes) ---
-  const user = pb.authStore.model;
+  let selectedNode: CanvasNode | null = null;
+  let canvasComponent: CompanyCanvas;
 
-  let dashboardData = $state<DashboardData | null>(null);
-  let energyStatus = $state<EnergyStatus | null>(null);
-  let loading = $state(true);
-  let error = $state("");
-  let isRevenueModalOpen = $state(false);
-  let showCreateCompany = $state(false);
-  let levelUpLoading = $state(false);
-
-  // --- ACTIONS ---
-
-  function logout() {
-    pb.authStore.clear();
-    goto("/");
-  }
-
-  // Formatter en devise compacte (ex: $1.2M)
-  function formatCurrency(value: number): string {
-    if (value === undefined || value === null || isNaN(value)) {
-      return "0€";
-    }
-    if (value >= 1_000_000) {
-      return `${(value / 1_000_000).toFixed(1)}M€`;
-    } else if (value >= 1_000) {
-      return `${(value / 1_000).toFixed(0)}k€`;
-    }
-    return `${value.toFixed(0)}€`;
-  }
-
-  // Level Up Config
-  const getLevelCost = (lvl: number) => Math.floor(1000 * Math.pow(lvl, 1.5));
-
-  async function handleLevelUp() {
-    if (!dashboardData) return;
-
-    const currentLevel = dashboardData.company.level;
-    const cost = getLevelCost(currentLevel);
-    const currentBalance = dashboardData.financials.cash;
-
-    if (currentBalance < cost) {
-      notifications.error(
-        `Fonds insuffisants. Besoin de ${formatCurrency(cost)}`
-      );
-      return;
-    }
-
-    levelUpLoading = true;
-    try {
-      const companyFull = await pb
-        .collection("companies")
-        .getOne(dashboardData.company.id);
-
-      await levelUpCompany(companyFull as unknown as Company, cost);
-
-      // Refresh dashboard data
-      await loadDashboard();
-
-      notifications.success(
-        "Expansion réussie ! Votre entreprise a gagné un niveau."
-      );
-    } catch (e: any) {
-      console.error("Level up error:", e);
-      const msg = e?.data?.message || e?.message || "Erreur inconnue";
-      notifications.error(msg);
-    } finally {
-      levelUpLoading = false;
-    }
-  }
-
-  async function loadDashboard() {
-    if (!user?.id) return;
-    loading = true;
-    try {
-      dashboardData = await fetchDashboardData(user.id);
-      // Fetch energy status in parallel (non-blocking)
-      try {
-        energyStatus = await fetchEnergyStatus();
-      } catch {
-        energyStatus = null; // Energy status is optional
-      }
-      showCreateCompany = false;
-    } catch (err: any) {
-      if (
-        (err.message && err.message.includes("Pas d'entreprise active")) ||
-        err.message.includes("pas d'entreprise active")
-      ) {
-        showCreateCompany = true;
-        error = "";
-      } else {
-        // Fallback for my explicit error throw in dashboard.ts
-        if (err.message === "L'utilisateur n'a pas d'entreprise active") {
-          showCreateCompany = true;
-          error = "";
-        } else {
-          error = err.message || "Impossible de charger le dashboard";
-          console.error(err);
-        }
-      }
-    } finally {
-      loading = false;
-    }
-  }
-
-  onMount(async () => {
-    if (!user?.id) {
+  onMount(() => {
+    // Vérifier l'authentification
+    if (!pb.authStore.isValid) {
       goto("/login");
       return;
     }
-    await loadDashboard();
   });
+
+  function handleNodeSelect(node: CanvasNode | null) {
+    selectedNode = node;
+  }
+
+  function handleCenterClick() {
+    canvasComponent?.centerOnHQ();
+  }
+
+  function handlePlaceNode(node: CanvasNode) {
+    canvasComponent?.addNode(node);
+  }
+
+  function handleRemoveNode(nodeId: string) {
+    canvasComponent?.removeNode(nodeId);
+    selectedNode = null;
+  }
 </script>
 
 <svelte:head>
-  <title>Dashboard | Ketsuna: Iron Symphony</title>
+  <title>Dashboard | Ketsuna</title>
 </svelte:head>
 
-<div
-  class="min-h-screen bg-slate-950 text-slate-200 font-sans selection:bg-indigo-500/30"
->
-  <section class="py-8 px-4 border-b border-slate-800/50">
-    <div class="max-w-7xl mx-auto flex items-center justify-between">
-      <div>
-        <h1 class="text-3xl md:text-4xl font-black text-white tracking-tight">
-          Tableau de bord
-        </h1>
-        <p class="text-slate-400 text-sm mt-1">
-          {user
-            ? `Bienvenue, ${user.username ?? user.email}`
-            : "Bienvenue, Invité"}
-        </p>
-      </div>
-      <div class="flex flex-wrap gap-3 items-center">
-        <button
-          onclick={logout}
-          class="bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white font-medium py-2 px-4 rounded-xl border border-slate-700 transition-all duration-200 flex items-center gap-2 hover:shadow-lg hover:shadow-black/20"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-            <polyline points="16 17 21 12 16 7"></polyline>
-            <line x1="21" y1="12" x2="9" y2="12"></line>
-          </svg>
-          Quitter
-        </button>
+<div class="min-h-screen bg-slate-950 relative overflow-hidden">
+  <!-- Canvas Area -->
+  <div class="absolute inset-0" style="bottom: 100px;">
+    <CompanyCanvas
+      bind:this={canvasComponent}
+      onNodeSelect={handleNodeSelect}
+    />
+  </div>
+
+  <!-- HUD Overlay (top left) -->
+  <div class="absolute top-4 left-4 z-40">
+    <div
+      class="bg-slate-900/80 backdrop-blur-sm rounded-xl border border-slate-700/50 p-3"
+    >
+      <h1 class="text-lg font-bold text-white flex items-center gap-2">
+        <span class="text-indigo-400">🏭</span>
+        {$activeCompany?.name || "Ma Société"}
+      </h1>
+      <p class="text-xs text-slate-400 mt-1">
+        Siège Social • Canvas de Gestion
+      </p>
+    </div>
+  </div>
+
+  <!-- Inventory Toolbar (top center-right) -->
+  <InventoryToolbar onPlaceNode={handlePlaceNode} />
+
+  <!-- Zoom Controls (top right) -->
+  <div class="absolute top-4 right-4 z-40 flex flex-col gap-2">
+    <button
+      class="p-2 bg-slate-900/80 backdrop-blur-sm hover:bg-slate-800 rounded-lg border border-slate-700/50 text-white text-lg font-bold transition-colors"
+      title="Zoom +"
+    >
+      +
+    </button>
+    <button
+      class="p-2 bg-slate-900/80 backdrop-blur-sm hover:bg-slate-800 rounded-lg border border-slate-700/50 text-white text-lg font-bold transition-colors"
+      title="Zoom -"
+    >
+      −
+    </button>
+    <button
+      on:click={handleCenterClick}
+      class="p-2 bg-indigo-600/80 backdrop-blur-sm hover:bg-indigo-500 rounded-lg border border-indigo-500/50 text-white transition-colors"
+      title="Centrer sur le Siège"
+    >
+      🎯
+    </button>
+  </div>
+
+  <!-- Légende (bottom left, above panel) -->
+  <div class="absolute bottom-28 left-4 z-40">
+    <div
+      class="bg-slate-900/80 backdrop-blur-sm rounded-lg border border-slate-700/50 p-2 text-xs"
+    >
+      <div class="flex flex-wrap items-center gap-3">
+        <div class="flex items-center gap-1">
+          <span class="w-3 h-3 rounded-sm bg-[#1e1b4b] border border-[#6366f1]"
+          ></span>
+          <span class="text-slate-400">HQ</span>
+        </div>
+        <div class="flex items-center gap-1">
+          <span class="w-3 h-3 rounded-sm bg-[#1e293b] border border-[#475569]"
+          ></span>
+          <span class="text-slate-400">Machine</span>
+        </div>
+        <div class="flex items-center gap-1">
+          <span class="w-3 h-3 rounded-sm bg-[#0c1929] border border-[#0ea5e9]"
+          ></span>
+          <span class="text-slate-400">Stockage</span>
+        </div>
+        <div class="flex items-center gap-1">
+          <span class="w-3 h-3 rounded-sm bg-[#451a03] border border-[#f59e0b]"
+          ></span>
+          <span class="text-slate-400">Gisement</span>
+        </div>
+        <div class="flex items-center gap-1 text-slate-500">
+          <span>•</span>
+          <span>Clic droit sur connecteur = supprimer</span>
+        </div>
       </div>
     </div>
-  </section>
+  </div>
 
-  {#if loading}
-    <section class="py-10 px-4">
-      <div class="max-w-7xl mx-auto text-center">
-        <div
-          class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-primary-500 border-r-transparent"
-        ></div>
-        <p class="text-content-secondary mt-4">Chargement des données...</p>
-      </div>
-    </section>
-  {:else if showCreateCompany}
-    <section class="py-10 px-4">
-      <div class="max-w-md mx-auto">
-        <div class="text-center mb-8">
-          <h2 class="text-2xl font-bold text-white mb-2">
-            Bienvenue entrepreneur !
-          </h2>
-          <p class="text-content-secondary">
-            Pour commencer votre aventure, vous devez d'abord créer votre
-            société.
-          </p>
-        </div>
-        <CreateCompanyForm onCreated={loadDashboard} />
-      </div>
-    </section>
-  {:else if error}
-    <section class="py-10 px-4">
-      <div class="max-w-7xl mx-auto">
-        <div
-          class="bg-status-danger/10 border border-status-danger/20 rounded-card p-6 text-center"
-        >
-          <p class="text-status-danger font-semibold mb-2">Erreur</p>
-          <p class="text-content-secondary text-sm">{error}</p>
-        </div>
-      </div>
-    </section>
-  {:else if dashboardData}
-    <section class="py-8 px-4">
-      <div class="max-w-7xl mx-auto grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <!-- Cash Card -->
-        <div
-          class="bg-linear-to-br from-slate-900 to-slate-800 border border-slate-700/50 rounded-2xl p-6 shadow-lg relative overflow-hidden group"
-        >
-          <div
-            class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"
-          >
-            <span class="text-4xl">💰</span>
-          </div>
-          <p
-            class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1"
-          >
-            Trésorerie
-          </p>
-          <p class="text-white text-3xl font-black mt-2 tracking-tight">
-            {formatCurrency(dashboardData.financials.cash)}
-          </p>
-        </div>
-
-        <!-- Valuation Card -->
-        <div
-          class="bg-linear-to-br from-slate-900 to-slate-800 border border-slate-700/50 rounded-2xl p-6 shadow-lg relative overflow-hidden group"
-        >
-          <div
-            class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"
-          >
-            <span class="text-4xl">📈</span>
-          </div>
-          <p
-            class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1"
-          >
-            Valorisation
-          </p>
-          <p class="text-white text-3xl font-black mt-2 tracking-tight">
-            {formatCurrency(dashboardData.financials.valuation)}
-          </p>
-        </div>
-
-        <!-- Payroll Card -->
-        <div
-          class="bg-linear-to-br from-slate-900 to-slate-800 border border-slate-700/50 rounded-2xl p-6 shadow-lg relative overflow-hidden group"
-        >
-          <div
-            class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"
-          >
-            <span class="text-4xl">👥</span>
-          </div>
-          <p
-            class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1"
-          >
-            Salaires (24h)
-          </p>
-          <p class="text-white text-3xl font-black mt-2 tracking-tight">
-            {formatCurrency(dashboardData.financials.daily_payroll)}
-          </p>
-        </div>
-
-        <!-- Net Profit Card (Highlighted) -->
-        <div
-          class="bg-linear-to-br from-indigo-600 to-violet-700 text-white rounded-2xl p-6 shadow-xl shadow-indigo-900/20 relative overflow-hidden group border border-indigo-400/20"
-        >
-          <div
-            class="absolute top-0 right-0 p-3 opacity-20 group-hover:opacity-30 transition-opacity"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="56"
-              height="56"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              class="text-white"
-              ><line x1="12" y1="1" x2="12" y2="23"></line><path
-                d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"
-              ></path></svg
-            >
-          </div>
-          <div class="flex items-center justify-between relative z-10">
-            <p
-              class="text-indigo-100/80 text-xs font-bold uppercase tracking-widest"
-            >
-              Profit Net
-            </p>
-            <div class="relative group/tooltip">
-              <button
-                class="text-white/70 hover:text-white transition-colors p-1 cursor-pointer"
-                aria-label="Voir le détail des revenus"
-                onclick={() => (isRevenueModalOpen = true)}
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  ><circle cx="12" cy="12" r="10"></circle><line
-                    x1="12"
-                    y1="16"
-                    x2="12"
-                    y2="12"
-                  ></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg
-                >
-              </button>
-            </div>
-          </div>
-          <p
-            class="text-white text-3xl font-black mt-2 tracking-tight drop-shadow-md"
-          >
-            {formatCurrency(dashboardData.financials.monthly_net_profit)}
-          </p>
-          <p class="text-[10px] text-indigo-200 mt-2 font-medium">
-            Projection sur 30 jours
-          </p>
-        </div>
-      </div>
-    </section>
-
-    <!-- Energy Status Section -->
-    {@const energy = energyStatus ?? {
-      energyProduced: 0,
-      energyDemand: 0,
-      energyStored: 0,
-      maxEnergyStored: 0,
-      energyRatio: 1,
-      isSolarActive: false,
-      productionSpeed: 1,
-    }}
-    <section class="py-4 px-4">
-      <div class="max-w-7xl mx-auto">
-        <div
-          class="bg-slate-900/50 border rounded-2xl p-6 backdrop-blur-sm {energy.productionSpeed <
-          1
-            ? 'border-amber-500/50'
-            : 'border-slate-700/50'}"
-        >
-          <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
-            <span>⚡</span> Statut Énergétique
-            {#if energy.isSolarActive}
-              <span
-                class="text-xs bg-amber-500/20 text-amber-400 px-2 py-1 rounded-full ml-2"
-              >
-                ☀️ Solaire actif
-              </span>
-            {:else}
-              <span
-                class="text-xs bg-slate-700 text-slate-400 px-2 py-1 rounded-full ml-2"
-              >
-                🌙 Solaire inactif
-              </span>
-            {/if}
-          </h2>
-
-          <div class="grid md:grid-cols-4 gap-4">
-            <!-- Production -->
-            <div
-              class="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50"
-            >
-              <p class="text-slate-400 text-xs font-semibold uppercase mb-1">
-                Production
-              </p>
-              <p class="text-emerald-400 text-2xl font-black">
-                {(energy.energyProduced ?? 0).toLocaleString("fr-FR")}
-              </p>
-              <p class="text-slate-500 text-xs">kWh/cycle</p>
-            </div>
-
-            <!-- Consumption -->
-            <div
-              class="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50"
-            >
-              <p class="text-slate-400 text-xs font-semibold uppercase mb-1">
-                Demande
-              </p>
-              <p class="text-red-400 text-2xl font-black">
-                {(energy.energyDemand ?? 0).toLocaleString("fr-FR")}
-              </p>
-              <p class="text-slate-500 text-xs">kWh/cycle</p>
-            </div>
-
-            <!-- Storage -->
-            <div
-              class="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50"
-            >
-              <p class="text-slate-400 text-xs font-semibold uppercase mb-1">
-                Stockage
-              </p>
-              <p class="text-blue-400 text-2xl font-black">
-                {(energy.energyStored ?? 0).toLocaleString("fr-FR")}
-              </p>
-              <p class="text-slate-500 text-xs">
-                / {(energy.maxEnergyStored ?? 0).toLocaleString("fr-FR")} kWh
-              </p>
-            </div>
-
-            <!-- Production Speed -->
-            <div
-              class="bg-slate-800/50 rounded-xl p-4 border {energy.productionSpeed <
-              1
-                ? 'border-amber-500/50'
-                : 'border-emerald-500/30'}"
-            >
-              <p class="text-slate-400 text-xs font-semibold uppercase mb-1">
-                Vitesse Production
-              </p>
-              <p
-                class="{energy.productionSpeed >= 1
-                  ? 'text-emerald-400'
-                  : energy.productionSpeed >= 0.5
-                    ? 'text-amber-400'
-                    : 'text-red-400'} text-2xl font-black"
-              >
-                {Math.round((energy.productionSpeed ?? 1) * 100)}%
-              </p>
-              {#if energy.productionSpeed < 1}
-                <p class="text-amber-400 text-xs mt-1">
-                  ⚠️ Déficit énergétique
-                </p>
-              {:else}
-                <p class="text-slate-500 text-xs">Optimal</p>
-              {/if}
-            </div>
-          </div>
-
-          {#if energy.productionSpeed < 1}
-            <div
-              class="mt-4 bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 flex items-center gap-3"
-            >
-              <span class="text-2xl">⚠️</span>
-              <div>
-                <p class="text-amber-400 font-bold text-sm">
-                  Déficit énergétique détecté
-                </p>
-                <p class="text-amber-300/70 text-xs">
-                  Vos machines fonctionnent à {Math.round(
-                    energy.productionSpeed * 100
-                  )}% de leur vitesse normale. Augmentez votre production
-                  d'énergie pour optimiser la production.
-                </p>
-              </div>
-            </div>
-          {/if}
-        </div>
-      </div>
-    </section>
-
-    <section class="py-4 px-4">
-      <div class="max-w-7xl mx-auto grid md:grid-cols-2 gap-6">
-        <!-- Active Company Card -->
-        <div
-          class="bg-slate-900/50 border border-slate-700/50 rounded-2xl p-6 backdrop-blur-sm"
-        >
-          <div class="flex justify-between items-start mb-6">
-            <h2 class="text-xl font-bold text-white flex items-center gap-2">
-              <span>🏢</span> Entreprise Active
-            </h2>
-            {#if dashboardData}
-              {@const nextLevelCost = getLevelCost(dashboardData.company.level)}
-              <button
-                onclick={handleLevelUp}
-                disabled={levelUpLoading ||
-                  dashboardData.financials.cash < nextLevelCost}
-                class="text-xs bg-indigo-500 hover:bg-indigo-400 text-white px-4 py-2 rounded-full font-bold transition-all shadow-lg shadow-indigo-500/20 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
-              >
-                {#if levelUpLoading}
-                  <span
-                    class="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"
-                  ></span>
-                  Expansion...
-                {:else}
-                  <span>Niveau Sup. ({formatCurrency(nextLevelCost)})</span>
-                {/if}
-              </button>
-            {/if}
-          </div>
-
-          <div
-            class="bg-slate-800/50 rounded-xl p-5 border border-slate-700/50"
-          >
-            <div class="flex items-center justify-between mb-4">
-              <p class="text-white font-black text-2xl tracking-tight">
-                {dashboardData.company.name}
-              </p>
-              <span
-                class="bg-indigo-500/20 text-indigo-300 px-3 py-1 rounded-full text-xs font-bold border border-indigo-500/30"
-              >
-                Niveau {dashboardData.company.level}
-              </span>
-            </div>
-            <div class="grid grid-cols-2 gap-y-4 gap-x-2">
-              <div>
-                <p class="text-slate-400 text-xs font-semibold uppercase">
-                  PDG
-                </p>
-                <p class="text-white font-medium">
-                  {dashboardData.company.ceo}
-                </p>
-              </div>
-              <div>
-                <p class="text-slate-400 text-xs font-semibold uppercase">
-                  Employés
-                </p>
-                <p class="text-white font-medium">
-                  {dashboardData.staff.total_employees}
-                </p>
-              </div>
-
-              <div>
-                <p class="text-slate-400 text-xs font-semibold uppercase">
-                  Efficacité Moy.
-                </p>
-                <p class="text-white font-medium">
-                  {dashboardData.staff.average_efficiency}%
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Stock Market Card -->
-        <div
-          class="bg-slate-900/50 border border-slate-700/50 rounded-2xl p-6 backdrop-blur-sm"
-        >
-          <h2 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
-            <span>📉</span> Action Boursière
-          </h2>
-          <div
-            class="bg-slate-800/50 rounded-xl p-5 border border-slate-700/50 flex flex-col justify-center h-[calc(100%-3.5rem)]"
-          >
-            <div class="flex items-center justify-between mb-6">
-              <p class="text-slate-300 font-bold text-xl">
-                {dashboardData.financials.stock_ticker}
-              </p>
-              <p class="text-emerald-400 text-3xl font-black">
-                {formatCurrency(dashboardData.financials.stock_price)}
-              </p>
-            </div>
-            <div class="border-t border-slate-700/50 pt-4 mt-auto">
-              <p class="text-slate-400 text-xs font-semibold uppercase mb-1">
-                Valorisation Totale
-              </p>
-              <p class="text-white font-black text-2xl tracking-tight">
-                {formatCurrency(dashboardData.financials.valuation)}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="py-4 px-4 pb-12">
-      <div class="max-w-7xl mx-auto">
-        <div
-          class="bg-slate-900/50 border border-slate-700/50 rounded-2xl p-6 backdrop-blur-sm"
-        >
-          <h2 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
-            <span>📦</span> Aperçu Inventaire
-            <span class="text-slate-500 text-sm font-normal ml-2"
-              >({dashboardData.resources.inventory_count} items)</span
-            >
-          </h2>
-          {#if dashboardData.resources.top_items.length > 0}
-            <div class="grid md:grid-cols-5 gap-4">
-              {#each dashboardData.resources.top_items as item}
-                <div
-                  class="bg-slate-800/80 border border-slate-700 rounded-xl p-4 text-center hover:bg-slate-800 transition-colors group"
-                >
-                  <div
-                    class="w-10 h-10 rounded-full bg-indigo-500/10 flex items-center justify-center mx-auto mb-3 group-hover:bg-indigo-500/20 transition-colors"
-                  >
-                    <span class="text-lg">📦</span>
-                  </div>
-                  <p class="text-white font-bold text-sm truncate mb-1">
-                    {item.name}
-                  </p>
-                  <p class="text-slate-400 text-xs mb-2">
-                    Qté: <span class="text-white font-mono">{item.qty}</span>
-                  </p>
-                  <p
-                    class="text-indigo-400 text-xs font-bold bg-indigo-500/10 py-1 px-2 rounded-lg inline-block"
-                  >
-                    {formatCurrency(item.value)}
-                  </p>
-                </div>
-              {/each}
-            </div>
-          {:else}
-            <div
-              class="text-center py-12 border-2 border-dashed border-slate-800 rounded-xl"
-            >
-              <p class="text-slate-500 text-sm">Aucun item dans l'inventaire</p>
-            </div>
-          {/if}
-        </div>
-      </div>
-    </section>
-  {/if}
-
-  {#if isRevenueModalOpen && dashboardData}
-    <RevenueDetailModal
-      isOpen={isRevenueModalOpen}
-      onClose={() => (isRevenueModalOpen = false)}
-      breakdown={dashboardData.financials.profit_breakdown}
-      daily_view={dashboardData.financials.daily_view}
-      monthlyProfit={dashboardData.financials.monthly_net_profit}
-      {formatCurrency}
-    />
-  {/if}
+  <!-- Bottom Panel -->
+  <BottomPanel {selectedNode} onRemoveNode={handleRemoveNode} />
 </div>

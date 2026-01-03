@@ -6,15 +6,14 @@
   import pb from "$lib/pocketbase";
   import { currentUser, activeCompany } from "$lib/stores";
   import type { Company } from "$lib/pocketbase";
-  import { goto } from "$app/navigation";
+  import { page } from "$app/stores";
   import NotificationCenter from "$lib/components/NotificationCenter.svelte";
-  import NavigationHub from "$lib/components/NavigationHub.svelte";
-  import NavFab from "$lib/components/NavFab.svelte";
   import Footer from "$lib/components/Footer.svelte";
 
   let { children } = $props();
 
-  let navHubOpen = $state(false);
+  // Hide footer on full-screen pages like dashboard
+  let hideFooter = $derived($page.url.pathname.startsWith("/dashboard"));
 
   onMount(async () => {
     // Initialise Firebase/Analytics
@@ -47,15 +46,9 @@
   <div class="flex-grow">
     {@render children()}
   </div>
-  <Footer />
+  {#if !hideFooter}
+    <Footer />
+  {/if}
 </div>
 
 <NotificationCenter />
-
-<!-- Navigation Hub (Global) -->
-<NavigationHub bind:isOpen={navHubOpen} />
-
-<!-- Floating Action Button (only when logged in) -->
-{#if $currentUser}
-  <NavFab onclick={() => (navHubOpen = true)} />
-{/if}
