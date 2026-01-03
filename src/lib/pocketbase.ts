@@ -97,15 +97,6 @@ export interface Exploration extends BaseRecord {
   };
 }
 
-// game_events
-export interface GameEvent extends BaseRecord {
-  name: string;
-  type: "market_crash" | "boom";
-  modifiers_json: Record<string, unknown>;
-  start_time: string;
-  end_time: string;
-}
-
 // inventory
 export interface InventoryItem extends BaseRecord {
   company: string;
@@ -256,7 +247,6 @@ export interface TypedPocketBase extends Pocketbase {
   collection(idOrName: "deposits"): RecordService<Deposit>;
   collection(idOrName: "employees"): RecordService<Employee>;
   collection(idOrName: "explorations"): RecordService<Exploration>;
-  collection(idOrName: "game_events"): RecordService<GameEvent>;
   collection(idOrName: "inventory"): RecordService<InventoryItem>;
   collection(idOrName: "items"): RecordService<Item>;
   collection(idOrName: "machines"): RecordService<Machine>;

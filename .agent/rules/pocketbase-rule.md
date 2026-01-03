@@ -22,7 +22,6 @@ Les collections principales sont :[1]
 - `company_techs` : techno possédées par une `company` (`company`, `technology`).[1]
 - `stocks` / `shareholders` : bourse interne avec `stocks` (symbol, share_price, total_shares, volatility, price_history_json) et `shareholders` (holder_company, stock, quantity).[1]
 - `recipes` : recettes de craft avec `output_item`, `inputs_json`, `production_time`, `required_tech`.[1]
-- `game_events` : évènements globaux (`market_crash`, `boom`) avec `modifiers_json`, `start_time`, `end_time`.[1]
 - `messages` : messages liés à un `user` (chat / log interne).[1]
 
 Respecte les règles d’accès indiquées dans le schéma (listRule, createRule, updateRule…), par exemple :  
@@ -63,7 +62,6 @@ Quand on te le demande, écris du code pour :[1]
 - Acheter une `technology` pour une `company` en respectant la `createRule` de `company_techs` (vérifier `tech_points` et `required_level`, décrémenter `tech_points`, créer un record `company_techs`).[1]
 - Lister l’inventaire (`inventory`) d’une `company` avec les détails de chaque `item`.[1]
 - Appliquer une `recipe` : vérifier que l’inventaire contient assez d’inputs (`inputs_json`), décrémenter, incrémenter `output_item`, prendre en compte `production_time`.[1]
-- Créer et mettre à jour un `game_events` de type `market_crash` avec des `modifiers_json` impactant `items` ou `stocks`.[1]
 - Mettre à jour les `stocks.price_history_json` et la `share_price` en fonction de la `volatility` ou d’un `game_event`.[1]
 - Poster et lister des `messages` pour l’utilisateur connecté.[1]
 

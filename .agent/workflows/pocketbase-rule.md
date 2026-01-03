@@ -21,7 +21,6 @@ Les collections principales sont :
 - `company_techs` : techno possédées par une `company` (`company`, `technology`).
 - `stocks` / `shareholders` : bourse interne avec `stocks` (symbol, share_price, total_shares, volatility, price_history_json) et `shareholders` (holder_company, stock, quantity).
 - `recipes` : recettes de craft avec `output_item`, `inputs_json`, `production_time`, `required_tech`.
-- `game_events` : évènements globaux (`market_crash`, `boom`) avec `modifiers_json`, `start_time`, `end_time`.
 - `messages` : messages liés à un `user` (chat / log interne).
 
 ### Règles d'accès (Schéma JSON)
