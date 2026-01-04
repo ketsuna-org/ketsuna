@@ -8,12 +8,27 @@
     energyStatus: any;
     progress: number;
     timeRemaining: number;
+    currentDeposit?: any;
+    isExtractor?: boolean;
   }
 
-  let { machine, machineRecipe, energyStatus, progress, timeRemaining }: Props =
-    $props();
+  let {
+    machine,
+    machineRecipe,
+    energyStatus,
+    progress,
+    timeRemaining,
+    currentDeposit = null,
+    isExtractor = false,
+  }: Props = $props();
 
   let machineItem = $derived(machine.expand?.machine);
+  let isDepositEmpty = $derived(
+    isExtractor &&
+      currentDeposit &&
+      Math.floor(currentDeposit.quantity ?? 0) <= 0
+  );
+  let isMissingDeposit = $derived(isExtractor && !currentDeposit);
 </script>
 
 <div class="mb-6">
@@ -26,6 +41,18 @@
 
   {#if machineRecipe}
     <div class="p-4 bg-slate-950/30 rounded-xl border border-slate-800/50">
+      {#if isDepositEmpty || isMissingDeposit}
+        <div
+          class="mb-3 p-2 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-2"
+        >
+          <span class="text-red-400">⛏️</span>
+          <span class="text-xs text-red-300 font-bold">
+            {isDepositEmpty
+              ? "⚠️ Gisement épuisé - Production arrêtée"
+              : "⚠️ Aucun gisement assigné"}
+          </span>
+        </div>
+      {/if}
       {#if energyStatus && energyStatus.productionSpeed < 1 && (machineItem?.need_energy ?? 0) > 0}
         <div
           class="mb-3 p-2 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-2 animate-pulse"

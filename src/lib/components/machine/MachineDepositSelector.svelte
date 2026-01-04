@@ -86,12 +86,15 @@
 
     <div class="bg-slate-950/30 rounded-xl border border-slate-800/50 p-4">
       {#if currentDeposit}
+        {@const isEmpty = Math.floor(currentDeposit.quantity ?? 0) <= 0}
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-3">
             <div
-              class="w-10 h-10 rounded-lg bg-teal-500/20 border border-teal-500/30 flex items-center justify-center text-lg"
+              class="w-10 h-10 rounded-lg {isEmpty
+                ? 'bg-red-500/20 border-red-500/30'
+                : 'bg-teal-500/20 border-teal-500/30'} border flex items-center justify-center text-lg"
             >
-              ⛏️
+              {isEmpty ? "⚠️" : "⛏️"}
             </div>
             <div>
               <div class="flex items-center gap-2">
@@ -99,15 +102,23 @@
                   >#{currentDeposit.id?.slice(0, 4)}</span
                 >
                 <span
-                  class="text-xs font-bold text-teal-400 bg-teal-500/10 px-1.5 py-0.5 rounded"
+                  class="text-xs font-bold {isEmpty
+                    ? 'text-red-400 bg-red-500/10'
+                    : 'text-teal-400 bg-teal-500/10'} px-1.5 py-0.5 rounded"
                   >Niv. {currentDeposit.size ?? 1}</span
                 >
               </div>
-              <span class="text-slate-400"
-                >Restant: <span class="text-white font-mono"
-                  >{Math.floor(currentDeposit.quantity)}</span
-                ></span
-              >
+              {#if isEmpty}
+                <span class="text-red-400 font-bold text-xs"
+                  >⚠️ ÉPUISÉ - Production arrêtée</span
+                >
+              {:else}
+                <span class="text-slate-400"
+                  >Restant: <span class="text-white font-mono"
+                    >{Math.floor(currentDeposit.quantity)}</span
+                  ></span
+                >
+              {/if}
             </div>
           </div>
           <button
@@ -119,6 +130,60 @@
             ❌
           </button>
         </div>
+
+        {#if isEmpty}
+          <div
+            class="mt-3 p-2 bg-red-500/10 border border-red-500/20 rounded-lg"
+          >
+            <p class="text-xs text-red-300 mb-2">
+              Ce gisement est épuisé. Sélectionnez un nouveau gisement pour
+              reprendre la production.
+            </p>
+            <button
+              onclick={handleDepositDropdownOpen}
+              disabled={isLoading}
+              class="w-full py-2 bg-teal-600 hover:bg-teal-500 text-white font-bold rounded-lg text-xs transition-colors disabled:opacity-50"
+            >
+              {showDepositDropdown ? "Fermer" : "Changer de gisement"}
+            </button>
+
+            {#if showDepositDropdown}
+              <div
+                transition:slide
+                class="mt-2 bg-slate-900 border border-slate-700 rounded-xl shadow-xl max-h-48 overflow-y-auto"
+              >
+                {#if compatibleDeposits.length > 0}
+                  {#each compatibleDeposits as dep}
+                    <button
+                      onclick={() => handleAssignDeposit(dep.id)}
+                      class="w-full text-left p-3 hover:bg-slate-800 border-b border-slate-800 last:border-0 flex justify-between items-center"
+                    >
+                      <span class="text-xs font-mono text-slate-300"
+                        >#{dep.id.slice(0, 4)}</span
+                      >
+                      <div class="text-right">
+                        <div class="text-xs font-bold text-emerald-400">
+                          Niv. {dep.size ?? 1}
+                        </div>
+                        <div class="text-[10px] text-slate-500">
+                          {Math.floor(dep.quantity)} u.
+                        </div>
+                      </div>
+                    </button>
+                  {/each}
+                {:else}
+                  <div class="p-3 text-center text-xs text-slate-500">
+                    Aucun gisement compatible trouvé.<br />
+                    <a
+                      href="/exploration"
+                      class="text-teal-400 underline mt-1 block">Explorer</a
+                    >
+                  </div>
+                {/if}
+              </div>
+            {/if}
+          </div>
+        {/if}
       {:else}
         <div class="text-center">
           <p class="text-xs text-amber-400 mb-3">

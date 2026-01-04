@@ -166,6 +166,8 @@
     {energyStatus}
     {progress}
     {timeRemaining}
+    {currentDeposit}
+    {isExtractor}
   />
 
   <MachineDepositSelector
