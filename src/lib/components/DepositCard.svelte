@@ -3,6 +3,7 @@
   import pb from "$lib/pocketbase";
   import { notifications } from "$lib/notifications";
   import { slide } from "svelte/transition";
+  import ConfirmationModal from "$lib/components/ConfirmationModal.svelte";
 
   interface Props {
     deposit: Deposit;
@@ -23,6 +24,8 @@
   let isLoading = $state(false);
   let showAssignDropdown = $state(false);
   let employeeSearchQuery = $state("");
+  let showUnassignMachineModal = $state(false);
+  let targetMachineId = $state<string | null>(null);
 
   // Calculate max capacity (size * 5)
   let maxCapacity = $derived((deposit.size || 1) * 5);
@@ -84,14 +87,18 @@
     }
   }
 
-  async function handleUnassignMachine(machineId: string) {
-    if (!confirm("Retirer cette machine du gisement ?")) return;
+  async function confirmUnassignMachine(machineId: string) {
+    targetMachineId = machineId;
+    showUnassignMachineModal = true;
+  }
+
+  async function executeUnassignMachine() {
+    if (!targetMachineId) return;
     isLoading = true;
     try {
-      // Use the generic machine assign-deposit endpoint to clear it
       await pb.send("/api/machines/assign-deposit", {
         method: "POST",
-        body: { machineId: machineId, depositId: "" },
+        body: { machineId: targetMachineId, depositId: "" },
       });
       notifications.success("Machine retirée du gisement");
       onUpdate?.();
@@ -101,6 +108,7 @@
       );
     } finally {
       isLoading = false;
+      targetMachineId = null;
     }
   }
 </script>
@@ -209,7 +217,7 @@
               </div>
             </div>
             <button
-              onclick={() => handleUnassignMachine(mach.id)}
+              onclick={() => confirmUnassignMachine(mach.id)}
               disabled={isLoading}
               class="text-slate-500 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
               title="Retirer"
@@ -271,6 +279,15 @@
     </button>
   </div>
 </div>
+
+<ConfirmationModal
+  bind:isOpen={showUnassignMachineModal}
+  title="Retirer la machine ?"
+  message="La machine retournera dans votre inventaire et cessera de produire."
+  confirmLabel="Retirer"
+  isDestructive={true}
+  onConfirm={executeUnassignMachine}
+/>
 
 <!-- Modal Overlay for Employee Selection -->
 {#if showAssignDropdown && remainingSlots > 0}

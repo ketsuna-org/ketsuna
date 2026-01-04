@@ -7,6 +7,7 @@
   import type { Item, Company, Employee } from "$lib/pocketbase";
   import FilterBar from "$lib/components/FilterBar.svelte";
   import DepositCard from "$lib/components/DepositCard.svelte";
+  import ConfirmationModal from "$lib/components/ConfirmationModal.svelte";
   import {
     type Exploration,
     type Deposit,
@@ -29,7 +30,8 @@
   let selectedFilters = $state<Record<string, string>>({});
 
   // Confirm Modal State
-  let confirmItem = $state<Item | null>(null);
+  let showExplorationModal = $state(false);
+  let selectedExplorationItem = $state<Item | null>(null);
 
   // Timer for countdowns
   let now = $state(new Date());
@@ -126,10 +128,11 @@
   );
 
   async function handleStartExploration() {
-    if (!confirmItem || !$activeCompany) return;
+    if (!selectedExplorationItem || !$activeCompany) return;
 
-    const item = confirmItem;
-    confirmItem = null; // Close modal immediately
+    const item = selectedExplorationItem;
+    // Modal will close via binding or manual close
+    showExplorationModal = false;
 
     if ($activeCompany.balance < EXPLORATION_COST) {
       notifications.error("Fonds insuffisants pour lancer l'exploration");
@@ -163,8 +166,14 @@
     return `${minutes}m ${seconds}s`;
   }
 
+  $effect(() => {
+    if ($activeCompany?.id) {
+      loadData();
+    }
+  });
+
   onMount(() => {
-    loadData();
+    // loadData(); // Handled by effect
     timerInterval = setInterval(() => {
       now = new Date();
 
@@ -188,288 +197,265 @@
   <title>Exploration | Ketsuna: Iron Symphony</title>
 </svelte:head>
 
-<div
-  class="container mx-auto px-4 py-6 max-w-7xl animate-in fade-in duration-500"
->
-  <!-- Top Bar with Filter -->
+<div class="min-h-screen bg-slate-950 text-white relative overflow-hidden">
+  <!-- Background Grid -->
   <div
-    class="mb-8 flex flex-col md:flex-row gap-6 justify-between items-end md:items-center"
+    class="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"
+  ></div>
+  <div
+    class="absolute inset-0 bg-radial-gradient(circle_at_center,transparent_0%,#020617_100%)"
+  ></div>
+
+  <div
+    class="container mx-auto px-4 py-8 max-w-7xl relative z-10 animate-in fade-in duration-500"
   >
-    <div>
-      <h1 class="text-3xl font-bold text-white flex items-center gap-3">
-        <span class="p-2 bg-amber-500/10 rounded-xl text-amber-500">🔭</span>
-        Exploration
-      </h1>
-      <p class="text-slate-400 mt-1 ml-14">
-        Découvrez de nouveaux gisements de ressources
-      </p>
-    </div>
-
+    <!-- Top Bar with Filter -->
     <div
-      class="flex items-center gap-4 bg-slate-900/50 p-2 rounded-xl border border-slate-700/50"
+      class="mb-8 flex flex-col md:flex-row gap-6 justify-between items-end md:items-center bg-slate-900/40 backdrop-blur-md p-6 rounded-3xl border border-white/5 shadow-2xl"
     >
-      <div class="px-4 py-2 bg-slate-800 rounded-lg border border-slate-700">
-        <span class="text-xs text-slate-400 uppercase font-bold block mb-0.5"
-          >Coût Mission</span
+      <div>
+        <h1
+          class="text-3xl md:text-4xl font-black tracking-tight text-white flex items-center gap-4 mb-2"
         >
-        <span class="text-lg font-mono font-bold text-amber-400"
-          >{EXPLORATION_COST.toLocaleString()} €</span
-        >
-      </div>
-      <div class="px-4 py-2 bg-slate-800 rounded-lg border border-slate-700">
-        <span class="text-xs text-slate-400 uppercase font-bold block mb-0.5"
-          >Budget Actuel</span
-        >
-        <span class="text-lg font-mono font-bold text-white"
-          >{$activeCompany?.balance?.toLocaleString() ?? 0} €</span
-        >
-      </div>
-    </div>
-  </div>
-
-  <!-- Tab Navigation -->
-  <div class="mb-6 border-b border-slate-800">
-    <div class="flex gap-6">
-      <button
-        onclick={() => (selectedTab = "explore")}
-        class="pb-4 px-2 text-sm font-bold border-b-2 transition-colors relative {selectedTab ===
-        'explore'
-          ? 'text-amber-400 border-amber-400'
-          : 'text-slate-400 border-transparent hover:text-white'}"
-      >
-        Missions
-        {#if activeExplorations.length > 0}
           <span
-            class="absolute -top-1 -right-3 w-5 h-5 bg-amber-500 text-black text-[10px] flex items-center justify-center rounded-full animate-pulse"
-            >{activeExplorations.length}</span
+            class="p-3 bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl text-white shadow-lg shadow-amber-500/20 text-2xl"
+            >🔭</span
           >
-        {/if}
-      </button>
+          <span
+            class="bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent"
+            >Exploration</span
+          >
+        </h1>
+        <p class="text-slate-400 mt-1 font-medium max-w-md">
+          Envoyez des équipes de recherche pour localiser de nouveaux gisements
+          de ressources.
+        </p>
+      </div>
 
-      <button
-        onclick={() => (selectedTab = "deposits")}
-        class="pb-4 px-2 text-sm font-bold border-b-2 transition-colors {selectedTab ===
-        'deposits'
-          ? 'text-emerald-400 border-emerald-400'
-          : 'text-slate-400 border-transparent hover:text-white'}"
-      >
-        Mes Gisements
-        <span
-          class="ml-2 px-1.5 py-0.5 bg-slate-800 text-slate-300 rounded text-xs"
-          >{myDeposits.length}</span
-        >
-      </button>
-    </div>
-  </div>
-
-  {#if loading}
-    <div class="flex justify-center py-20">
       <div
-        class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-amber-500"
-      ></div>
+        class="flex items-center gap-4 bg-slate-900/50 p-2 rounded-xl border border-slate-700/50"
+      >
+        <div class="px-4 py-2 bg-slate-800 rounded-lg border border-slate-700">
+          <span class="text-xs text-slate-400 uppercase font-bold block mb-0.5"
+            >Coût Mission</span
+          >
+          <span class="text-lg font-mono font-bold text-amber-400"
+            >{EXPLORATION_COST.toLocaleString()} €</span
+          >
+        </div>
+        <div class="px-4 py-2 bg-slate-800 rounded-lg border border-slate-700">
+          <span class="text-xs text-slate-400 uppercase font-bold block mb-0.5"
+            >Budget Actuel</span
+          >
+          <span class="text-lg font-mono font-bold text-white"
+            >{$activeCompany?.balance?.toLocaleString() ?? 0} €</span
+          >
+        </div>
+      </div>
     </div>
-  {:else if selectedTab === "explore"}
-    <!-- Active Explorations Section -->
-    {#if activeExplorations.length > 0}
-      <div class="mb-8">
-        <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
-          <span class="w-1.5 h-6 bg-amber-500 rounded-full"></span>
-          En cours
-        </h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {#each activeExplorations as exp (exp.id)}
-            {@const timeLeft = getTimeRemaining(exp.end_time)}
-            <div
-              class="bg-slate-800 rounded-xl p-4 border border-slate-700 relative overflow-hidden group"
-            >
-              <!-- Progress Bar Background (Optional) -->
-              <div class="absolute bottom-0 left-0 h-1 bg-amber-500/20 w-full">
-                <!-- Can simulate progress if we had start_time -->
-                <div
-                  class="h-full bg-amber-500 animate-pulse w-full origin-left"
-                ></div>
-              </div>
 
-              <div class="flex justify-between items-center mb-2">
-                <div class="flex items-center gap-3">
-                  <div
-                    class="p-2 bg-slate-900 rounded-lg text-amber-400 border border-slate-800"
-                  >
-                    🚀
-                  </div>
-                  <h3 class="font-bold text-white">
-                    {exp.expand?.target_resource.name}
-                  </h3>
-                </div>
-                <span
-                  class="text-xs font-mono font-bold {timeLeft === 'Terminé'
-                    ? 'text-emerald-400 bg-emerald-500/10'
-                    : 'text-amber-400 bg-amber-500/10'} px-2 py-1 rounded"
+    <!-- Tab Navigation -->
+    <div class="mb-8 border-b border-white/5">
+      <div class="flex gap-8">
+        <button
+          onclick={() => (selectedTab = "explore")}
+          class="pb-4 px-2 text-sm uppercase tracking-widest font-bold border-b-2 transition-all relative {selectedTab ===
+          'explore'
+            ? 'text-amber-400 border-amber-400 scale-105'
+            : 'text-slate-500 border-transparent hover:text-white hover:border-white/10'}"
+        >
+          Missions
+          {#if activeExplorations.length > 0}
+            <span
+              class="absolute -top-1 -right-3 w-5 h-5 bg-amber-500 text-black text-[10px] flex items-center justify-center rounded-full animate-pulse shadow-glow"
+              >{activeExplorations.length}</span
+            >
+          {/if}
+        </button>
+
+        <button
+          onclick={() => (selectedTab = "deposits")}
+          class="pb-4 px-2 text-sm uppercase tracking-widest font-bold border-b-2 transition-all {selectedTab ===
+          'deposits'
+            ? 'text-emerald-400 border-emerald-400 scale-105'
+            : 'text-slate-500 border-transparent hover:text-white hover:border-white/10'}"
+        >
+          Mes Gisements
+          <span
+            class="ml-2 px-1.5 py-0.5 bg-slate-800 text-slate-300 rounded text-xs"
+            >{myDeposits.length}</span
+          >
+        </button>
+      </div>
+    </div>
+
+    {#if loading}
+      <div class="flex justify-center py-20">
+        <div
+          class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-amber-500"
+        ></div>
+      </div>
+    {:else if selectedTab === "explore"}
+      <!-- Active Explorations Section -->
+      {#if activeExplorations.length > 0}
+        <div class="mb-8">
+          <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+            <span class="w-1.5 h-6 bg-amber-500 rounded-full"></span>
+            En cours
+          </h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {#each activeExplorations as exp (exp.id)}
+              {@const timeLeft = getTimeRemaining(exp.end_time)}
+              <div
+                class="bg-slate-900/60 backdrop-blur-sm rounded-2xl p-5 border border-amber-500/20 relative overflow-hidden group hover:border-amber-500/50 transition-all duration-300 shadow-lg shadow-black/20"
+              >
+                <!-- Progress Bar Background (Optional) -->
+                <div
+                  class="absolute bottom-0 left-0 h-1 bg-amber-500/20 w-full"
                 >
-                  {timeLeft}
-                </span>
+                  <!-- Can simulate progress if we had start_time -->
+                  <div
+                    class="h-full bg-amber-500 animate-pulse w-full origin-left"
+                  ></div>
+                </div>
+
+                <div class="flex justify-between items-center mb-2">
+                  <div class="flex items-center gap-3">
+                    <div
+                      class="p-2 bg-slate-900 rounded-lg text-amber-400 border border-slate-800"
+                    >
+                      🚀
+                    </div>
+                    <h3 class="font-bold text-white">
+                      {exp.expand?.target_resource.name}
+                    </h3>
+                  </div>
+                  <span
+                    class="text-xs font-mono font-bold {timeLeft === 'Terminé'
+                      ? 'text-emerald-400 bg-emerald-500/10'
+                      : 'text-amber-400 bg-amber-500/10'} px-2 py-1 rounded"
+                  >
+                    {timeLeft}
+                  </span>
+                </div>
+                <p class="text-xs text-slate-400 pl-14">
+                  {timeLeft === "Terminé"
+                    ? "Analyse des données en cours..."
+                    : "Recherche de gisement en cours..."}
+                </p>
               </div>
-              <p class="text-xs text-slate-400 pl-14">
-                {timeLeft === "Terminé"
-                  ? "Analyse des données en cours..."
-                  : "Recherche de gisement en cours..."}
+            {/each}
+          </div>
+        </div>
+      {/if}
+
+      <!-- Search/Filter -->
+      <FilterBar
+        bind:searchQuery
+        filters={[]}
+        bind:selectedFilters
+        onFilterChange={() => {}}
+        placeholder="Rechercher une ressource..."
+      />
+
+      <!-- Mission Catalog -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-6">
+        {#each filteredItems as item (item.id)}
+          <div
+            class="bg-slate-900/40 backdrop-blur-md hover:bg-slate-800/60 transition-all p-6 rounded-3xl border border-white/5 flex flex-col group relative overflow-hidden hover:shadow-2xl hover:shadow-black/50 hover:scale-[1.02] duration-300"
+          >
+            <div
+              class="absolute top-0 right-0 p-3 opacity-0 group-hover:opacity-10 transition-opacity"
+            >
+              <span class="text-6xl">🔭</span>
+            </div>
+
+            <div class="flex-1">
+              <div
+                class="w-12 h-12 bg-slate-900 rounded-xl flex items-center justify-center text-2xl mb-4 border border-slate-800 shadow-sm group-hover:scale-110 transition-transform"
+              >
+                💎
+              </div>
+              <h3 class="text-lg font-bold text-white mb-1">{item.name}</h3>
+              <p
+                class="text-xs text-slate-500 uppercase font-semibold tracking-wider mb-4"
+              >
+                Ressource Brute
               </p>
             </div>
-          {/each}
-        </div>
-      </div>
-    {/if}
 
-    <!-- Search/Filter -->
-    <FilterBar
-      bind:searchQuery
-      filters={[]}
-      bind:selectedFilters
-      onFilterChange={() => {}}
-      placeholder="Rechercher une ressource..."
-    />
-
-    <!-- Mission Catalog -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-6">
-      {#each filteredItems as item (item.id)}
-        <div
-          class="bg-slate-800 hover:bg-slate-750 transition-colors p-5 rounded-xl border border-slate-700 flex flex-col group relative overflow-hidden"
-        >
-          <div
-            class="absolute top-0 right-0 p-3 opacity-0 group-hover:opacity-10 transition-opacity"
-          >
-            <span class="text-6xl">🔭</span>
-          </div>
-
-          <div class="flex-1">
-            <div
-              class="w-12 h-12 bg-slate-900 rounded-xl flex items-center justify-center text-2xl mb-4 border border-slate-800 shadow-sm group-hover:scale-110 transition-transform"
+            <button
+              onclick={() => {
+                selectedExplorationItem = item;
+                showExplorationModal = true;
+              }}
+              class="w-full py-3 bg-gradient-to-r from-slate-800 to-slate-900 group-hover:from-amber-600 group-hover:to-orange-600 text-slate-300 group-hover:text-white font-bold rounded-xl border border-white/10 group-hover:border-transparent transition-all flex items-center justify-center gap-2 shadow-lg"
             >
-              💎
-            </div>
-            <h3 class="text-lg font-bold text-white mb-1">{item.name}</h3>
-            <p
-              class="text-xs text-slate-500 uppercase font-semibold tracking-wider mb-4"
-            >
-              Ressource Brute
-            </p>
+              <span>Lancer Mission</span>
+            </button>
           </div>
-
-          <button
-            onclick={() => (confirmItem = item)}
-            class="w-full py-3 bg-slate-900 hover:bg-amber-500 hover:text-black text-slate-300 font-bold rounded-lg border border-slate-700 hover:border-amber-400 transition-all flex items-center justify-center gap-2"
-          >
-            <span>Lancer Mission</span>
-          </button>
-        </div>
-      {/each}
-    </div>
-  {:else}
-    <!-- Deposits List -->
-    {#if myDeposits.length === 0}
-      <div
-        class="flex flex-col items-center justify-center py-20 text-center opacity-70"
-      >
-        <span class="text-6xl mb-4">🗺️</span>
-        <h3 class="text-xl font-bold text-white">Aucun gisement découvert</h3>
-        <p class="text-slate-400 mt-2 max-w-sm">
-          Les gisements vous permettent d'extraire des ressources brutes
-          massivement.
-        </p>
-        <button
-          class="mt-6 text-amber-400 hover:underline"
-          onclick={() => (selectedTab = "explore")}>Explorer des zones</button
-        >
-      </div>
-    {:else}
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {#each myDeposits as deposit (deposit.id)}
-          <DepositCard
-            {deposit}
-            {availableEmployees}
-            assignedEmployees={depositEmployees[deposit.id] || []}
-            assignedMachines={depositMachines[deposit.id] || []}
-            onUpdate={loadData}
-          />
         {/each}
       </div>
-    {/if}
-  {/if}
-
-  <!-- MODAL DE CONFIRMATION -->
-  {#if confirmItem}
-    <div
-      class="fixed inset-0 z-50 flex items-center justify-center p-4"
-      transition:fade={{ duration: 150 }}
-    >
-      <!-- Backdrop -->
-      <div
-        class="absolute inset-0 bg-black/80 backdrop-blur-sm focus:outline-none"
-        role="button"
-        tabindex="0"
-        onclick={() => (confirmItem = null)}
-        onkeydown={(e) => {
-          if (e.key === "Escape" || e.key === "Enter" || e.key === " ")
-            confirmItem = null;
-        }}
-        aria-label="Fermer la modale"
-      ></div>
-
-      <!-- Modal Content -->
-      <div
-        class="relative bg-slate-800 rounded-2xl border border-slate-700 shadow-2xl w-full max-w-md p-6"
-        transition:scale={{ start: 0.95, duration: 200 }}
-      >
-        <h2 class="text-xl font-bold text-white mb-2">
-          Confirmer l'exploration
-        </h2>
-        <p class="text-slate-400 text-sm mb-6">
-          Voulez-vous envoyer une équipe explorer le secteur pour trouver du <strong
-            class="text-white">{confirmItem.name}</strong
-          > ?
-        </p>
-
+    {:else}
+      <!-- Deposits List -->
+      {#if myDeposits.length === 0}
         <div
-          class="bg-slate-900/50 rounded-xl p-4 mb-8 border border-slate-700/50"
+          class="flex flex-col items-center justify-center py-20 text-center opacity-70"
         >
-          <div class="flex justify-between items-center mb-2">
-            <span class="text-sm text-slate-400">Coût estimé</span>
-            <span class="text-amber-400 font-mono font-bold"
-              >{EXPLORATION_COST.toLocaleString()} €</span
-            >
+          <span class="text-6xl mb-4">🗺️</span>
+          <h3 class="text-xl font-bold text-white">Aucun gisement découvert</h3>
+          <p class="text-slate-400 mt-2 max-w-sm">
+            Les gisements vous permettent d'extraire des ressources brutes
+            massivement.
+          </p>
+          <button
+            class="mt-6 text-amber-400 hover:underline"
+            onclick={() => (selectedTab = "explore")}>Explorer des zones</button
+          >
+        </div>
+      {:else}
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {#each myDeposits as deposit (deposit.id)}
+            <DepositCard
+              {deposit}
+              {availableEmployees}
+              assignedEmployees={depositEmployees[deposit.id] || []}
+              assignedMachines={depositMachines[deposit.id] || []}
+              onUpdate={loadData}
+            />
+          {/each}
+        </div>
+      {/if}
+    {/if}
+
+    <!-- MODAL DE CONFIRMATION -->
+    <ConfirmationModal
+      bind:isOpen={showExplorationModal}
+      title="Lancer une exploration"
+      message={`
+      <div class="space-y-4">
+        <p>Voulez-vous lancer une mission pour trouver du <strong class="text-amber-400">${selectedExplorationItem?.name}</strong> ?</p>
+        
+        <div class="bg-slate-950/50 p-4 rounded-xl border border-white/5">
+          <div class="flex justify-between items-center mb-1">
+            <span class="text-xs text-slate-400 uppercase">Coût estimé</span>
+            <span class="text-amber-400 font-mono font-bold">${EXPLORATION_COST.toLocaleString()} €</span>
           </div>
-          <div class="flex justify-between items-center text-xs">
-            <span class="text-slate-500">Solde après opération</span>
-            <span
-              class="font-mono {($activeCompany?.balance ?? 0) -
-                EXPLORATION_COST <
-              0
-                ? 'text-red-400'
-                : 'text-slate-300'}"
-            >
-              {Math.max(
-                0,
-                ($activeCompany?.balance ?? 0) - EXPLORATION_COST
-              ).toLocaleString()} €
+          <div class="flex justify-between items-center">
+            <span class="text-xs text-slate-500 uppercase">Solde après opération</span>
+            <span class="font-mono ${($activeCompany?.balance ?? 0) - EXPLORATION_COST < 0 ? "text-red-400" : "text-slate-300"}">
+              ${Math.max(0, ($activeCompany?.balance ?? 0) - EXPLORATION_COST).toLocaleString()} €
             </span>
           </div>
         </div>
-
-        <div class="flex gap-3">
-          <button
-            onclick={() => (confirmItem = null)}
-            class="flex-1 py-2.5 rounded-lg border border-slate-600 text-slate-300 font-medium hover:bg-slate-700 transition-colors"
-          >
-            Annuler
-          </button>
-          <button
-            onclick={handleStartExploration}
-            class="flex-1 py-2.5 rounded-lg bg-amber-500 text-black font-bold hover:bg-amber-400 transition-colors shadow-lg shadow-amber-500/20"
-          >
-            Lancer Mission
-          </button>
-        </div>
       </div>
-    </div>
-  {/if}
+    `}
+      confirmLabel="Lancer Mission"
+      onConfirm={handleStartExploration}
+      onCancel={() => {
+        showExplorationModal = false;
+        selectedExplorationItem = null;
+      }}
+    />
+  </div>
 </div>
