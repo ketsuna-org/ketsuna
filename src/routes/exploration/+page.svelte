@@ -63,6 +63,20 @@
           filter: `employer = "${$activeCompany.id}"`,
         });
 
+      // 5. Load all machines to check employee assignments (single query instead of N queries)
+      const allMachines = await pb.collection("machines").getFullList({
+        filter: `company = "${$activeCompany.id}"`,
+      });
+
+      // Build set of busy employee IDs (assigned to machines)
+      const busyEmployeeIds = new Set<string>();
+      for (const machine of allMachines) {
+        const empIds = (machine.employees as string[]) || [];
+        for (const id of empIds) {
+          busyEmployeeIds.add(id);
+        }
+      }
+
       // Group employees by deposit
       const byDeposit: Record<string, Employee[]> = {};
       const available: Employee[] = [];
@@ -71,16 +85,9 @@
         if (emp.deposit) {
           if (!byDeposit[emp.deposit]) byDeposit[emp.deposit] = [];
           byDeposit[emp.deposit].push(emp);
-        } else if (!emp.exploration) {
-          // Check if assigned to a machine
-          const machineAssignments = await pb
-            .collection("machines")
-            .getList(1, 1, {
-              filter: `employees ~ "${emp.id}"`,
-            });
-          if (machineAssignments.totalItems === 0) {
-            available.push(emp);
-          }
+        } else if (!emp.exploration && !busyEmployeeIds.has(emp.id)) {
+          // Not assigned to deposit, exploration, or machine
+          available.push(emp);
         }
       }
 

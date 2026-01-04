@@ -4,43 +4,39 @@
   import { notifications } from "$lib/notifications";
   import { slide } from "svelte/transition";
 
-  /**
-   * @type {Deposit} - The deposit to display
-   */
-  export let deposit: Deposit;
+  interface Props {
+    deposit: Deposit;
+    availableEmployees?: Employee[];
+    assignedEmployees?: Employee[];
+    onUpdate?: (() => void) | null;
+  }
 
-  /**
-   * @type {Employee[]} - Available employees (not assigned anywhere)
-   */
-  export let availableEmployees: Employee[] = [];
+  let {
+    deposit,
+    availableEmployees = [],
+    assignedEmployees = [],
+    onUpdate = null,
+  }: Props = $props();
 
-  /**
-   * @type {Employee[]} - Employees currently assigned to this deposit
-   */
-  export let assignedEmployees: Employee[] = [];
-
-  /**
-   * @type {() => void} - Callback when assignment changes
-   */
-  export let onUpdate: (() => void) | null = null;
-
-  let isLoading = false;
-  let showAssignDropdown = false;
-  let employeeSearchQuery = "";
+  let isLoading = $state(false);
+  let showAssignDropdown = $state(false);
+  let employeeSearchQuery = $state("");
 
   // Calculate max capacity (size * 5)
-  $: maxCapacity = (deposit.size || 1) * 5;
-  $: remainingSlots = maxCapacity - assignedEmployees.length;
+  let maxCapacity = $derived((deposit.size || 1) * 5);
+  let remainingSlots = $derived(maxCapacity - assignedEmployees.length);
 
   // Filter available employees by search
-  $: filteredEmployees = availableEmployees.filter((emp) => {
-    if (!employeeSearchQuery.trim()) return true;
-    const query = employeeSearchQuery.toLowerCase();
-    return (
-      emp.name.toLowerCase().includes(query) ||
-      (emp.poste && emp.poste.toLowerCase().includes(query))
-    );
-  });
+  let filteredEmployees = $derived(
+    availableEmployees.filter((emp) => {
+      if (!employeeSearchQuery.trim()) return true;
+      const query = employeeSearchQuery.toLowerCase();
+      return (
+        emp.name.toLowerCase().includes(query) ||
+        (emp.poste && emp.poste.toLowerCase().includes(query))
+      );
+    })
+  );
 
   async function handleAssignEmployee(employeeId: string) {
     if (remainingSlots <= 0) {
@@ -85,7 +81,7 @@
 </script>
 
 <div
-  class="bg-slate-800 rounded-xl p-5 border border-emerald-500/30 relative overflow-hidden"
+  class="bg-slate-800 rounded-xl p-5 border border-emerald-500/30 relative overflow-visible z-10"
 >
   <!-- Background decoration -->
   <div
@@ -206,57 +202,103 @@
         <span>Assigner un Mineur ({remainingSlots} places)</span>
       {/if}
     </button>
-
-    {#if showAssignDropdown && remainingSlots > 0}
-      <div
-        transition:slide
-        class="absolute top-full left-0 right-0 mt-2 bg-slate-900 border border-slate-700 rounded-xl shadow-xl z-50 max-h-64 overflow-hidden"
-      >
-        <!-- Search -->
-        <div class="p-2 border-b border-slate-800">
-          <input
-            type="text"
-            bind:value={employeeSearchQuery}
-            placeholder="Rechercher un employé..."
-            class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white placeholder-slate-500 focus:border-cyan-500 focus:outline-none"
-          />
-        </div>
-
-        <!-- Employee List -->
-        <div class="max-h-48 overflow-y-auto">
-          {#if filteredEmployees.length > 0}
-            {#each filteredEmployees as emp (emp.id)}
-              <button
-                onclick={() => handleAssignEmployee(emp.id)}
-                disabled={isLoading}
-                class="w-full text-left p-3 hover:bg-slate-800 border-b border-slate-800 last:border-0 flex justify-between items-center"
-              >
-                <div class="flex items-center gap-2">
-                  <span class="text-sm">👷</span>
-                  <div>
-                    <p class="text-xs text-white font-medium">{emp.name}</p>
-                    <p class="text-[10px] text-slate-500">
-                      {emp.poste || "Employé"}
-                    </p>
-                  </div>
-                </div>
-                <div class="text-right">
-                  <div class="text-xs font-bold text-cyan-400">
-                    ⛏️ {emp.mining || 0}
-                  </div>
-                  <div class="text-[10px] text-slate-500">
-                    Eff: {emp.efficiency || 0}%
-                  </div>
-                </div>
-              </button>
-            {/each}
-          {:else}
-            <div class="p-4 text-center text-xs text-slate-500">
-              Aucun employé disponible
-            </div>
-          {/if}
-        </div>
-      </div>
-    {/if}
   </div>
 </div>
+
+<!-- Modal Overlay for Employee Selection -->
+{#if showAssignDropdown && remainingSlots > 0}
+  <!-- Backdrop -->
+  <div
+    class="fixed inset-0 bg-black/50 z-[9998]"
+    onclick={() => {
+      showAssignDropdown = false;
+      employeeSearchQuery = "";
+    }}
+    role="button"
+    tabindex="-1"
+    onkeydown={(e) => {
+      if (e.key === "Escape") {
+        showAssignDropdown = false;
+        employeeSearchQuery = "";
+      }
+    }}
+  ></div>
+
+  <!-- Modal Content -->
+  <div
+    class="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[90vw] max-w-md bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-[9999] overflow-hidden"
+  >
+    <!-- Header -->
+    <div
+      class="p-4 border-b border-slate-800 flex justify-between items-center"
+    >
+      <h3 class="text-white font-bold">⛏️ Assigner un Mineur</h3>
+      <button
+        onclick={() => {
+          showAssignDropdown = false;
+          employeeSearchQuery = "";
+        }}
+        class="text-slate-400 hover:text-white text-xl"
+      >
+        ×
+      </button>
+    </div>
+
+    <!-- Search -->
+    <div class="p-3 border-b border-slate-800">
+      <input
+        type="text"
+        bind:value={employeeSearchQuery}
+        placeholder="Rechercher un employé..."
+        class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:border-cyan-500 focus:outline-none"
+      />
+    </div>
+
+    <!-- Employee List -->
+    <div class="max-h-64 overflow-y-auto">
+      {#if filteredEmployees.length > 0}
+        {#each filteredEmployees as emp (emp.id)}
+          <button
+            onclick={() => handleAssignEmployee(emp.id)}
+            disabled={isLoading}
+            class="w-full text-left p-4 hover:bg-slate-800 border-b border-slate-800 last:border-0 flex justify-between items-center"
+          >
+            <div class="flex items-center gap-3">
+              <span class="text-xl">👷</span>
+              <div>
+                <p class="text-sm text-white font-medium">{emp.name}</p>
+                <p class="text-xs text-slate-500">
+                  {emp.poste || "Employé"}
+                </p>
+              </div>
+            </div>
+            <div class="text-right">
+              <div class="text-sm font-bold text-cyan-400">
+                ⛏️ {emp.mining || 0}
+              </div>
+              <div class="text-xs text-slate-500">
+                Eff: {emp.efficiency || 0}%
+              </div>
+            </div>
+          </button>
+        {/each}
+      {:else}
+        <div class="p-6 text-center text-sm text-slate-500">
+          {#if employeeSearchQuery}
+            Aucun employé trouvé pour "{employeeSearchQuery}"
+          {:else}
+            Aucun employé disponible
+          {/if}
+        </div>
+      {/if}
+    </div>
+
+    <!-- Footer -->
+    <div class="p-3 border-t border-slate-800 bg-slate-950">
+      <p class="text-xs text-slate-500 text-center">
+        {filteredEmployees.length} employé(s) disponible(s) • {remainingSlots} place(s)
+        restante(s)
+      </p>
+    </div>
+  </div>
+{/if}
