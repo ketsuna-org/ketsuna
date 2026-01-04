@@ -30,13 +30,6 @@
       description: "Achetez et vendez des ressources",
     },
     {
-      label: "Réserve",
-      href: "/reserve",
-      icon: "🔒",
-      color: "from-amber-500 to-orange-600",
-      description: "Stockage sécurisé de vos items",
-    },
-    {
       label: "Inventaire",
       href: "/inventory",
       icon: "📦",
@@ -63,13 +56,6 @@
       icon: "⚙️",
       color: "from-slate-500 to-zinc-600",
       description: "Production manuelle et automatique",
-    },
-    {
-      label: "Récolte",
-      href: "/harvest",
-      icon: "⛏️",
-      color: "from-amber-500 to-yellow-600",
-      description: "Récoltez des ressources manuellement",
     },
     {
       label: "Exploration",

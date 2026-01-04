@@ -17,7 +17,8 @@ export interface Deposit {
     company: string;
     ressource: string; // Corrected to match schema 'ressource'
     quantity: number;
-    richness: number;
+    size: number; // Niveau du gisement (1-10)
+    location?: { lat: number; lon: number };
     expand?: {
         ressource: Item;
     };

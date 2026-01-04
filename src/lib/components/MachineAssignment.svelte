@@ -209,7 +209,7 @@
     isLoading = true;
     try {
       const updatedEmployees = (machine.employees || []).filter(
-        (id) => id !== employeeId,
+        (id) => id !== employeeId
       );
 
       await pb.collection("machines").update(machine.id, {
@@ -235,7 +235,7 @@
       });
 
       notifications.success(
-        `${machine.employees.length} employé(s) désassigné(s)`,
+        `${machine.employees.length} employé(s) désassigné(s)`
       );
       // onUpdate?.(); - Removed to prevent refresh, let realtime sub handle it
     } catch (error: any) {
@@ -268,7 +268,7 @@
 
       const result = await pb.collection("deposits").getFullList({
         filter: `company = '${machine.company}' && ressource = '${productItemId}' && quantity > 0`,
-        sort: "-richness",
+        sort: "-size",
         requestKey: null,
       });
       compatibleDeposits = result;
@@ -545,7 +545,7 @@
                   <span class="text-red-400 font-bold">
                     {Math.round(
                       machineRecipe.production_time /
-                        energyStatus.productionSpeed,
+                        energyStatus.productionSpeed
                     )}s
                   </span>
                 {:else}
@@ -786,7 +786,7 @@
                 >
                 <span class="text-red-400 font-bold ml-1">
                   {Math.round(
-                    machineItem.production_time / energyStatus.productionSpeed,
+                    machineItem.production_time / energyStatus.productionSpeed
                   )}s
                 </span>
               {:else}
@@ -864,8 +864,8 @@
               </p>
               <div class="flex items-center gap-3 text-xs">
                 <span class="text-slate-400"
-                  >Richesse: <span class="text-emerald-400 font-bold"
-                    >{Math.round(currentDeposit.richness * 100)}%</span
+                  >Niveau: <span class="text-emerald-400 font-bold"
+                    >{currentDeposit.size ?? 1}</span
                   ></span
                 >
                 <span class="text-slate-400"
@@ -914,7 +914,7 @@
                         >
                         <div class="text-right">
                           <div class="text-xs font-bold text-emerald-400">
-                            {Math.round(dep.richness * 100)}%
+                            Niv. {dep.size ?? 1}
                           </div>
                           <div class="text-[10px] text-slate-500">
                             {Math.floor(dep.quantity)} u.

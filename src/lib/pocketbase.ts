@@ -65,7 +65,8 @@ export interface Deposit extends BaseRecord {
   company: string;
   ressource: string;
   quantity: number;
-  richness: number;
+  size: number; // Niveau du gisement (1-10), détermine la capacité (size * 5 employés/machines)
+  location?: { lat: number; lon: number };
   expand?: {
     company?: Company;
     ressource?: Item;
@@ -79,9 +80,17 @@ export interface Employee extends BaseRecord {
   rarity: number;
   salary: number;
   efficiency: number;
-  poste: string;
+  deposit?: string;
+  exploration?: string;
+  exploration_luck: number; // 0-10
+  mining: number; // 0-10
+  energy: number; // 0-100
+  maintenance: number; // 0-10
+  poste: "Manutentionnaire" | "Opérateur" | "Ouvrier" | "Mineur" | "Explorateur" | "PDG" | string;
   expand?: {
     employer?: Company;
+    deposit?: Deposit;
+    exploration?: Exploration;
   };
 }
 

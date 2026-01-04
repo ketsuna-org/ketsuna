@@ -58,11 +58,13 @@
         <span
           class="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center text-sm border border-slate-700"
         >
-          {#if employee.poste === "Directeur"}👔
-          {:else if employee.poste === "Ingénieur"}📐
-          {:else if employee.poste === "Technicien"}🔧
-          {:else if employee.poste === "Superviseur"}📋
-          {:else}👷{/if}
+          {#if employee.poste === "PDG"}👔
+          {:else if employee.poste === "Explorateur"}🧭
+          {:else if employee.poste === "Mineur"}⛏️
+          {:else if employee.poste === "Opérateur"}🔧
+          {:else if employee.poste === "Ouvrier"}👷
+          {:else if employee.poste === "Manutentionnaire"}📦
+          {:else}👤{/if}
         </span>
         {employee.name}
       </h3>
@@ -92,21 +94,57 @@
       </div>
       <div class="bg-slate-950/30 rounded-xl p-2.5 border border-slate-800/50">
         <p class="text-[10px] text-slate-500 font-bold uppercase mb-0.5">
-          Efficacité
+          Énergie
         </p>
         <div class="flex items-center gap-1.5">
           <div
             class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden flex-1"
           >
             <div
-              class="bg-emerald-500 h-full rounded-full"
-              style="width: {employee.efficiency}%"
+              class="bg-yellow-500 h-full rounded-full"
+              style="width: {employee.energy ?? 100}%"
             ></div>
           </div>
-          <span class="text-emerald-400 font-bold font-mono text-xs"
-            >{employee.efficiency}%</span
+          <span class="text-yellow-400 font-bold font-mono text-xs"
+            >{employee.energy ?? 100}%</span
           >
         </div>
+      </div>
+    </div>
+
+    <!-- Skills Grid -->
+    <div class="grid grid-cols-4 gap-1.5">
+      <div
+        class="bg-slate-950/30 rounded-lg p-2 border border-slate-800/50 text-center"
+      >
+        <p class="text-[9px] text-slate-500 font-bold uppercase">⛏️ Mine</p>
+        <p class="text-cyan-400 font-bold font-mono text-sm">
+          {employee.mining ?? 0}
+        </p>
+      </div>
+      <div
+        class="bg-slate-950/30 rounded-lg p-2 border border-slate-800/50 text-center"
+      >
+        <p class="text-[9px] text-slate-500 font-bold uppercase">🧭 Explo</p>
+        <p class="text-amber-400 font-bold font-mono text-sm">
+          {employee.exploration_luck ?? 0}
+        </p>
+      </div>
+      <div
+        class="bg-slate-950/30 rounded-lg p-2 border border-slate-800/50 text-center"
+      >
+        <p class="text-[9px] text-slate-500 font-bold uppercase">🔧 Maint</p>
+        <p class="text-emerald-400 font-bold font-mono text-sm">
+          {employee.maintenance ?? 0}
+        </p>
+      </div>
+      <div
+        class="bg-slate-950/30 rounded-lg p-2 border border-slate-800/50 text-center"
+      >
+        <p class="text-[9px] text-slate-500 font-bold uppercase">⚡ Eff</p>
+        <p class="text-purple-400 font-bold font-mono text-sm">
+          {employee.efficiency ?? 0}%
+        </p>
       </div>
     </div>
 
@@ -117,12 +155,26 @@
       <span class="text-[10px] text-slate-500 font-bold uppercase"
         >Affectation</span
       >
-      {#if assignedMachine}
+      {#if employee.deposit}
+        <div
+          class="flex items-center gap-1.5 text-cyan-300 bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20"
+        >
+          <span class="text-xs">⛏️</span>
+          <span class="text-xs font-bold truncate max-w-24">Gisement</span>
+        </div>
+      {:else if employee.exploration}
+        <div
+          class="flex items-center gap-1.5 text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20"
+        >
+          <span class="text-xs">🧭</span>
+          <span class="text-xs font-bold truncate max-w-24">Exploration</span>
+        </div>
+      {:else if assignedMachine}
         <div
           class="flex items-center gap-1.5 text-indigo-300 bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20"
         >
           <span class="text-xs">🤖</span>
-          <span class="text-xs font-bold truncate max-w-30"
+          <span class="text-xs font-bold truncate max-w-24"
             >{assignedMachine}</span
           >
         </div>

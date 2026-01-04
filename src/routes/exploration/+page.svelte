@@ -4,8 +4,9 @@
   import pb from "$lib/pocketbase";
   import { notifications } from "$lib/notifications";
   import { activeCompany } from "$lib/stores";
-  import type { Item, Company } from "$lib/pocketbase";
+  import type { Item, Company, Employee } from "$lib/pocketbase";
   import FilterBar from "$lib/components/FilterBar.svelte";
+  import DepositCard from "$lib/components/DepositCard.svelte";
   import {
     type Exploration,
     type Deposit,
@@ -18,6 +19,8 @@
   let explorableItems = $state<Item[]>([]);
   let activeExplorations = $state<Exploration[]>([]);
   let myDeposits = $state<Deposit[]>([]);
+  let availableEmployees = $state<Employee[]>([]);
+  let depositEmployees = $state<Record<string, Employee[]>>({}); // employeesById[depositId]
   let selectedTab = $state<"explore" | "deposits">("explore");
 
   // Filter states
@@ -52,6 +55,37 @@
 
       // 3. Load deposits
       myDeposits = await getDeposits($activeCompany.id);
+
+      // 4. Load all employees for assignment
+      const allEmployees = await pb
+        .collection("employees")
+        .getFullList<Employee>({
+          filter: `employer = "${$activeCompany.id}"`,
+        });
+
+      // Group employees by deposit
+      const byDeposit: Record<string, Employee[]> = {};
+      const available: Employee[] = [];
+
+      for (const emp of allEmployees) {
+        if (emp.deposit) {
+          if (!byDeposit[emp.deposit]) byDeposit[emp.deposit] = [];
+          byDeposit[emp.deposit].push(emp);
+        } else if (!emp.exploration) {
+          // Check if assigned to a machine
+          const machineAssignments = await pb
+            .collection("machines")
+            .getList(1, 1, {
+              filter: `employees ~ "${emp.id}"`,
+            });
+          if (machineAssignments.totalItems === 0) {
+            available.push(emp);
+          }
+        }
+      }
+
+      depositEmployees = byDeposit;
+      availableEmployees = available;
     } catch (err) {
       console.error("Failed to load exploration data", err);
       notifications.error("Erreur de chargement des données");
@@ -329,56 +363,14 @@
         >
       </div>
     {:else}
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {#each myDeposits as deposit (deposit.id)}
-          <div
-            class="bg-slate-800 rounded-xl p-5 border border-emerald-500/30 relative overflow-hidden"
-          >
-            <div
-              class="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-bl-full -mr-4 -mt-4"
-            ></div>
-
-            <div class="flex justify-between items-start mb-4 relative z-10">
-              <div>
-                <h3 class="text-lg font-bold text-white">
-                  {deposit.expand?.ressource.name}
-                </h3>
-                <div
-                  class="text-[10px] font-mono text-emerald-400 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded w-fit mt-1"
-                >
-                  #{deposit.id.slice(0, 5)}
-                </div>
-              </div>
-              <div class="text-2xl opacity-80">📍</div>
-            </div>
-
-            <div class="space-y-3 relative z-10">
-              <div class="bg-slate-900/50 p-2 rounded-lg">
-                <div class="flex justify-between text-xs text-slate-400 mb-1">
-                  <span>Quantité</span>
-                </div>
-                <div class="text-lg font-mono text-white font-bold">
-                  {Math.floor(deposit.quantity).toLocaleString()}
-                  <span class="text-sm font-sans text-slate-500">u</span>
-                </div>
-              </div>
-
-              <div class="flex items-center justify-between px-2">
-                <span class="text-xs text-slate-400">Richesse</span>
-                <div class="flex items-center gap-1">
-                  <span class="text-white font-bold"
-                    >{(deposit.richness * 100).toFixed(0)}%</span
-                  >
-                  <span class="text-xs text-yellow-500">
-                    {#if deposit.richness > 1.2}★★★
-                    {:else if deposit.richness > 1.0}★★
-                    {:else}★
-                    {/if}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
+          <DepositCard
+            {deposit}
+            {availableEmployees}
+            assignedEmployees={depositEmployees[deposit.id] || []}
+            onUpdate={loadData}
+          />
         {/each}
       </div>
     {/if}
