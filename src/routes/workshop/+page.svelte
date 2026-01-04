@@ -694,6 +694,10 @@
                       {busyEmployeeIds}
                       {energyStatus}
                       onDelete={handleMachineDelete}
+                      onUpdate={() => {
+                        loadMachines(machinePage, false);
+                        debouncedStatsRefresh();
+                      }}
                     />
                   {/each}
                 </div>

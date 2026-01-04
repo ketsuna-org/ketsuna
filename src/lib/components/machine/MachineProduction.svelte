@@ -315,6 +315,116 @@
         {/if}
       {/if}
     </div>
+  {:else if machineItem?.produce_energy && machineItem.produce_energy > 0}
+    <!-- Electricity-only Production Display -->
+    <div class="p-4 bg-slate-950/30 rounded-xl border border-slate-800/50">
+      <div class="flex items-center gap-2 mb-3">
+        <span class="p-1 bg-amber-500/20 rounded text-amber-400">⚡</span>
+        <p class="text-sm text-white font-bold">Production Électrique</p>
+      </div>
+
+      <!-- Consumed Items -->
+      {#if machineItem.expand?.can_consume && Array.isArray(machineItem.expand.can_consume) && machineItem.expand.can_consume.length > 0}
+        <div class="space-y-2 mb-4">
+          <span class="text-xs text-slate-500 font-semibold uppercase"
+            >Consomme</span
+          >
+          <div class="flex flex-wrap gap-2">
+            {#each machineItem.expand.can_consume as consumable}
+              <div
+                class="flex items-center gap-2 px-3 py-1.5 bg-slate-900 rounded-lg text-xs border border-slate-800"
+              >
+                <span class="text-slate-300 font-medium">{consumable.name}</span
+                >
+                <span class="text-red-400 font-mono font-bold"
+                  >x{machineItem.consume_quantity || 1}</span
+                >
+              </div>
+            {/each}
+          </div>
+        </div>
+
+        <!-- Arrow Separator -->
+        <div class="flex justify-center text-slate-600 mb-4">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            ><line x1="12" y1="5" x2="12" y2="19" /><polyline
+              points="19 12 12 19 5 12"
+            /></svg
+          >
+        </div>
+      {/if}
+
+      <!-- Energy Output -->
+      <div class="space-y-2 mb-4">
+        <span class="text-xs text-slate-500 font-semibold uppercase"
+          >Produit</span
+        >
+        <div
+          class="flex items-center gap-2 text-amber-400 font-bold bg-slate-900/80 p-3 rounded-xl border border-amber-500/20 shadow-sm w-full"
+        >
+          <span>⚡</span>
+          <span>{machineItem.produce_energy} kWh / cycle</span>
+        </div>
+      </div>
+
+      {#if machineItem.production_time && machineItem.production_time > 0}
+        <p class="text-[10px] text-slate-500 mb-3">
+          Cycle: <span class="font-mono">{machineItem.production_time}s</span>
+        </p>
+
+        {#if machine.production_started_at}
+          <div class="space-y-2">
+            <div
+              class="w-full bg-slate-800 h-2 rounded-full overflow-hidden border border-slate-700/50"
+            >
+              <div
+                class="bg-amber-500 h-full transition-all duration-1000 shadow-[0_0_10px_rgba(245,158,11,0.5)]"
+                style="width: {progress}%"
+              ></div>
+            </div>
+            <div
+              class="flex justify-between text-[10px] text-slate-400 font-medium"
+            >
+              <span>{Math.round(progress)}% terminé</span>
+              <span class="font-mono">~{Math.round(timeRemaining)}s</span>
+            </div>
+          </div>
+        {:else if machine.employees && machine.employees.length > 0}
+          <div
+            class="p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg flex items-center gap-2"
+          >
+            <span class="relative flex h-2 w-2">
+              <span
+                class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"
+              ></span>
+              <span
+                class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"
+              ></span>
+            </span>
+            <span class="text-xs text-emerald-400 font-bold"
+              >Production active</span
+            >
+          </div>
+        {:else}
+          <div
+            class="p-2 bg-amber-500/10 border border-amber-500/20 rounded-lg flex items-center gap-2"
+          >
+            <span class="text-amber-400 text-xs font-bold"
+              >⚠️ En attente d'employés</span
+            >
+          </div>
+        {/if}
+      {/if}
+    </div>
   {:else}
     <div
       class="p-4 bg-slate-950/30 rounded-xl border border-slate-800/50 text-center"

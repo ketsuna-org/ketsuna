@@ -10,6 +10,7 @@
     currentDeposit: any;
     isLoading: boolean;
     onLoadingChange: (loading: boolean) => void;
+    onMachineUpdate?: (() => void) | null;
   }
 
   let {
@@ -18,6 +19,7 @@
     currentDeposit,
     isLoading,
     onLoadingChange,
+    onMachineUpdate = null,
   }: Props = $props();
 
   let compatibleDeposits = $state<any[]>([]);
@@ -67,6 +69,7 @@
       }
 
       showDepositDropdown = false;
+      onMachineUpdate?.();
     } catch (e: any) {
       notifications.error(`Erreur: ${e.message}`);
     } finally {

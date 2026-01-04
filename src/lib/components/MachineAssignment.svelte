@@ -176,6 +176,7 @@
     {currentDeposit}
     {isLoading}
     onLoadingChange={handleLoadingChange}
+    onMachineUpdate={onUpdate}
   />
 
   <MachineEmployeePanel
@@ -184,6 +185,7 @@
     {busyEmployeeIds}
     {isLoading}
     onLoadingChange={handleLoadingChange}
+    onMachineUpdate={onUpdate}
   />
 </div>
 

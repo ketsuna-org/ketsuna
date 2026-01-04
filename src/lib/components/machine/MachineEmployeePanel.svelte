@@ -10,6 +10,7 @@
     busyEmployeeIds: Set<string>;
     isLoading: boolean;
     onLoadingChange: (loading: boolean) => void;
+    onMachineUpdate?: (() => void) | null;
   }
 
   let {
@@ -18,6 +19,7 @@
     busyEmployeeIds,
     isLoading,
     onLoadingChange,
+    onMachineUpdate = null,
   }: Props = $props();
 
   let showEmployeeDropdown = $state(false);
@@ -77,6 +79,7 @@
       });
       notifications.success("✨ Employé assigné");
       employeeSearchQuery = "";
+      onMachineUpdate?.();
     } catch (error: any) {
       notifications.error(`Erreur: ${error.message}`);
     } finally {
@@ -94,6 +97,7 @@
         employees: updatedEmployees,
       });
       notifications.success("✨ Employé désassigné");
+      onMachineUpdate?.();
     } catch (error: any) {
       notifications.error(`Erreur: ${error.message}`);
     } finally {
@@ -112,6 +116,7 @@
       notifications.success(
         `${machine.employees.length} employé(s) désassigné(s)`
       );
+      onMachineUpdate?.();
     } catch (error: any) {
       notifications.error(`Erreur: ${error.message}`);
     } finally {
