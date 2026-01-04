@@ -378,15 +378,15 @@
                   >
                     {item.type}
                   </span>
-                  {#if item.circulating_supply !== undefined}
+                  {#if item.market_demand !== undefined}
                     <span
-                      class="text-[10px] font-bold px-2 py-1 rounded-lg {item.circulating_supply >
+                      class="text-[10px] font-bold px-2 py-1 rounded-lg {item.market_demand >
                       0
                         ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400'
                         : 'bg-red-500/10 border border-red-500/20 text-red-400'}"
                     >
-                      📦 {item.circulating_supply > 0
-                        ? item.circulating_supply + " dispo"
+                      📦 {item.market_demand > 0
+                        ? item.market_demand + " en stock"
                         : "Rupture"}
                     </span>
                   {/if}
@@ -459,14 +459,8 @@
                   </p>
                 {/if}
               </div>
-              {#if item.type === "Machine" && item.volatility}
-                <div
-                  class="flex items-center gap-1.5 mt-3 text-xs bg-amber-500/10 text-amber-400 px-2 py-1 rounded-lg border border-amber-500/20 w-fit"
-                >
-                  <span>📊</span>
-                  <span>Volatilité: {(item.volatility * 100).toFixed(1)}%</span>
-                </div>
-              {/if}
+              
+              <!-- Volatility Badge REMOVED -->
 
               {#if item.type === "Machine" || item.type === "Stockage"}
                 <div class="flex flex-wrap gap-2 mt-3">
@@ -548,7 +542,7 @@
                 />
                 <button
                   onclick={() => setQuantity(item.id, getQuantity(item.id) + 1)}
-                  disabled={(item.circulating_supply ?? Infinity) <=
+                  disabled={(item.market_demand ?? 0) <=
                     getQuantity(item.id)}
                   class="w-10 h-10 rounded-lg bg-slate-900 hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white transition-all disabled:opacity-30 disabled:hover:bg-slate-900 border border-slate-800 font-bold text-lg"
                   >+</button
@@ -575,14 +569,14 @@
                 disabled={buyingId === item.id ||
                   (dashboardData?.financials.cash || 0) <
                     item.base_price * getQuantity(item.id) ||
-                  (item.circulating_supply ?? 1) <= 0}
+                  (item.market_demand ?? 0) <= 0}
                 class="w-full h-11 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-indigo-900/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 border border-indigo-500/50"
               >
                 {#if buyingId === item.id}
                   <div
                     class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"
                   ></div>
-                {:else if (item.circulating_supply ?? 1) <= 0}
+                {:else if (item.market_demand ?? 0) <= 0}
                   <span>Rupture de stock</span>
                 {:else}
                   <span>Acheter</span>
