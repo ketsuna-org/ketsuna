@@ -8,15 +8,24 @@ excerpt: Guide de survie pour tout nouveau PDG.
 
 Vous venez d'hériter d'un entrepôt vide et d'un compte en banque modeste. Votre objectif ? Construire un empire industriel.
 
-### 🪨 Étape 1 : La Récolte Manuelle
+### 🪨 Étape 1 : Le PDG, votre outil numéro 1
 
-Rendez-vous dans l'onglet **Récolte**. Ici, vous pouvez collecter manuellement des ressources de base sans équipement :
+Rendez-vous dans l'onglet **Récolte**. Fini le temps où vous deviez cliquer frénétiquement pour obtenir des ressources !
+
+Votre **PDG** est désormais un employé spécial qui peut **récolter automatiquement** pour vous :
+
+- Il suffit de l'assigner à la récolte.
+- Il travaille sans relâche (et sans salaire !).
+
+🎁 **Bonus de départ** : Vous commencez l'aventure avec un **Gisement de Bois de Niveau 2** déjà découvert. Profitez-en pour lancer votre production immédiatement.
+
+Les ressources récoltables de base restent :
 
 - **Bois** (2€) - Base de toute construction
 - **Pierre** (3€) - Matériau essentiel
 - **Silice (Sable)** (6.63€) - Pour la fabrication du verre
 
-Chaque récolte prend un certain temps. Collectez suffisamment pour vous permettre vos premiers achats.
+Collectez suffisamment pour vous permettre vos premiers achats.
 
 ### 🔬 Étape 2 : Votre Première Technologie
 

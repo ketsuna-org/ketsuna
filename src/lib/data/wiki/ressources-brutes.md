@@ -23,5 +23,21 @@ Ce sont les matériaux primaires obtenus par récolte manuelle, exploration ou m
 ### 💡 Conseils
 
 - La **volatilité** indique à quel point les prix fluctuent. Le Lithium et le Pétrole sont les plus instables !
-- Les ressources "Récoltables" peuvent être obtenues manuellement dès le début.
-- Les ressources "Explorables" nécessitent des missions d'exploration pour trouver des gisements.
+- Les ressources "Récoltables" peuvent être obtenues par le PDG ou via des gisements.
+- Les ressources "Explorables" nécessitent des **missions d'exploration** pour trouver des gisements.
+
+### 🏞️ Gestion des Gisements
+
+L'exploitation des ressources a évolué pour plus de stratégie :
+
+- **Machines limitées** : Chaque gisement possède un nombre limité d'emplacements pour les machines. Choisissez bien votre équipement !
+- **Assignation directe** : Les employés peuvent désormais être assignés directement à un gisement pour booster la production de toutes les machines présentes sur ce site.
+- **Niveau des gisements** : Un gisement de niveau supérieur offre plus d'emplacements et un meilleur rendement.
+
+### 🧭 Exploration Avancée
+
+L'exploration ne coûte plus seulement de l'argent. Pour découvrir de nouveaux gisements, vous devez désormais **envoyer des employés** en mission.
+
+- Choisissez les employés les plus compétents pour maximiser vos chances.
+- Ils seront indisponibles le temps de l'expédition.
+- Bonne chance pour trouver des gisements rares !
