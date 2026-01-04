@@ -8,6 +8,7 @@
     deposit: Deposit;
     availableEmployees?: Employee[];
     assignedEmployees?: Employee[];
+    assignedMachines?: any[];
     onUpdate?: (() => void) | null;
   }
 
@@ -15,6 +16,7 @@
     deposit,
     availableEmployees = [],
     assignedEmployees = [],
+    assignedMachines = [],
     onUpdate = null,
   }: Props = $props();
 
@@ -24,7 +26,10 @@
 
   // Calculate max capacity (size * 5)
   let maxCapacity = $derived((deposit.size || 1) * 5);
-  let remainingSlots = $derived(maxCapacity - assignedEmployees.length);
+  let machineOccupancy = $derived(assignedMachines.length * 5);
+  let remainingSlots = $derived(
+    maxCapacity - assignedEmployees.length - machineOccupancy
+  );
 
   // Filter available employees by search
   let filteredEmployees = $derived(
@@ -74,6 +79,26 @@
       onUpdate?.();
     } catch (err: any) {
       notifications.error(err.message || "Erreur lors de la désassignation");
+    } finally {
+      isLoading = false;
+    }
+  }
+
+  async function handleUnassignMachine(machineId: string) {
+    if (!confirm("Retirer cette machine du gisement ?")) return;
+    isLoading = true;
+    try {
+      // Use the generic machine assign-deposit endpoint to clear it
+      await pb.send("/api/machines/assign-deposit", {
+        method: "POST",
+        body: { machineId: machineId, depositId: "" },
+      });
+      notifications.success("Machine retirée du gisement");
+      onUpdate?.();
+    } catch (err: any) {
+      notifications.error(
+        err.message || "Erreur lors du retrait de la machine"
+      );
     } finally {
       isLoading = false;
     }
@@ -142,18 +167,60 @@
     <!-- Capacity Bar -->
     <div class="bg-slate-900/50 p-3 rounded-lg">
       <div class="flex justify-between text-xs text-slate-400 mb-2">
-        <span>Employés assignés</span>
-        <span class="font-mono">{assignedEmployees.length} / {maxCapacity}</span
+        <span>Occupation</span>
+        <span class="font-mono"
+          >{assignedEmployees.length + machineOccupancy} / {maxCapacity}</span
         >
       </div>
-      <div class="w-full bg-slate-700 rounded-full h-2 overflow-hidden">
+      <div class="w-full bg-slate-700 rounded-full h-2 overflow-hidden flex">
+        <!-- Machine Part -->
         <div
-          class="bg-cyan-500 h-full rounded-full transition-all duration-300"
+          class="bg-amber-500 h-full transition-all duration-300"
+          style="width: {(machineOccupancy / maxCapacity) * 100}%"
+          title="Machines"
+        ></div>
+        <!-- Employee Part -->
+        <div
+          class="bg-cyan-500 h-full transition-all duration-300"
           style="width: {(assignedEmployees.length / maxCapacity) * 100}%"
+          title="Employés"
         ></div>
       </div>
     </div>
   </div>
+
+  <!-- Assigned Machines List -->
+  {#if assignedMachines.length > 0}
+    <div class="mb-4">
+      <h4 class="text-xs font-bold text-slate-400 uppercase mb-2">Machines</h4>
+      <div class="space-y-1">
+        {#each assignedMachines as mach (mach.id)}
+          <div
+            class="flex items-center justify-between bg-amber-900/20 rounded-lg p-2 border border-amber-500/20 group"
+          >
+            <div class="flex items-center gap-2">
+              <span class="text-sm">🏭</span>
+              <div>
+                <span class="text-xs text-white font-medium block"
+                  >{mach.expand?.machine?.name || "Machine"}</span
+                >
+                <span class="text-[10px] text-amber-500">Occupe {5} places</span
+                >
+              </div>
+            </div>
+            <button
+              onclick={() => handleUnassignMachine(mach.id)}
+              disabled={isLoading}
+              class="text-slate-500 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
+              title="Retirer"
+            >
+              ❌
+            </button>
+          </div>
+        {/each}
+      </div>
+    </div>
+  {/if}
 
   <!-- Assigned Employees List -->
   {#if assignedEmployees.length > 0}

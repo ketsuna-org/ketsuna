@@ -336,9 +336,7 @@
               >
                 <span class="text-slate-300 font-medium">{consumable.name}</span
                 >
-                <span class="text-red-400 font-mono font-bold"
-                  >x{machineItem.consume_quantity || 1}</span
-                >
+                <span class="text-red-400 font-mono font-bold">x1</span>
               </div>
             {/each}
           </div>

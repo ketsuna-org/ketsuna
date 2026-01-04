@@ -21,6 +21,7 @@
   let myDeposits = $state<Deposit[]>([]);
   let availableEmployees = $state<Employee[]>([]);
   let depositEmployees = $state<Record<string, Employee[]>>({}); // employeesById[depositId]
+  let depositMachines = $state<Record<string, any[]>>({}); // machinesById[depositId]
   let selectedTab = $state<"explore" | "deposits">("explore");
 
   // Filter states
@@ -66,11 +67,21 @@
       // 5. Load all machines to check employee assignments (single query instead of N queries)
       const allMachines = await pb.collection("machines").getFullList({
         filter: `company = "${$activeCompany.id}"`,
+        expand: "machine",
       });
 
-      // Build set of busy employee IDs (assigned to machines)
+      // Build set of busy employee IDs (assigned to machines) and group machines by deposit
       const busyEmployeeIds = new Set<string>();
+      const machByDeposit: Record<string, any[]> = {};
+
       for (const machine of allMachines) {
+        // Group by deposit
+        const depId = machine.deposit;
+        if (depId) {
+          if (!machByDeposit[depId]) machByDeposit[depId] = [];
+          machByDeposit[depId].push(machine);
+        }
+
         const empIds = (machine.employees as string[]) || [];
         for (const id of empIds) {
           busyEmployeeIds.add(id);
@@ -92,6 +103,7 @@
       }
 
       depositEmployees = byDeposit;
+      depositMachines = machByDeposit;
       availableEmployees = available;
     } catch (err) {
       console.error("Failed to load exploration data", err);
@@ -376,6 +388,7 @@
             {deposit}
             {availableEmployees}
             assignedEmployees={depositEmployees[deposit.id] || []}
+            assignedMachines={depositMachines[deposit.id] || []}
             onUpdate={loadData}
           />
         {/each}
