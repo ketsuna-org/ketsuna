@@ -8,55 +8,54 @@
   import { activeCompany } from "$lib/stores";
   import pb from "$lib/pocketbase";
 
-  /**
-   * @type {Recipe} - La recette à afficher
-   */
-  export let recipe: Recipe;
+  interface Props {
+    recipe: Recipe;
+    inventory?: InventoryItem[];
+    companyId?: string;
+    onProduce?: (() => void) | null;
+  }
 
-  /**
-   * @type {InventoryItem[]} - Inventaire actuel pour afficher le stock disponible
-   */
-  export let inventory: InventoryItem[] = [];
+  let {
+    recipe,
+    inventory = [],
+    companyId = "",
+    onProduce = null,
+  }: Props = $props();
 
-  /**
-   * @type {string} - ID de l'entreprise
-   */
-  export let companyId: string = "";
+  let isLoading = $state(false);
+  let quantity = $state(1);
+  let canProduce = $state(true);
+  let shortages = $state<
+    Array<{
+      itemId: string;
+      itemName: string;
+      needed: number;
+      available: number;
+    }>
+  >([]);
 
-  /**
-   * @type {() => void} - Callback pour rafraîchir après production
-   */
-  export let onProduce: (() => void) | null = null;
-
-  let isLoading = false;
-  let quantity = 1;
-  let canProduce = true;
-  let shortages: Array<{
-    itemId: string;
-    itemName: string;
-    needed: number;
-    available: number;
-  }> = [];
-
-  // Créer une map d'inventaire pour accès rapide
-  $: inventoryMap = new Map(
-    inventory.map((inv) => [
-      inv.item,
-      {
-        quantity: inv.quantity,
-        name: inv.expand?.item?.name || "Item inconnu",
-      },
-    ])
+  // Derived values
+  let inventoryMap = $derived(
+    new Map(
+      inventory.map((inv) => [
+        inv.item,
+        {
+          quantity: inv.quantity,
+          name: inv.expand?.item?.name || "Item inconnu",
+        },
+      ])
+    )
   );
 
-  // Liste des inputs à partir de l'expansion ou des IDs
-  $: recipeInputs = recipe.expand?.inputs_items || [];
-  $: inputQty = recipe.input_quantity || 1;
+  let recipeInputs = $derived(recipe.expand?.inputs_items || []);
+  let inputQty = $derived(recipe.input_quantity || 1);
 
-  // Vérifier si on peut produire
-  $: {
-    checkRequirements();
-  }
+  // Effect to check requirements when recipe or companyId changes
+  $effect(() => {
+    if (companyId && recipe) {
+      checkRequirements();
+    }
+  });
 
   async function checkRequirements() {
     try {
@@ -231,7 +230,7 @@
       </div>
 
       <button
-        on:click={handleProduce}
+        onclick={handleProduce}
         disabled={!canProduce || isLoading}
         class="flex-1 px-4 py-2.5 rounded-xl font-bold text-sm transition-all shadow-lg flex items-center justify-center gap-2
                 {canProduce && !isLoading

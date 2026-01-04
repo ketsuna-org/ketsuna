@@ -10,8 +10,11 @@
     onAssign,
   }: {
     availableStock: InventoryItem[];
-    onAssign: (itemId: string) => void;
+    onAssign: (itemId: string, quantity: number) => Promise<void>;
   } = $props();
+
+  let quantities = $state<Record<string, number>>({});
+  let installing = $state<Record<string, boolean>>({});
 </script>
 
 {#if availableStock.length > 0}
@@ -32,18 +35,60 @@
         Cliquez pour installer
       </div>
     </div>
-    <div class="flex flex-wrap gap-2 relative z-10">
+    <div
+      class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 relative z-10"
+    >
       {#each availableStock as inv (inv.id)}
-        <button
-          class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white text-sm font-semibold rounded-lg border border-indigo-400/30 transition-all shadow-md hover:shadow-indigo-500/20 flex items-center gap-2"
-          onclick={() => onAssign(inv.item)}
+        {@const maxQty = inv.quantity || 1}
+        <div
+          class="bg-slate-950/50 border border-indigo-500/30 rounded-lg p-3 flex flex-col gap-2 shadow-sm hover:border-indigo-400 transition-colors"
         >
-          <span>🏗️</span>
-          {inv.expand?.item?.name || "Machine"}
-          <span class="bg-black/20 px-1.5 py-0.5 rounded text-xs ml-1"
-            >x{inv.quantity}</span
-          >
-        </button>
+          <div class="flex justify-between items-start">
+            <span class="font-semibold text-sm text-indigo-100 truncate"
+              >{inv.expand?.item?.name || "Machine"}</span
+            >
+            <span
+              class="bg-indigo-500/20 text-indigo-300 text-[10px] px-1.5 py-0.5 rounded border border-indigo-500/10"
+              >Stock: {maxQty}</span
+            >
+          </div>
+
+          <div class="flex items-center gap-2 mt-auto">
+            <input
+              type="number"
+              min="1"
+              max={maxQty}
+              disabled={installing[inv.id]}
+              class="w-16 bg-slate-900 border border-slate-700 rounded text-center text-sm py-1 focus:ring-1 focus:ring-indigo-500 outline-none disabled:opacity-50"
+              bind:value={quantities[inv.id]}
+              placeholder="1"
+            />
+            <button
+              disabled={installing[inv.id]}
+              class="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold py-1.5 rounded transition-colors flex justify-center items-center gap-1"
+              onclick={async () => {
+                const qty = quantities[inv.id] || 1;
+                if (qty > 0 && qty <= maxQty && !installing[inv.id]) {
+                  installing[inv.id] = true;
+                  try {
+                    await onAssign(inv.item, qty);
+                    quantities[inv.id] = 1;
+                  } finally {
+                    installing[inv.id] = false;
+                  }
+                }
+              }}
+            >
+              {#if installing[inv.id]}
+                <span
+                  class="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"
+                ></span>
+              {:else}
+                Installer
+              {/if}
+            </button>
+          </div>
+        </div>
       {/each}
     </div>
   </div>

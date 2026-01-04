@@ -247,13 +247,20 @@ export async function refreshInventory(
  */
 export async function assignMachineFromStock(
   companyId: string,
-  itemId: string
-): Promise<Machine> {
-  return await pb.collection("machines").create({
-    company: companyId,
-    machine: itemId,
-    employees: [],
-  });
+  itemId: string,
+  quantity: number = 1
+): Promise<Machine[]> {
+  const machines: Machine[] = [];
+  // Use sequential loop to avoid race conditions on inventory deduction and prevent auto-cancellation
+  for (let i = 0; i < quantity; i++) {
+    const m = await pb.collection("machines").create({
+      company: companyId,
+      machine: itemId,
+      employees: [],
+    }, { requestKey: null });
+    machines.push(m);
+  }
+  return machines;
 }
 
 /**

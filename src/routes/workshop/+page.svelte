@@ -95,18 +95,18 @@
 
   // --- Derived State ---
   let currentTypeFilter = $derived(
-    machineTypeTab === "machines" ? "Machine" : "Stockage",
+    machineTypeTab === "machines" ? "Machine" : "Stockage"
   );
 
   let availableMachineStock = $derived(
     inventory.filter(
       (inv) =>
-        inv.expand?.item?.type === currentTypeFilter && (inv.quantity || 0) > 0,
-    ),
+        inv.expand?.item?.type === currentTypeFilter && (inv.quantity || 0) > 0
+    )
   );
 
   let filteredMachinesByType = $derived(
-    machines.filter((m) => m.expand?.machine?.type === currentTypeFilter),
+    machines.filter((m) => m.expand?.machine?.type === currentTypeFilter)
   );
 
   let machineTypeCount = $derived(machineStats.machineTypeCount);
@@ -116,7 +116,7 @@
   let availableEmployees = $derived(
     employees
       .filter((emp) => !busyEmployeeIds.has(emp.id))
-      .sort((a, b) => (b.efficiency || 1) - (a.efficiency || 1)),
+      .sort((a, b) => (b.efficiency || 1) - (a.efficiency || 1))
   );
 
   // --- Data Loading ---
@@ -161,7 +161,7 @@
         PER_PAGE,
         {
           searchQuery: machineSearchQuery,
-        },
+        }
       );
 
       machines = append ? [...machines, ...result.items] : result.items;
@@ -229,11 +229,16 @@
   }
 
   // --- Actions ---
-  async function handleAssignMachineFromStock(itemId: string) {
-    if (!itemId || !$activeCompany?.id) return;
+  async function handleAssignMachineFromStock(
+    itemId: string,
+    quantity: number
+  ) {
+    if (!itemId || !$activeCompany?.id || quantity <= 0) return;
     try {
-      await assignMachineService($activeCompany.id, itemId);
-      notifications.success("Machine assignée depuis le stock");
+      await assignMachineService($activeCompany.id, itemId, quantity);
+      notifications.success(
+        `${quantity} machine(s) assignée(s) depuis le stock`
+      );
     } catch (err: any) {
       notifications.error(err?.message || "Erreur lors de l'assignation");
     }
@@ -247,12 +252,12 @@
       const response = await autoAssignEmployeesService();
       if (response.assignedCount > 0) {
         notifications.success(
-          `✨ ${response.assignedCount} employé(s) assigné(s) automatiquement`,
+          `✨ ${response.assignedCount} employé(s) assigné(s) automatiquement`
         );
         busyEmployeeIds = await fetchBusyEmployees($activeCompany!.id);
       } else {
         notifications.info(
-          response.message || "Aucun employé disponible à assigner",
+          response.message || "Aucun employé disponible à assigner"
         );
       }
     } catch (err: any) {
@@ -270,12 +275,12 @@
       const response = await autoAssignDepositsService();
       if (response.assignedCount > 0) {
         notifications.success(
-          `✨ ${response.assignedCount} gisement(s) assigné(s) automatiquement`,
+          `✨ ${response.assignedCount} gisement(s) assigné(s) automatiquement`
         );
         await loadMachines(1, false);
       } else {
         notifications.info(
-          "Aucun gisement compatible trouvé pour vos machines",
+          "Aucun gisement compatible trouvé pour vos machines"
         );
       }
     } catch (err: any) {
@@ -294,15 +299,22 @@
   let unsubscribeInventory: (() => void) | null = null;
   let unsubscribeMachines: (() => void) | null = null;
   let refreshDebounceTimer: ReturnType<typeof setTimeout> | null = null;
-  const DEBOUNCE_MS = 2000;
+  const DEBOUNCE_MS = 500; // Reduced for better responsiveness
 
-  function debouncedEnergyRefresh() {
+  // Debounced refresh for stats, busy employees, and energy
+  function debouncedStatsRefresh() {
     if (refreshDebounceTimer) clearTimeout(refreshDebounceTimer);
     refreshDebounceTimer = setTimeout(async () => {
-      if ($activeCompany?.id) {
-        const data = await refreshEnergyStatus($activeCompany.id);
-        if (data) energyStatus = data;
-      }
+      if (!$activeCompany?.id) return;
+      // Run in parallel to minimize wait time
+      const [newBusy, newStats, newEnergy] = await Promise.all([
+        fetchBusyEmployees($activeCompany.id),
+        loadMachineStats(),
+        refreshEnergyStatus($activeCompany.id),
+      ]);
+      busyEmployeeIds = newBusy;
+      machineStats = newStats;
+      if (newEnergy) energyStatus = newEnergy;
     }, DEBOUNCE_MS);
   }
 
@@ -358,10 +370,8 @@
               };
               machines = [...machines];
             }
-            // Refresh stats and busy employees on update
-            busyEmployeeIds = await fetchBusyEmployees($activeCompany!.id);
-            machineStats = await loadMachineStats();
-            debouncedEnergyRefresh();
+            // Debounced refresh - non-blocking
+            debouncedStatsRefresh();
           } else if (action === "create") {
             const newMachine = await pb
               .collection("machines")
@@ -370,12 +380,10 @@
                 requestKey: null,
               });
             machines = [...machines, newMachine];
-            busyEmployeeIds = await fetchBusyEmployees($activeCompany!.id);
-            machineStats = await loadMachineStats();
+            debouncedStatsRefresh();
           } else if (action === "delete") {
             machines = machines.filter((m) => m.id !== record.id);
-            busyEmployeeIds = await fetchBusyEmployees($activeCompany!.id);
-            machineStats = await loadMachineStats();
+            debouncedStatsRefresh();
           }
         });
     } catch (err) {
@@ -557,7 +565,7 @@
                 <Pagination
                   currentPage={recipePage}
                   totalPages={Math.ceil(totalRecipes / PER_PAGE)}
-                  on:pageChange={(e) => loadRecipes(e.detail, false)}
+                  onPageChange={(page) => loadRecipes(page, false)}
                 />
               {/if}
             {/if}
@@ -693,7 +701,7 @@
                 <Pagination
                   currentPage={machinePage}
                   totalPages={Math.ceil(totalMachines / PER_PAGE)}
-                  on:pageChange={(e) => loadMachines(e.detail, false)}
+                  onPageChange={(page) => loadMachines(page, false)}
                 />
               {/if}
             {/if}

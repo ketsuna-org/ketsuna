@@ -1,15 +1,21 @@
 <script lang="ts">
-  import { createEventDispatcher } from "svelte";
+  interface Props {
+    currentPage: number;
+    totalPages: number;
+    hasMore?: boolean;
+    onPageChange?: (page: number) => void;
+  }
 
-  export let currentPage: number;
-  export let totalPages: number;
-  export let hasMore: boolean = false; // Legacy prop support if needed, but we rely on totalPages
-
-  const dispatch = createEventDispatcher();
+  let {
+    currentPage,
+    totalPages,
+    hasMore = false,
+    onPageChange,
+  }: Props = $props();
 
   function goToPage(page: number) {
     if (page < 1 || page > totalPages || page === currentPage) return;
-    dispatch("pageChange", page);
+    onPageChange?.(page);
   }
 </script>
 
