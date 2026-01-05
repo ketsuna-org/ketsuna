@@ -33,7 +33,8 @@ export async function initFirebase() {
         if (await isSupported()) {
             analytics = getAnalytics(app!);
         }
-    } catch (err) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (_) {
         // Ignore l'erreur si l'environnement ne supporte pas Analytics
         analytics = undefined;
     }

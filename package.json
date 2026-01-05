@@ -36,11 +36,13 @@
   },
   "dependencies": {
     "@types/marked": "^6.0.0",
+    "@xyflow/svelte": "^1.5.0",
     "firebase": "^12.7.0",
     "gray-matter": "^4.0.3",
     "marked": "^17.0.1",
     "pocketbase": "^0.26.5",
-    "svelte-sitemap": "^2.7.1"
+    "svelte-sitemap": "^2.7.1",
+    "vite-plugin-devtools-json": "^1.0.0"
   },
   "trustedDependencies": [
     "@firebase/util",
