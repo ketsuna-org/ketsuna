@@ -383,7 +383,7 @@
                 selectedExplorationItem = item;
                 showExplorationModal = true;
               }}
-              class="w-full py-3 bg-gradient-to-r from-slate-800 to-slate-900 group-hover:from-amber-600 group-hover:to-orange-600 text-slate-300 group-hover:text-white font-bold rounded-xl border border-white/10 group-hover:border-transparent transition-all flex items-center justify-center gap-2 shadow-lg"
+              class="w-full py-3 bg-linear-to-r from-slate-800 to-slate-900 group-hover:from-amber-600 group-hover:to-orange-600 text-slate-300 group-hover:text-white font-bold rounded-xl border border-white/10 group-hover:border-transparent transition-all flex items-center justify-center gap-2 shadow-lg"
             >
               <span>Lancer Mission</span>
             </button>

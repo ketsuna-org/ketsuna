@@ -1,7 +1,15 @@
 <script lang="ts">
   import { Handle, Position } from "@xyflow/svelte";
+  import type { NodeProps } from "@xyflow/svelte";
   import { activeCompany } from "$lib/stores";
 
+  type CompanyNodeProps = NodeProps<{
+    name: string;
+    icon: string;
+    placed: boolean;
+  }>;
+
+  let { data }: CompanyNodeProps = $props();
   let company = $derived($activeCompany);
 </script>
 
@@ -24,7 +32,11 @@
     border: 3px solid #f59e0b;
     border-radius: 16px;
     padding: 16px 24px;
-    min-width: 160px;
+    width: 220px;
+    min-height: 160px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
     color: #e2e8f0;
     box-shadow: 0 4px 30px rgba(245, 158, 11, 0.4);
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);

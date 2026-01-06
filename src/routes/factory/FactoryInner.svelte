@@ -16,6 +16,7 @@
     placeNode,
     createEdge,
     deleteEdge,
+    NODE_DIMENSIONS,
     type FactoryNode,
     type FactoryEdge,
   } from "$lib/services/factory";
@@ -27,6 +28,7 @@
     useSvelteFlow,
     type Connection,
     type Edge,
+    type Node,
   } from "@xyflow/svelte";
 
   let { company } = $props<{ company: any }>();
@@ -40,8 +42,8 @@
   };
 
   // State
-  let nodes = $state<FactoryNode[]>([]);
-  let edges = $state<FactoryEdge[]>([]);
+  let nodes = $state<Node[]>([]);
+  let edges = $state<Edge[]>([]);
   let unplacedMachines = $state<any[]>([]);
   let loading = $state(true);
 
@@ -71,15 +73,8 @@
     return sign + abs.toLocaleString() + " kW";
   }
 
-  // Get the svelte flow instance (lazy - only used inside handlers)
-  let flowInstance: ReturnType<typeof useSvelteFlow> | null = null;
-
-  function getFlow() {
-    if (!flowInstance) {
-      flowInstance = useSvelteFlow();
-    }
-    return flowInstance;
-  }
+  // Get the svelte flow instance (correct hook usage)
+  const { screenToFlowPosition, getNodes } = useSvelteFlow();
 
   let canvasBounds = $derived(getCanvasBounds(company?.level || 1));
 
@@ -88,37 +83,49 @@
 
   async function loadData() {
     if (!company?.id) return;
-    const data = await loadFactory(company.id);
+    try {
+      const data = await loadFactory(company.id);
 
-    // Create the zone node as the parent subgroup
-    const zoneNode: FactoryNode = {
-      id: ZONE_ID,
-      type: "zone",
-      position: { x: 0, y: 0 },
-      data: {
-        name: "Zone de Production",
-        width: canvasBounds.width,
-        height: canvasBounds.height,
-        level: company.level || 1,
-        placed: true,
-      },
-      // This makes it non-draggable and non-selectable
-      draggable: false,
-      selectable: false,
-    };
+      // Create the zone node as the parent subgroup
+      const zoneNode: FactoryNode = {
+        id: ZONE_ID,
+        type: "zone",
+        position: { x: 0, y: 0 },
+        data: {
+          name: "Zone de Production",
+          width: canvasBounds.width,
+          height: canvasBounds.height,
+          level: company.level || 1,
+          placed: true,
+        },
+        draggable: false,
+        selectable: false,
+      };
 
-    // Set all other nodes to have the zone as their parent
-    const childNodes = data.nodes.map((node: any) => ({
-      ...node,
-      parentId: ZONE_ID,
-      extent: "parent" as const,
-    }));
+      // Set all other nodes to have the zone as their parent
+      const childNodes = data.nodes.map((node: any) => ({
+        ...node,
+        parentId: ZONE_ID,
+        extent: "parent" as const,
+      }));
 
-    nodes = [zoneNode, ...childNodes];
-    edges = data.edges;
-    unplacedMachines = await loadUnplacedMachines(company.id);
-    loading = false;
+      nodes = [zoneNode, ...childNodes] as Node[];
+      edges = data.edges as Edge[];
+      unplacedMachines = await loadUnplacedMachines(company.id);
+    } catch (err) {
+      console.error("Failed to load factory data:", err);
+    } finally {
+      loading = false;
+    }
   }
+
+  // Effect to watch for company changes (resolves infinite loading)
+  $effect(() => {
+    if (company?.id) {
+      loadData();
+      subscribeToData();
+    }
+  });
 
   async function subscribeToData() {
     if (!company?.id) return;
@@ -141,8 +148,11 @@
   }
 
   onMount(() => {
-    loadData();
-    subscribeToData();
+    // Initial load try
+    if (company?.id) {
+      loadData();
+      subscribeToData();
+    }
 
     return () => {
       if (unsubscribeMachines) unsubscribeMachines();
@@ -173,19 +183,19 @@
     const machineId = event.dataTransfer.getData("application/svelteflow");
     if (!machineId) return;
 
-    const flow = getFlow();
-    const position = flow.screenToFlowPosition({
+    const position = screenToFlowPosition({
       x: event.clientX,
       y: event.clientY,
     });
 
-    const x = position.x - 60;
-    const y = position.y - 60;
+    const machineDim = NODE_DIMENSIONS.machine;
+    const x = position.x - machineDim.width / 2;
+    const y = position.y - machineDim.height / 2;
 
     // Filter out zone node for collision check
     const childNodes = nodes.filter((n) => n.type !== "zone") as FactoryNode[];
 
-    if (checkCollision(x, y, 120, 120, childNodes)) {
+    if (checkCollision(x, y, machineDim.width, machineDim.height, childNodes)) {
       console.warn("Cannot place: collision detected");
       return;
     }
@@ -193,8 +203,8 @@
     if (
       x < 0 ||
       y < 0 ||
-      x > canvasBounds.width - 120 ||
-      y > canvasBounds.height - 120
+      x > canvasBounds.width - machineDim.width ||
+      y > canvasBounds.height - machineDim.height
     ) {
       console.warn("Cannot place: out of bounds");
       return;
@@ -202,6 +212,8 @@
 
     const success = await placeNode("machine", machineId, x, y);
     if (success) {
+      // We don't necessarily need to reload all data,
+      // but it's safer to ensure we get the right ID from the server
       await loadData();
     }
   }
@@ -210,25 +222,28 @@
     // Don't allow moving the zone node
     if (node.id === ZONE_ID) return;
 
+    const childNodes = nodes.filter((n) => n.type !== "zone") as FactoryNode[];
+    const dim =
+      NODE_DIMENSIONS[node.type as keyof typeof NODE_DIMENSIONS] ||
+      NODE_DIMENSIONS.machine;
+
     if (
       node.position.x < 0 ||
       node.position.y < 0 ||
-      node.position.x > canvasBounds.width - 120 ||
-      node.position.y > canvasBounds.height - 120
+      node.position.x > canvasBounds.width - dim.width ||
+      node.position.y > canvasBounds.height - dim.height
     ) {
       console.warn("Node out of bounds, resetting position");
       await loadData();
       return;
     }
 
-    const childNodes = nodes.filter((n) => n.type !== "zone") as FactoryNode[];
-
     if (
       checkCollision(
         node.position.x,
         node.position.y,
-        120,
-        120,
+        dim.width,
+        dim.height,
         childNodes,
         node.id
       )
@@ -279,6 +294,26 @@
     }
     await loadData();
   }
+
+  function onNodesChange(changes: any[]) {
+    // Basic manual implementation if applyNodeChanges is missing
+    // Svelte Flow Svelte 5 usually handles this via bind:nodes or internal state
+    // but if we are providing nodes, we should handle selection/dragging changes
+    for (const change of changes) {
+      if (change.type === "position" && change.dragging) {
+        const node = nodes.find((n) => n.id === change.id);
+        if (node && change.position) {
+          node.position = change.position;
+        }
+      }
+      if (change.type === "select") {
+        const node = nodes.find((n) => n.id === change.id);
+        if (node) {
+          node.selected = change.selected;
+        }
+      }
+    }
+  }
 </script>
 
 {#if loading}
@@ -305,6 +340,8 @@
             <div
               class="unplaced-item"
               draggable="true"
+              role="button"
+              tabindex="0"
               ondragstart={(e) => onDragStart(e, machine.id)}
             >
               <span class="item-icon">{item?.icon || "⚙️"}</span>
@@ -336,17 +373,24 @@
   </div>
 
   <!-- Canvas -->
-  <div class="canvas-wrapper" ondragover={onDragOver} ondrop={onDrop}>
+  <div
+    class="canvas-wrapper"
+    ondragover={onDragOver}
+    ondrop={onDrop}
+    role="region"
+    aria-label="Zone de production"
+  >
     <SvelteFlow
-      {nodes}
+      bind:nodes
       {edges}
       {nodeTypes}
       fitView
+      onnodeschange={onNodesChange}
       onnodeDragStop={onNodeDragStop}
       onconnect={onConnect}
       ondelete={onDelete}
     >
-      <Background color="#334155" gap={20} />
+      <Background bgColor="#334155" gap={20} />
       <Controls />
       <MiniMap
         style="background-color: #0f172a; border: 1px solid #334155;"

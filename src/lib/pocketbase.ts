@@ -1,7 +1,6 @@
 import Pocketbase, { LocalAuthStore } from "pocketbase";
 import type { RecordService } from "pocketbase";
 import type { Item, Recipe, Technology } from "$lib/types/game";
-export type { Item, Recipe, Technology };
 
 // ============================================================================
 // Base Record Type (common fields for all collections)

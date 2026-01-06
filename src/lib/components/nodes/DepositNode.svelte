@@ -1,15 +1,17 @@
 <script lang="ts">
   import { Handle, Position } from "@xyflow/svelte";
 
-  interface NodeData {
+  import type { NodeProps } from "@xyflow/svelte";
+
+  type DepositNodeProps = NodeProps<{
     resourceId?: string;
     name: string;
     icon: string;
     quantity?: number;
     placed: boolean;
-  }
+  }>;
 
-  let { data }: { data: NodeData } = $props();
+  let { data }: DepositNodeProps = $props();
 
   const quantityPercent = $derived(
     data.quantity ? Math.min(100, (data.quantity / 10000) * 100) : 0
@@ -38,7 +40,11 @@
     border: 2px solid #10b981;
     border-radius: 12px;
     padding: 12px 16px;
-    min-width: 120px;
+    width: 140px;
+    min-height: 120px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
     color: #e2e8f0;
     box-shadow: 0 4px 20px rgba(16, 185, 129, 0.3);
     transition: all 0.2s ease;

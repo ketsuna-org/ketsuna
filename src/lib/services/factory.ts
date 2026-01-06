@@ -23,9 +23,11 @@ export interface FactoryNode {
     height?: number;
     level?: number;
   };
+  // Measured dimensions from Svelte Flow
+  measured?: { width: number; height: number };
   // Optional parent/child relationships
   parentId?: string;
-  extent?: 'parent' | [number, number, number, number];
+  extent?: 'parent' | [[number, number], [number, number]];
   // Interactivity flags
   draggable?: boolean;
   selectable?: boolean;
@@ -62,6 +64,14 @@ export function isWithinBounds(
   return x >= 0 && y >= 0 && x + nodeWidth <= bounds.width && y + nodeHeight <= bounds.height;
 }
 
+// Node dimensions for collision detection (fallbacks)
+export const NODE_DIMENSIONS = {
+  machine: { width: 140, height: 100 },
+  deposit: { width: 140, height: 120 },
+  company: { width: 220, height: 160 },
+  zone: { width: 0, height: 0 },
+};
+
 // Check collision between nodes
 export function checkCollision(
   x: number,
@@ -71,16 +81,17 @@ export function checkCollision(
   existingNodes: FactoryNode[],
   excludeId?: string
 ): boolean {
-  const nodeSize = 120; // Default node size
-
   for (const node of existingNodes) {
     if (excludeId && node.id === excludeId) continue;
+    if (node.type === "zone") continue;
 
-    const nodeWidth = nodeSize;
-    const nodeHeight = nodeSize;
+    const dimensions = node.measured || NODE_DIMENSIONS[node.type] || { width: 120, height: 120 };
+    const nodeWidth = dimensions.width;
+    const nodeHeight = dimensions.height;
 
-    const overlapsX = x < node.position.x + nodeWidth && x + width > node.position.x;
-    const overlapsY = y < node.position.y + nodeHeight && y + height > node.position.y;
+    // AABB Collision with a small 2px safety buffer
+    const overlapsX = x < node.position.x + nodeWidth - 2 && x + width > node.position.x + 2;
+    const overlapsY = y < node.position.y + nodeHeight - 2 && y + height > node.position.y + 2;
 
     if (overlapsX && overlapsY) {
       return true; // Collision detected
@@ -101,7 +112,7 @@ export async function loadFactory(companyId: string): Promise<{
   try {
     // Load company data for the fixed node
     const company = await pb.collection("companies").getOne(companyId);
-    const companyLocation = company.location as { lon: number; lat: number } | null;
+    const companyLocation = company.location;
 
     nodes.push({
       id: company.id,
@@ -123,14 +134,14 @@ export async function loadFactory(companyId: string): Promise<{
     });
 
     for (const machine of machines) {
-      const location = machine.location as { lon: number; lat: number } | null;
+      const location = machine.location;
       const staticItem = getItem(machine.machine_id);
       
       nodes.push({
         id: machine.id,
         type: "machine",
         position: {
-          x: location?.lon ?? 0,
+          x: location?.lon  ?? 0,
           y: location?.lat ?? 0,
         },
         data: {
@@ -148,7 +159,7 @@ export async function loadFactory(companyId: string): Promise<{
     });
 
     for (const deposit of deposits) {
-      const location = deposit.location as { lon: number; lat: number } | null;
+      const location = deposit.location;
       const staticItem = getItem(deposit.ressource_id);
       
       nodes.push({
@@ -191,7 +202,7 @@ export async function loadFactory(companyId: string): Promise<{
 }
 
 // Load unplaced machines (inventory for placement)
-export async function loadUnplacedMachines(companyId: string): Promise<any[]> {
+export async function loadUnplacedMachines(companyId: string): Promise<unknown[]> {
   try {
     const machines = await pb.collection("machines").getFullList({
       filter: `company = "${companyId}" && placed = false`,
@@ -225,13 +236,13 @@ export async function placeNode(
 
 // Update node position
 export async function updateNodePosition(
-  type: 'machine' | 'deposit',
+  type: 'machine' | 'deposit' | 'company',
   id: string,
   x: number,
   y: number
 ): Promise<boolean> {
   try {
-    const collection = type === 'machine' ? 'machines' : 'deposits';
+    const collection = type === 'machine' ? 'machines' : type === 'deposit' ? 'deposits' : 'companies';
     await pb.collection(collection).update(id, {
       location: { lon: x, lat: y },
     });

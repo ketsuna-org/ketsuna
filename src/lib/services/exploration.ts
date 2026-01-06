@@ -1,5 +1,6 @@
 import pb from "$lib/pocketbase";
 import type { Exploration, Deposit } from "$lib/pocketbase";
+export type { Exploration, Deposit } ;
 
 export async function startExploration(targetResourceId: string) {
     return await pb.send("/api/exploration/start", {

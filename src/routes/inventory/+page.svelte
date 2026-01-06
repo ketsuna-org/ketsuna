@@ -235,7 +235,7 @@
 
     sellingIds[invItem.id] = true;
     try {
-      const res = await sellItem(invItem.item, qty);
+      const res = await sellItem(invItem.item_id, qty);
       notifications.success(`Vente réussie: +${formatCurrency(res.revenue)}`);
 
       // Update local state immediately
@@ -491,7 +491,7 @@
                   </div>
 
                   <h3
-                    class="text-xl font-bold text-white mb-4 leading-tight min-h-[3.5rem]"
+                    class="text-xl font-bold text-white mb-4 leading-tight min-h-14"
                   >
                     {item.name}
                   </h3>
@@ -601,7 +601,7 @@
                         onclick={() => handleDeposit(invItem)}
                         disabled={depositingIds[invItem.id] ||
                           sellingIds[invItem.id]}
-                        class="w-12 h-10 flex flex-shrink-0 items-center justify-center bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl font-bold transition-all shadow-lg shadow-black/20 border border-slate-700 hover:border-slate-600 disabled:opacity-50 disabled:cursor-not-allowed group/lock"
+                        class="w-12 h-10 flex shrink-0 items-center justify-center bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl font-bold transition-all shadow-lg shadow-black/20 border border-slate-700 hover:border-slate-600 disabled:opacity-50 disabled:cursor-not-allowed group/lock"
                         title="Déposer dans la réserve sécurisée"
                       >
                         {#if depositingIds[invItem.id]}

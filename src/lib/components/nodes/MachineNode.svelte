@@ -1,14 +1,16 @@
 <script lang="ts">
   import { Handle, Position } from "@xyflow/svelte";
 
-  interface NodeData {
+  import type { NodeProps } from "@xyflow/svelte";
+
+  type MachineNodeProps = NodeProps<{
     itemId?: string;
     name: string;
     icon: string;
     placed: boolean;
-  }
+  }>;
 
-  let { data }: { data: NodeData } = $props();
+  let { data }: MachineNodeProps = $props();
 </script>
 
 <div class="machine-node">
@@ -28,7 +30,11 @@
     border: 2px solid #3b82f6;
     border-radius: 12px;
     padding: 12px 16px;
-    min-width: 120px;
+    width: 140px;
+    min-height: 100px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
     color: #e2e8f0;
     box-shadow: 0 4px 20px rgba(59, 130, 246, 0.3);
     transition: all 0.2s ease;

@@ -5,16 +5,17 @@
    */
   import { Handle, Position } from "@xyflow/svelte";
 
-  interface Props {
-    data: {
-      name: string;
-      width: number;
-      height: number;
-      level: number;
-    };
-  }
+  import type { NodeProps } from "@xyflow/svelte";
 
-  let { data }: Props = $props();
+  type ZoneNodeProps = NodeProps<{
+    name: string;
+    width: number;
+    height: number;
+    level: number;
+    placed: boolean;
+  }>;
+
+  let { data }: ZoneNodeProps = $props();
 </script>
 
 <div class="zone-node" style="width: {data.width}px; height: {data.height}px;">
