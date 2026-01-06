@@ -5,7 +5,6 @@
   import { fetchDashboardData, type DashboardData } from "$lib/dashboard";
   import { fetchEnergyStatus, type EnergyStatus } from "$lib/services/energy";
   import { levelUpCompany } from "$lib/services/company";
-  import { notifications } from "$lib/notifications";
   import type { Company } from "$lib/pocketbase";
 
   // --- ENGINE TYPES ---
@@ -70,8 +69,6 @@
         await this.loadData(user.id);
       } catch (e: any) {
         this.error = e.message;
-        // If no company, we might need to redirect or show create UI.
-        // For this "game mode", we assume established company or handle error gracefully.
         console.error(e);
       }
       this.loading = false;
@@ -136,6 +133,7 @@
       if (this.data) {
         this.drawHUD();
         this.drawBase();
+        this.drawSidebar();
         if (this.showRevenueModal) this.drawRevenueModal();
       }
 
@@ -176,9 +174,6 @@
         if (input.clicked) {
           this.handleLevelUp();
         }
-      } else {
-        // Reset cursor if not hovered (check other UIs later)
-        document.body.style.cursor = "default";
       }
 
       // Outer Glow
@@ -300,6 +295,77 @@
          const eColor = energy.productionSpeed < 1 ? "#fbbf24" : "#4ade80";
          drawBottomStat("ENERGY", `${Math.round(energy.productionSpeed * 100)}%`, eColor);
       }
+    }
+
+    drawSidebar() {
+      const { ctx, width, height } = this;
+      const w = 240;
+      const h = 400; // Height of the menu area
+      const x = 20;
+      const y = (height - h) / 2;
+
+      // Container (Transparent)
+      // ctx.fillStyle = "rgba(15, 23, 42, 0.5)";
+      // ctx.fillRect(x, y, w, h);
+
+      const sectors = [
+        { label: "MARKET", icon: "🛒", href: "/market", color: "#10b981" },
+        { label: "INVENTORY", icon: "📦", href: "/inventory", color: "#3b82f6" },
+        { label: "EXPLORATION", icon: "🔭", href: "/exploration", color: "#8b5cf6" },
+        { label: "WORKSHOP", icon: "⚙️", href: "/workshop", color: "#f59e0b" },
+        { label: "LABORATORY", icon: "🔬", href: "/laboratory", color: "#ec4899" },
+        { label: "STAFF", icon: "👥", href: "/employees", color: "#f43f5e" },
+        { label: "WORLD", icon: "🌍", href: "/world", color: "#6366f1" },
+      ];
+
+      let by = y;
+      const bh = 50;
+      const gap = 10;
+
+      sectors.forEach((s) => {
+        this.drawMenuButton(s.icon + " " + s.label, x, by, w, bh, s.color, () => goto(s.href));
+        by += bh + gap;
+      });
+    }
+
+    drawMenuButton(text: string, x: number, y: number, w: number, h: number, color: string, action: () => void) {
+        const { ctx, input } = this;
+        const hovered = this.checkHover(x, y, w, h);
+
+        // Background
+        const gradient = ctx.createLinearGradient(x, y, x + w, y);
+        if (hovered) {
+            document.body.style.cursor = "pointer";
+            if (input.clicked) action();
+            gradient.addColorStop(0, color);
+            gradient.addColorStop(1, "rgba(30, 41, 59, 0.8)");
+        } else {
+            gradient.addColorStop(0, "rgba(30, 41, 59, 0.8)");
+            gradient.addColorStop(1, "rgba(15, 23, 42, 0.4)");
+        }
+
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.roundRect(x, y, w, h, 8);
+        ctx.fill();
+
+        // Border
+        ctx.strokeStyle = hovered ? color : "rgba(255,255,255,0.1)";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // Icon/Text
+        ctx.fillStyle = "#fff";
+        ctx.textAlign = "left";
+        ctx.textBaseline = "middle";
+        ctx.font = hovered ? "bold 16px monospace" : "16px monospace";
+        ctx.fillText(text, x + 20, y + h/2);
+
+        // Arrow
+        if (hovered) {
+             ctx.textAlign = "right";
+             ctx.fillText("→", x + w - 20, y + h/2);
+        }
     }
 
     drawRevenueModal() {
