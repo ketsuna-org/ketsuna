@@ -12,6 +12,8 @@
   import NavFab from "$lib/components/NavFab.svelte";
   import Footer from "$lib/components/Footer.svelte";
 
+  import { page } from "$app/stores";
+
   let { children } = $props();
 
   let navHubOpen = $state(false);
@@ -44,10 +46,12 @@
 </svelte:head>
 
 <div class="flex flex-col min-h-screen">
-  <div class="flex-grow">
+  <div class="grow">
     {@render children()}
   </div>
-  <Footer />
+  {#if !$page.url.pathname.startsWith("/factory")}
+    <Footer />
+  {/if}
 </div>
 
 <NotificationCenter />

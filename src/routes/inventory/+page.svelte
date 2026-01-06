@@ -11,6 +11,7 @@
   import InfiniteScroll from "$lib/components/InfiniteScroll.svelte";
   import SellConfirmation from "$lib/components/SellConfirmation.svelte";
   import { depositToReserve } from "$lib/services/reserve";
+  import { getItem } from "$lib/data/game-static";
 
   const PER_PAGE = 20;
 
@@ -51,10 +52,10 @@
     const parts: string[] = [`company = "${$activeCompany.id}"`];
 
     if (searchQuery.trim()) {
-      parts.push(`item.name ~ "${searchQuery.trim()}"`);
-    }
-    if (selectedFilters.type) {
-      parts.push(`item.type = "${selectedFilters.type}"`);
+      // Note: Full-text name search in PB won't work easily with static IDs
+      // unless we filter by item_id or do client-side filtering.
+      // For now, we'll search in item_id if it contains the string.
+      parts.push(`item_id ~ "${searchQuery.trim()}"`);
     }
 
     return parts.join(" && ");
@@ -83,7 +84,7 @@
 
   async function handleDeposit(invItem: InventoryItem) {
     const qty = sellQuantities[invItem.id] || 1;
-    const item = invItem.expand?.item;
+    const item = getItem(invItem.item_id);
     if (qty <= 0 || !item) return;
 
     depositingIds[invItem.id] = true;
@@ -114,8 +115,7 @@
         .collection("inventory")
         .getList<InventoryItem>(page, PER_PAGE, {
           filter,
-          expand: "item",
-          sort: "item.name",
+          sort: "item_id", // Sort by ID as a fallback
           requestKey: null,
         });
 
@@ -176,9 +176,7 @@
             try {
               const updatedRecord = await pb
                 .collection("inventory")
-                .getOne<InventoryItem>(record.id, {
-                  expand: "item",
-                });
+                .getOne<InventoryItem>(record.id);
 
               console.log(
                 "[REALTIME] Fetched update:",
@@ -194,11 +192,11 @@
               } else {
                 // Add new item and sort
                 inventory.push(updatedRecord);
-                inventory.sort((a, b) =>
-                  (a.expand?.item?.name || "").localeCompare(
-                    b.expand?.item?.name || ""
-                  )
-                );
+                inventory.sort((a, b) => {
+                  const nameA = getItem(a.item_id)?.name || "";
+                  const nameB = getItem(b.item_id)?.name || "";
+                  return nameA.localeCompare(nameB);
+                });
               }
 
               // Initialize sell quantity if new
@@ -232,7 +230,7 @@
 
   async function handleSell(invItem: InventoryItem) {
     const qty = getSellQuantity(invItem.id);
-    const item = invItem.expand?.item;
+    const item = getItem(invItem.item_id);
     if (!item || qty <= 0 || qty > invItem.quantity) return;
 
     sellingIds[invItem.id] = true;
@@ -408,7 +406,7 @@
           class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
         >
           {#each inventory as invItem (invItem.id)}
-            {@const item = invItem.expand?.item}
+            {@const item = getItem(invItem.item_id)}
             {@const resalePrice = item ? item.base_price / 2 : 0}
             {@const totalValue = resalePrice * invItem.quantity}
 
@@ -674,7 +672,7 @@
 
 <!-- Sell Confirmation Modal -->
 {#if sellConfirmItem}
-  {@const item = sellConfirmItem.expand?.item}
+  {@const item = getItem(sellConfirmItem.item_id)}
   {#if item}
     <SellConfirmation
       itemName={item.name}

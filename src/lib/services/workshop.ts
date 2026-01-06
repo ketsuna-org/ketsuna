@@ -68,7 +68,6 @@ export async function loadWorkshopData(
       }),
       pb.collection("inventory").getFullList<InventoryItem>({
         filter: `company="${companyId}"`,
-        expand: "item",
         requestKey: null,
       }),
       fetchDashboardData(userId),
@@ -172,7 +171,7 @@ export async function loadMachines(
 
   const result = await pb.collection("machines").getList<Machine>(page, perPage, {
     filter,
-    expand: "machine.product,machine.can_consume,employees,deposit",
+    expand: "employees,deposit",
     requestKey: null,
   });
 
@@ -231,7 +230,6 @@ export async function refreshInventory(
   try {
     return await pb.collection("inventory").getFullList<InventoryItem>({
       filter: `company="${companyId}"`,
-      expand: "item",
       requestKey: null,
     });
   } catch (e) {
@@ -255,8 +253,9 @@ export async function assignMachineFromStock(
   for (let i = 0; i < quantity; i++) {
     const m = await pb.collection("machines").create({
       company: companyId,
-      machine: itemId,
+      machine_id: itemId,
       employees: [],
+      placed: false,
     }, { requestKey: null });
     machines.push(m);
   }

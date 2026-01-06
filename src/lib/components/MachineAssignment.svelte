@@ -8,6 +8,7 @@
   import MachineProduction from "./machine/MachineProduction.svelte";
   import MachineDepositSelector from "./machine/MachineDepositSelector.svelte";
   import MachineEmployeePanel from "./machine/MachineEmployeePanel.svelte";
+  import { getItem, getRecipe } from "$lib/data/game-static";
 
   interface Props {
     machine: Machine;
@@ -39,10 +40,10 @@
   let lastLoadedRecipeId: string | null = null;
 
   // Derived values
-  let machineItem = $derived(machine.expand?.machine);
+  let machineItem = $derived(getItem(machine.machine_id));
   let recipeId = $derived(machineItem?.use_recipe);
   let isExtractor = $derived(
-    machine.expand?.machine?.expand?.product?.is_explorable === true
+    machineItem?.product ? getItem(machineItem.product)?.is_explorable : false
   );
   let currentDeposit = $derived(machine.expand?.deposit);
 
@@ -54,21 +55,10 @@
   });
 
   async function loadMachineRecipe(id: string) {
-    if (recipeCache.has(id)) {
-      machineRecipe = recipeCache.get(id)!;
-      lastLoadedRecipeId = id;
-      return;
-    }
-    try {
-      const r = await pb.collection("recipes").getOne<Recipe>(id, {
-        expand: "output_item,inputs_items,ingredients.item",
-        requestKey: null,
-      });
-      recipeCache.set(id, r);
+    const r = getRecipe(id);
+    if (r) {
       machineRecipe = r;
       lastLoadedRecipeId = id;
-    } catch (error) {
-      console.error("Erreur chargement recette machine", error);
     }
   }
 
@@ -172,7 +162,7 @@
 
   <MachineDepositSelector
     {machine}
-    {isExtractor}
+    isExtractor={!!isExtractor}
     {currentDeposit}
     {isLoading}
     onLoadingChange={handleLoadingChange}
@@ -192,9 +182,8 @@
 {#if showDeleteModal}
   <DeleteConfirmation
     title="Retirer la machine"
-    message="Voulez-vous vraiment retirer la machine <strong>{machine.expand
-      ?.machine
-      ?.name}</strong> ?<br><br>Elle sera désassignée et retournera dans votre inventaire. Les employés seront libérés."
+    message="Voulez-vous vraiment retirer la machine <strong>{machineItem?.name ||
+      'Machine'}</strong> ?<br><br>Elle sera désassignée et retournera dans votre inventaire. Les employés seront libérés."
     confirmText="Retirer la machine"
     onConfirm={confirmDeleteMachine}
     onCancel={() => (showDeleteModal = false)}

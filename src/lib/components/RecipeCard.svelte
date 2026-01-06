@@ -1,12 +1,13 @@
 <script lang="ts">
-  import type { Recipe, InventoryItem, Company } from "$lib/pocketbase";
-  import {
-    produceFromRecipe,
-    checkRecipeRequirements,
-  } from "$lib/services/recipe";
-  import { notifications } from "$lib/notifications";
-  import { activeCompany } from "$lib/stores";
+  import { getItem, getTechnology, type Recipe } from "$lib/data/game-static";
+  import type { InventoryItem, Company } from "$lib/pocketbase";
   import pb from "$lib/pocketbase";
+  import { activeCompany } from "$lib/stores";
+  import { notifications } from "$lib/notifications";
+  import {
+    checkRecipeRequirements,
+    produceFromRecipe,
+  } from "$lib/services/recipe";
 
   interface Props {
     recipe: Recipe;
@@ -38,17 +39,21 @@
   let inventoryMap = $derived(
     new Map(
       inventory.map((inv) => [
-        inv.item,
+        inv.item_id,
         {
           quantity: inv.quantity,
-          name: inv.expand?.item?.name || "Item inconnu",
+          name: getItem(inv.item_id)?.name || "Item inconnu",
         },
       ])
     )
   );
 
-  let recipeInputs = $derived(recipe.expand?.inputs_items || []);
+  let outputItem = $derived(getItem(recipe.output_item));
+  let recipeInputs = $derived(recipe.inputs_items || []);
   let inputQty = $derived(recipe.input_quantity || 1);
+  let techRequirement = $derived(
+    recipe.required_tech ? getTechnology(recipe.required_tech) : null
+  );
 
   // Effect to check requirements when recipe or companyId changes
   $effect(() => {
@@ -79,7 +84,7 @@
         .getOne(companyId, { requestKey: null });
       activeCompany.set(updated as unknown as Company);
       notifications.success(
-        `✨ Production réussie: ${recipe.expand?.output_item?.name || "Item"} x${result.outputQuantity}`
+        `✨ Production réussie: ${outputItem?.name || "Item"} x${result.outputQuantity}`
       );
       onProduce?.();
       quantity = 1; // Reset quantity
@@ -102,15 +107,17 @@
   <div class="mb-5 flex items-start justify-between">
     <div>
       <h2 class="text-xl font-bold text-white mb-1 flex items-center gap-2">
-        <span class="p-1.5 bg-slate-800 rounded-lg text-lg">📜</span>
-        {recipe.name || recipe.expand?.output_item?.name || "Recette inconnue"}
+        <span class="p-1.5 bg-slate-800 rounded-lg text-lg"
+          >{recipe.icon || "📜"}</span
+        >
+        {recipe.name || outputItem?.name || "Recette inconnue"}
       </h2>
       <div class="flex gap-2">
-        {#if recipe.required_tech}
+        {#if techRequirement}
           <div
             class="text-[10px] bg-purple-500/10 border border-purple-500/20 text-purple-300 px-2 py-0.5 rounded-full font-medium"
           >
-            📚 {recipe.expand?.required_tech?.name || "Tech"}
+            📚 {techRequirement.name}
           </div>
         {/if}
         {#if recipe.production_time}
@@ -142,7 +149,7 @@
           </div>
           <div>
             <p class="font-bold text-white text-sm">
-              {recipe.expand?.output_item?.name || "Item"}
+              {outputItem?.name || "Item"}
             </p>
             <div class="flex items-center gap-2 mt-0.5">
               <span
@@ -162,7 +169,7 @@
           <p
             class="text-sm text-indigo-400 font-bold font-mono bg-indigo-500/10 px-2 py-1 rounded-lg border border-indigo-500/20 inline-block"
           >
-            ${(recipe.expand?.output_item?.base_price || 0) * quantity}
+            ${(outputItem?.base_price || 0) * quantity}
           </p>
         </div>
       </div>
@@ -177,8 +184,9 @@
         Matériaux Requis
       </h3>
       <div class="space-y-2">
-        {#each recipeInputs as inputItem (inputItem.id)}
-          {@const available = getInputInventoryQuantity(inputItem.id)}
+        {#each recipeInputs as itemId}
+          {@const inputItem = getItem(itemId)}
+          {@const available = getInputInventoryQuantity(itemId)}
           {@const needed = inputQty * quantity}
           {@const hasEnough = available >= needed}
           <div
@@ -189,7 +197,7 @@
             <div class="flex items-center gap-2">
               <span class="text-xs text-slate-500">•</span>
               <p class="text-sm font-medium text-slate-200">
-                {inputItem.name}
+                {inputItem?.name || itemId}
               </p>
             </div>
             <div class="flex items-center gap-2">

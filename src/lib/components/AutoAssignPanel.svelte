@@ -5,6 +5,7 @@
    */
   import type { Employee, Machine } from "$lib/pocketbase";
   import type { MachineStats } from "$lib/services/workshop";
+  import { getItem } from "$lib/data/game-static";
 
   let {
     machines,
@@ -24,11 +25,15 @@
     onAutoAssignDeposits: () => void;
   } = $props();
 
-  // Check if any machine needs a deposit assigned
+  // Check if any machine needs a deposit assigned (machines that extract explorable resources)
   let hasMachinesNeedingDeposit = $derived(
-    machines.some(
-      (m) => m.expand?.machine?.expand?.product?.is_explorable && !m.deposit
-    )
+    machines.some((m) => {
+      const machineItem = getItem(m.machine_id);
+      const productItem = machineItem?.product
+        ? getItem(machineItem.product)
+        : null;
+      return productItem?.is_explorable && !m.deposit;
+    })
   );
 </script>
 

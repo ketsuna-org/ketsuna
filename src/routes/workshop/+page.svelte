@@ -5,6 +5,7 @@
   import pb from "$lib/pocketbase";
   import type { Machine, Employee, InventoryItem } from "$lib/pocketbase";
   import { notifications } from "$lib/notifications";
+  import { getItem } from "$lib/data/game-static";
 
   // Components
   import RecipeCard from "$lib/components/RecipeCard.svelte";
@@ -98,15 +99,16 @@
     machineTypeTab === "machines" ? "Machine" : "Stockage"
   );
 
-  let availableMachineStock = $derived(
+  let filteredInventory = $derived(
     inventory.filter(
       (inv) =>
-        inv.expand?.item?.type === currentTypeFilter && (inv.quantity || 0) > 0
+        getItem(inv.item_id)?.type === currentTypeFilter &&
+        (inv.quantity || 0) > 0
     )
   );
 
-  let filteredMachinesByType = $derived(
-    machines.filter((m) => m.expand?.machine?.type === currentTypeFilter)
+  let filteredMachines = $derived(
+    machines.filter((m) => getItem(m.machine_id)?.type === currentTypeFilter)
   );
 
   let machineTypeCount = $derived(machineStats.machineTypeCount);

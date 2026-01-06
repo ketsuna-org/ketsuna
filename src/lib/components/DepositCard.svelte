@@ -4,6 +4,7 @@
   import { notifications } from "$lib/notifications";
   import { slide } from "svelte/transition";
   import ConfirmationModal from "$lib/components/ConfirmationModal.svelte";
+  import { getItem } from "$lib/data/game-static";
 
   interface Props {
     deposit: Deposit;
@@ -126,9 +127,9 @@
     <div>
       <h3 class="text-lg font-bold text-white flex items-center gap-2">
         <span class="p-1.5 bg-emerald-500/10 rounded-lg text-emerald-400"
-          >⛏️</span
+          >{getItem(deposit.ressource_id)?.icon || "⛏️"}</span
         >
-        {deposit.expand?.ressource?.name || "Ressource"}
+        {getItem(deposit.ressource_id)?.name || "Ressource"}
       </h3>
       <div
         class="text-[10px] font-mono text-emerald-400 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded w-fit mt-1"
@@ -210,7 +211,7 @@
               <span class="text-sm">🏭</span>
               <div>
                 <span class="text-xs text-white font-medium block"
-                  >{mach.expand?.machine?.name || "Machine"}</span
+                  >{getItem(mach.machine_id)?.name || "Machine"}</span
                 >
                 <span class="text-[10px] text-amber-500">Occupe {5} places</span
                 >
@@ -293,7 +294,7 @@
 {#if showAssignDropdown && remainingSlots > 0}
   <!-- Backdrop -->
   <div
-    class="fixed inset-0 bg-black/50 z-[9998]"
+    class="fixed inset-0 bg-black/50 z-9998"
     onclick={() => {
       showAssignDropdown = false;
       employeeSearchQuery = "";
@@ -310,7 +311,7 @@
 
   <!-- Modal Content -->
   <div
-    class="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[90vw] max-w-md bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-[9999] overflow-hidden"
+    class="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[90vw] max-w-md bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-9999 overflow-hidden"
   >
     <!-- Header -->
     <div

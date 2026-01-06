@@ -2,8 +2,9 @@
   import { goto } from "$app/navigation";
   import { onMount, onDestroy } from "svelte";
   import { fade, fly, scale } from "svelte/transition";
-  import { buyItem, type Item } from "$lib/services/market";
+  import { buyItem, type MarketItem } from "$lib/services/market";
   import { fetchDashboardData, type DashboardData } from "$lib/dashboard";
+  import { getItem, getRecipe } from "$lib/data/game-static";
   import { notifications } from "$lib/notifications";
   import { activeCompany } from "$lib/stores";
   import pb from "$lib/pocketbase";
@@ -13,7 +14,7 @@
 
   const PER_PAGE = 16;
 
-  let items: Item[] = $state([]);
+  let items: MarketItem[] = $state([]);
   let dashboardData: DashboardData | null = $state(null);
   let loading = $state(true);
   let loadingMore = $state(false);
@@ -117,7 +118,7 @@
     quantities[itemId] = Math.max(1, value);
   }
 
-  async function handleBuy(item: Item) {
+  async function handleBuy(item: MarketItem) {
     if (!dashboardData) return;
     buyingId = item.id;
     error = "";
@@ -403,24 +404,28 @@
               </h3>
               <div class="text-xs text-slate-500 leading-relaxed min-h-16">
                 {#if item.type === "Machine"}
-                  {#if item.expand?.use_recipe}
+                  {@const recipe = item.use_recipe
+                    ? getRecipe(item.use_recipe)
+                    : null}
+                  {#if recipe}
                     <div
                       class="bg-slate-950/50 p-2.5 rounded-xl border border-slate-800 space-y-2"
                     >
                       <!-- Inputs -->
-                      {#if item.expand.use_recipe.expand?.inputs_items && item.expand.use_recipe.expand.inputs_items.length > 0}
+                      {#if recipe.inputs_items && recipe.inputs_items.length > 0}
                         <div class="flex flex-wrap gap-1">
                           <span
                             class="text-slate-500 font-bold mr-1 text-[10px] uppercase"
                             >Conso:</span
                           >
-                          {#each item.expand.use_recipe.expand.inputs_items as input}
+                          {#each recipe.inputs_items as inputId}
+                            {@const input = getItem(inputId)}
                             <span
                               class="bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded text-[10px] border border-slate-700"
                             >
-                              {input.name}
+                              {input?.name || inputId}
                               <span class="text-amber-400 font-mono"
-                                >x{item.expand.use_recipe.input_quantity}</span
+                                >x{recipe.input_quantity}</span
                               >
                             </span>
                           {/each}
@@ -436,24 +441,24 @@
                           >Prod:</span
                         >
                         <span class="text-emerald-400 font-medium truncate">
-                          {item.expand.use_recipe.expand?.output_item?.name ||
-                            item.expand.use_recipe.name ||
+                          {getItem(recipe.output_item)?.name ||
+                            recipe.name ||
                             "Item"}
                         </span>
                         <span
                           class="text-[10px] text-slate-500 bg-slate-900 border border-slate-800 px-1.5 py-0.5 rounded ml-auto"
                         >
-                          {item.expand.use_recipe.production_time}s
+                          {recipe.production_time}s
                         </span>
                       </div>
                     </div>
-                  {:else}
+                  {:else if item.product}
                     Produit <span class="text-emerald-400 font-semibold"
                       >{item.product_quantity || 1}</span
                     >
                     unité(s) de
                     <span class="text-emerald-400 font-semibold"
-                      >{(item.expand as any)?.product?.name || "Produit"}</span
+                      >{getItem(item.product)?.name || "Produit"}</span
                     > par cycle.
                   {/if}
                 {:else}

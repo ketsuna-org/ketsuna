@@ -1,6 +1,5 @@
 <script lang="ts">
-  import { onMount, onDestroy } from "svelte";
-  import type { Snippet } from "svelte";
+  import { onMount, onDestroy, type Snippet } from "svelte";
 
   /**
    * A Portal component that renders its children directly into document.body.
@@ -11,23 +10,21 @@
   }
   let { children }: Props = $props();
 
-  let portalTarget: HTMLElement | null = null;
+  let container = $state<HTMLElement | null>(null);
 
   onMount(() => {
-    portalTarget = document.createElement("div");
-    portalTarget.className = "portal-root";
-    document.body.appendChild(portalTarget);
+    if (container) {
+      document.body.appendChild(container);
+    }
   });
 
   onDestroy(() => {
-    if (portalTarget && portalTarget.parentNode) {
-      portalTarget.parentNode.removeChild(portalTarget);
+    if (container && container.parentNode) {
+      container.parentNode.removeChild(container);
     }
   });
 </script>
 
-{#if portalTarget}
-  <svelte:element this="div" bind:this={portalTarget}>
-    {@render children?.()}
-  </svelte:element>
-{/if}
+<div bind:this={container} class="portal-root">
+  {@render children?.()}
+</div>

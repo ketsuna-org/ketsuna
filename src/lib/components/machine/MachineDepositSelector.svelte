@@ -3,6 +3,7 @@
   import pb from "$lib/pocketbase";
   import { notifications } from "$lib/notifications";
   import { slide } from "svelte/transition";
+  import { getItem } from "$lib/data/game-static";
 
   interface Props {
     machine: Machine;
@@ -27,7 +28,8 @@
   let lastDepositKey: string | null = null;
 
   async function loadDepositsIfNeeded() {
-    const productItemId = machine.expand?.machine?.product;
+    const machineItem = getItem(machine.machine_id);
+    const productItemId = machineItem?.product;
     const key = `${machine.company}-${productItemId}`;
 
     if (key === lastDepositKey && compatibleDeposits.length > 0) return;
@@ -36,7 +38,7 @@
       if (!productItemId) return;
 
       const result = await pb.collection("deposits").getFullList({
-        filter: `company = '${machine.company}' && ressource = '${productItemId}' && quantity > 0`,
+        filter: `company = '${machine.company}' && ressource_id = '${productItemId}' && quantity > 0`,
         sort: "-size",
         requestKey: null,
       });

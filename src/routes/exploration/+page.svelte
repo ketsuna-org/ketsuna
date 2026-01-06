@@ -15,6 +15,7 @@
     getExplorations,
     getDeposits,
   } from "$lib/services/exploration";
+  import { getItem, getAllItems } from "$lib/data/game-static";
 
   let loading = $state(true);
   let explorableItems = $state<Item[]>([]);
@@ -44,14 +45,8 @@
     if (!$activeCompany) return;
     loading = true;
     try {
-      // 1. Load explorable items (Catalog)
-      // Note: User must add 'is_explorable' (bool) to items collection
-      const itemsResult = await pb.collection("items").getList<Item>(1, 50, {
-        filter: `is_explorable = true`,
-        sort: "name",
-      });
-      // Client-side search because list is small (max 50 explorables usually)
-      explorableItems = itemsResult.items;
+      // 1. Load explorable items (Catalog) from static data
+      explorableItems = getAllItems().filter((i) => i.is_explorable);
 
       // 2. Load active explorations
       activeExplorations = await getExplorations();
@@ -69,7 +64,6 @@
       // 5. Load all machines to check employee assignments (single query instead of N queries)
       const allMachines = await pb.collection("machines").getFullList({
         filter: `company = "${$activeCompany.id}"`,
-        expand: "machine",
       });
 
       // Build set of busy employee IDs (assigned to machines) and group machines by deposit
@@ -200,7 +194,7 @@
 <div class="min-h-screen bg-slate-950 text-white relative overflow-hidden">
   <!-- Background Grid -->
   <div
-    class="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"
+    class="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-size-[24px_24px]"
   ></div>
   <div
     class="absolute inset-0 bg-radial-gradient(circle_at_center,transparent_0%,#020617_100%)"
@@ -218,11 +212,11 @@
           class="text-3xl md:text-4xl font-black tracking-tight text-white flex items-center gap-4 mb-2"
         >
           <span
-            class="p-3 bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl text-white shadow-lg shadow-amber-500/20 text-2xl"
+            class="p-3 bg-linear-to-br from-amber-500 to-orange-600 rounded-2xl text-white shadow-lg shadow-amber-500/20 text-2xl"
             >🔭</span
           >
           <span
-            class="bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent"
+            class="bg-linear-to-r from-white to-slate-400 bg-clip-text text-transparent"
             >Exploration</span
           >
         </h1>
@@ -327,7 +321,7 @@
                       🚀
                     </div>
                     <h3 class="font-bold text-white">
-                      {exp.expand?.target_resource.name}
+                      {getItem(exp.target_resource_id)?.name || "Ressource"}
                     </h3>
                   </div>
                   <span

@@ -1,4 +1,5 @@
 import pb from "$lib/pocketbase";
+import { getItem } from "./data/game-static";
 
 // --- TYPES ---
 
@@ -97,12 +98,7 @@ interface PBEmployee {
 interface PBInventoryItem {
     id: string;
     quantity: number;
-    expand?: {
-        item?: {
-            name: string;
-            base_price: number;
-        };
-    };
+    item_id: string;
 }
 
 // --- FONCTIONS ---
@@ -170,8 +166,9 @@ export async function fetchDashboardData(userId: string): Promise<DashboardData>
         const itemsMap = new Map<string, { name: string; qty: number; value: number }>();
 
         inventoryData.forEach((inv) => {
-            const itemName = inv.expand?.item?.name || "Item inconnu";
-            const itemPrice = inv.expand?.item?.base_price || 0;
+            const staticItem = getItem(inv.item_id);
+            const itemName = staticItem?.name || "Item inconnu";
+            const itemPrice = staticItem?.base_price || 0;
             const qty = inv.quantity || 0;
 
             if (itemsMap.has(itemName)) {
