@@ -8,6 +8,8 @@ export interface BaseRecord {
   id: string;
   created: string;
   updated: string;
+  collectionId: string;
+  collectionName: string;
 }
 
 // ============================================================================
@@ -33,8 +35,6 @@ export interface User extends BaseRecord {
 
 // companies
 export interface Company extends BaseRecord {
-  collectionId?: string;
-  collectionName?: string;
   ceo: string;
   name: string;
   balance: number;

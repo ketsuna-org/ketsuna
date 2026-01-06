@@ -11,7 +11,7 @@
   }
   let { children }: Props = $props();
 
-  let portalTarget: HTMLElement | null = null;
+  let portalTarget = $state<HTMLElement | null>(null);
 
   onMount(() => {
     portalTarget = document.createElement("div");
@@ -27,7 +27,7 @@
 </script>
 
 {#if portalTarget}
-  <svelte:element this="div" bind:this={portalTarget}>
+  <svelte:element this={'div'} bind:this={portalTarget}>
     {@render children?.()}
   </svelte:element>
 {/if}
