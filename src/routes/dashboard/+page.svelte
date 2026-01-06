@@ -1,447 +1,474 @@
 <script lang="ts">
-  import { goto } from "$app/navigation";
   import { onMount, onDestroy } from "svelte";
+  import { goto } from "$app/navigation";
   import pb from "$lib/pocketbase";
   import { fetchDashboardData, type DashboardData } from "$lib/dashboard";
   import { fetchEnergyStatus, type EnergyStatus } from "$lib/services/energy";
-  import RevenueDetailModal from "$lib/components/RevenueDetailModal.svelte";
-  import CreateCompanyForm from "$lib/components/CreateCompanyForm.svelte";
   import { levelUpCompany } from "$lib/services/company";
   import { notifications } from "$lib/notifications";
   import type { Company } from "$lib/pocketbase";
 
-  // --- STATE MANAGEMENT (Svelte 5 Runes) ---
-  const user = pb.authStore.model;
+  // --- ENGINE TYPES ---
+  interface Point { x: number; y: number; }
+  interface Rect { x: number; y: number; w: number; h: number; }
 
-  let dashboardData = $state<DashboardData | null>(null);
-  let energyStatus = $state<EnergyStatus | null>(null);
-  let loading = $state(true);
-  let error = $state("");
-  let isRevenueModalOpen = $state(false);
-  let showCreateCompany = $state(false);
-  let levelUpLoading = $state(false);
+  class InputManager {
+    mouse: Point = { x: 0, y: 0 };
+    isDown: boolean = false;
+    clicked: boolean = false;
 
-  // Canvas refs
-  let canvas: HTMLCanvasElement;
-  let ctx: CanvasRenderingContext2D | null = null;
-  let animationId: number;
-  let width = 0;
-  let height = 0;
+    update(rect: DOMRect, e: MouseEvent) {
+      this.mouse.x = e.clientX - rect.left;
+      this.mouse.y = e.clientY - rect.top;
+    }
 
-  // Game Assets / State
-  let particles: Array<{x: number, y: number, vx: number, vy: number, life: number, color: string}> = [];
-  let mouse = { x: 0, y: 0 };
-  let baseRadius = 60;
-
-  // --- ACTIONS ---
-
-  function logout() {
-    pb.authStore.clear();
-    goto("/");
+    onMouseDown() { this.isDown = true; }
+    onMouseUp() { this.isDown = false; this.clicked = true; }
+    reset() { this.clicked = false; }
   }
 
-  function formatCurrency(value: number): string {
-    if (value === undefined || value === null || isNaN(value)) {
-      return "0€";
+  class Game {
+    canvas: HTMLCanvasElement;
+    ctx: CanvasRenderingContext2D;
+    width: number = 0;
+    height: number = 0;
+    input: InputManager = new InputManager();
+    animationId: number = 0;
+
+    // Game Data
+    data: DashboardData | null = null;
+    energy: EnergyStatus | null = null;
+    loading: boolean = true;
+    error: string = "";
+
+    // Assets
+    particles: Array<{x: number, y: number, vx: number, vy: number, life: number, color: string}> = [];
+    baseRotation: number = 0;
+
+    // UI State
+    showRevenueModal: boolean = false;
+
+    constructor(canvas: HTMLCanvasElement) {
+      this.canvas = canvas;
+      this.ctx = canvas.getContext("2d")!;
+      this.resize();
+
+      // Events
+      window.addEventListener("resize", () => this.resize());
+      canvas.addEventListener("mousemove", (e) => this.input.update(canvas.getBoundingClientRect(), e));
+      canvas.addEventListener("mousedown", () => this.input.onMouseDown());
+      canvas.addEventListener("mouseup", () => this.input.onMouseUp());
     }
-    if (value >= 1_000_000) {
-      return `${(value / 1_000_000).toFixed(1)}M€`;
-    } else if (value >= 1_000) {
-      return `${(value / 1_000).toFixed(0)}k€`;
-    }
-    return `${value.toFixed(0)}€`;
-  }
 
-  const getLevelCost = (lvl: number) => Math.floor(1000 * Math.pow(lvl, 1.5));
-
-  async function handleLevelUp() {
-    if (!dashboardData) return;
-
-    const currentLevel = dashboardData.company.level;
-    const cost = getLevelCost(currentLevel);
-    const currentBalance = dashboardData.financials.cash;
-
-    if (currentBalance < cost) {
-      notifications.error(
-        `Fonds insuffisants. Besoin de ${formatCurrency(cost)}`
-      );
-      return;
-    }
-
-    levelUpLoading = true;
-    try {
-      const companyFull = await pb
-        .collection("companies")
-        .getOne(dashboardData.company.id);
-
-      await levelUpCompany(companyFull as unknown as Company, cost);
-
-      // Refresh data
-      await loadDashboard();
-
-      notifications.success("Expansion réussie ! Votre entreprise a gagné un niveau.");
-      spawnParticles(width/2, height/2, 50, "#6366f1"); // Explosion effect
-    } catch (e: any) {
-      console.error("Level up error:", e);
-      const msg = e?.data?.message || e?.message || "Erreur inconnue";
-      notifications.error(msg);
-    } finally {
-      levelUpLoading = false;
-    }
-  }
-
-  async function loadDashboard() {
-    if (!user?.id) return;
-    loading = true;
-    try {
-      dashboardData = await fetchDashboardData(user.id);
+    async init() {
+      const user = pb.authStore.model;
+      if (!user) {
+        goto("/login");
+        return;
+      }
       try {
-        energyStatus = await fetchEnergyStatus();
-      } catch {
-        energyStatus = null;
+        await this.loadData(user.id);
+      } catch (e: any) {
+        this.error = e.message;
+        // If no company, we might need to redirect or show create UI.
+        // For this "game mode", we assume established company or handle error gracefully.
+        console.error(e);
       }
-      showCreateCompany = false;
-    } catch (err: any) {
-      if (
-        (err.message && err.message.includes("Pas d'entreprise active")) ||
-        err.message.includes("pas d'entreprise active")
-      ) {
-        showCreateCompany = true;
-        error = "";
-      } else {
-        if (err.message === "L'utilisateur n'a pas d'entreprise active") {
-          showCreateCompany = true;
-          error = "";
-        } else {
-          error = err.message || "Impossible de charger le dashboard";
-          console.error(err);
-        }
-      }
-    } finally {
-      loading = false;
+      this.loading = false;
+      this.loop();
     }
-  }
 
-  // --- GAME LOOP ---
-
-  function resize() {
-    if (canvas) {
-        width = window.innerWidth;
-        height = window.innerHeight;
-        canvas.width = width;
-        canvas.height = height;
+    async loadData(userId: string) {
+      this.data = await fetchDashboardData(userId);
+      try {
+        this.energy = await fetchEnergyStatus();
+      } catch { /* ignore */ }
     }
-  }
 
-  function spawnParticles(x: number, y: number, count: number, color: string) {
-      for(let i=0; i<count; i++) {
-          particles.push({
-              x, y,
-              vx: (Math.random() - 0.5) * 10,
-              vy: (Math.random() - 0.5) * 10,
-              life: 1.0,
-              color
-          });
+    resize() {
+      this.width = window.innerWidth;
+      this.height = window.innerHeight;
+      this.canvas.width = this.width;
+      this.canvas.height = this.height;
+    }
+
+    loop() {
+      this.update();
+      this.draw();
+      this.input.reset();
+      this.animationId = requestAnimationFrame(() => this.loop());
+    }
+
+    update() {
+      // Rotation
+      this.baseRotation += 0.005;
+
+      // Particles
+      for(let i = this.particles.length - 1; i >= 0; i--) {
+        let p = this.particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life -= 0.02;
+        if(p.life <= 0) this.particles.splice(i, 1);
       }
-  }
+    }
 
-  function updateParticles() {
-      for(let i = particles.length - 1; i >= 0; i--) {
-          let p = particles[i];
-          p.x += p.vx;
-          p.y += p.vy;
-          p.life -= 0.02;
-          if(p.life <= 0) {
-              particles.splice(i, 1);
-          }
-      }
-  }
+    draw() {
+      const { ctx, width, height } = this;
 
-  function drawParticles() {
-      if (!ctx) return;
-      particles.forEach(p => {
-          ctx!.globalAlpha = p.life;
-          ctx!.fillStyle = p.color;
-          ctx!.beginPath();
-          ctx!.arc(p.x, p.y, 2, 0, Math.PI * 2);
-          ctx!.fill();
-      });
-      ctx!.globalAlpha = 1;
-  }
-
-  function drawBase() {
-      if (!ctx || !dashboardData) return;
-
-      const centerX = width / 2;
-      const centerY = height / 2;
-      const dist = Math.hypot(mouse.x - centerX, mouse.y - centerY);
-      const isHovered = dist < baseRadius;
-
-      // Glow
-      const gradient = ctx.createRadialGradient(centerX, centerY, baseRadius * 0.5, centerX, centerY, baseRadius * 2);
-      if (isHovered) {
-          gradient.addColorStop(0, "rgba(99, 102, 241, 0.7)");
-      } else {
-          gradient.addColorStop(0, "rgba(99, 102, 241, 0.5)"); // Indigo
-      }
-      gradient.addColorStop(1, "rgba(99, 102, 241, 0)");
-      ctx.fillStyle = gradient;
-      ctx.beginPath();
-      ctx.arc(centerX, centerY, baseRadius * 2, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Base Circle
-      ctx.fillStyle = "#1e1b4b"; // Indigo 950
-      ctx.strokeStyle = "#6366f1"; // Indigo 500
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.arc(centerX, centerY, baseRadius, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-
-      // Text inside
-      ctx.fillStyle = "white";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-
-      if (isHovered) {
-          // Show Level Up Cost on hover
-          const cost = getLevelCost(dashboardData.company.level);
-          ctx.font = "bold 14px sans-serif";
-          ctx.fillText("UPGRADE", centerX, centerY - 10);
-          ctx.font = "12px sans-serif";
-          ctx.fillStyle = "#a5b4fc";
-          ctx.fillText(`Cost: ${formatCurrency(cost)}`, centerX, centerY + 10);
-      } else {
-          ctx.font = "bold 16px sans-serif";
-          ctx.fillText(dashboardData.company.name.substring(0, 10), centerX, centerY - 10);
-          ctx.font = "12px sans-serif";
-          ctx.fillText(`Lvl ${dashboardData.company.level}`, centerX, centerY + 10);
-      }
-
-      // Interaction Hint Cursor
-      if (isHovered) {
-          ctx.strokeStyle = "white";
-          ctx.lineWidth = 1;
-          ctx.beginPath();
-          ctx.arc(centerX, centerY, baseRadius + 5, 0, Math.PI * 2);
-          ctx.stroke();
-          document.body.style.cursor = "pointer";
-      } else {
-          const onProfit = (mouse.x > 20 && mouse.x < 300 && mouse.y > 70 && mouse.y < 100);
-          if (onProfit) {
-            document.body.style.cursor = "pointer";
-          } else {
-            document.body.style.cursor = "default";
-          }
-      }
-  }
-
-  function drawHUD() {
-      if (!ctx || !dashboardData) return;
-
-      ctx.fillStyle = "white";
-      ctx.font = "bold 20px monospace";
-      ctx.textAlign = "left";
-      ctx.textBaseline = "top";
-
-      // Top Left: Financials
-      ctx.fillText(`💰 Cash: ${formatCurrency(dashboardData.financials.cash)}`, 20, 20);
-      ctx.font = "16px monospace";
-      ctx.fillStyle = "#94a3b8";
-      ctx.fillText(`📈 Val: ${formatCurrency(dashboardData.financials.valuation)}`, 20, 50);
-
-      // Profit - Make it look interactive on hover
-      const profitY = 75;
-      const profitText = `💸 Profit: ${formatCurrency(dashboardData.financials.monthly_net_profit)}`;
-      const onProfit = (mouse.x > 20 && mouse.x < 300 && mouse.y > profitY && mouse.y < profitY + 20);
-
-      if (onProfit) {
-          ctx.fillStyle = "#6366f1"; // Highlight color
-          ctx.font = "bold 16px monospace";
-      } else {
-          ctx.fillStyle = "#94a3b8";
-          ctx.font = "16px monospace";
-      }
-      ctx.fillText(profitText, 20, profitY);
-
-      // Top Right: Stock
-      ctx.textAlign = "right";
-      ctx.fillStyle = "white";
-      ctx.font = "bold 20px monospace";
-      ctx.fillText(`${dashboardData.financials.stock_ticker}: ${formatCurrency(dashboardData.financials.stock_price)}`, width - 20, 20);
-
-      // Inventory (New)
-      ctx.font = "16px monospace";
-      ctx.fillStyle = "#94a3b8";
-      ctx.fillText(`📦 Items: ${dashboardData.resources.inventory_count}`, width - 20, 50);
-
-      // Bottom Left: Staff
-      ctx.textAlign = "left";
-      ctx.fillStyle = "white";
-      ctx.font = "bold 20px monospace";
-      ctx.fillText(`👥 Staff: ${dashboardData.staff.total_employees}`, 20, height - 60);
-      ctx.fillStyle = "#94a3b8";
-      ctx.font = "16px monospace";
-      ctx.fillText(`⚡ Eff: ${dashboardData.staff.average_efficiency}%`, 20, height - 35);
-
-      // Bottom Right: Energy
-      if (energyStatus) {
-        ctx.textAlign = "right";
-        ctx.fillStyle = energyStatus.productionSpeed < 1 ? "#fbbf24" : "#34d399";
-        ctx.font = "bold 20px monospace";
-        ctx.fillText(`⚡ Energy: ${Math.round(energyStatus.productionSpeed * 100)}%`, width - 20, height - 60);
-        ctx.fillStyle = "#94a3b8";
-        ctx.font = "16px monospace";
-        ctx.fillText(`Prod: ${energyStatus.energyProduced} / Cons: ${energyStatus.energyDemand}`, width - 20, height - 35);
-      }
-  }
-
-  function animate() {
-      if (!ctx || !canvas) return;
-
-      ctx.fillStyle = "#020617"; // Slate 950
+      // Clear
+      ctx.fillStyle = "#020617";
       ctx.fillRect(0, 0, width, height);
 
-      // Grid effect
+      // Grid Background
+      this.drawGrid();
+
+      if (this.loading) {
+        this.drawTextCentered("INITIALISATION...", width/2, height/2, 24, "#6366f1");
+        return;
+      }
+
+      if (this.error) {
+        this.drawTextCentered(`ERREUR: ${this.error}`, width/2, height/2, 20, "#ef4444");
+        return;
+      }
+
+      if (this.data) {
+        this.drawHUD();
+        this.drawBase();
+        if (this.showRevenueModal) this.drawRevenueModal();
+      }
+
+      this.drawParticles();
+    }
+
+    drawGrid() {
+      const { ctx, width, height } = this;
       ctx.strokeStyle = "#1e293b";
       ctx.lineWidth = 1;
-      const gridSize = 50;
-      const time = Date.now() / 1000;
-      const offsetX = (time * 10) % gridSize;
+      const gridSize = 60;
+      const offset = (Date.now() / 50) % gridSize;
 
-      for(let x=offsetX; x<width; x+=gridSize) {
-          ctx.beginPath();
-          ctx.moveTo(x, 0);
-          ctx.lineTo(x, height);
-          ctx.stroke();
+      ctx.beginPath();
+      for(let x = offset; x < width; x+=gridSize) {
+        ctx.moveTo(x, 0); ctx.lineTo(x, height);
       }
-      for(let y=0; y<height; y+=gridSize) {
-          ctx.beginPath();
-          ctx.moveTo(0, y);
-          ctx.lineTo(width, y);
-          ctx.stroke();
+      for(let y = offset; y < height; y+=gridSize) {
+        ctx.moveTo(0, y); ctx.lineTo(width, y);
       }
-
-      updateParticles();
-      drawParticles();
-
-      if (dashboardData) {
-          drawBase();
-          drawHUD();
-      }
-
-      animationId = requestAnimationFrame(animate);
-  }
-
-  function handleMouseMove(e: MouseEvent) {
-      if (!canvas) return;
-      const rect = canvas.getBoundingClientRect();
-      mouse.x = e.clientX - rect.left;
-      mouse.y = e.clientY - rect.top;
-  }
-
-  function handleCanvasClick(e: MouseEvent) {
-      if (!dashboardData) return;
-      const centerX = width / 2;
-      const centerY = height / 2;
-
-      // Click on Base -> Level Up
-      const dist = Math.hypot(mouse.x - centerX, mouse.y - centerY);
-      if (dist < baseRadius) {
-          handleLevelUp();
-          return;
-      }
-
-      // Click on Profit -> Open Modal
-      const profitY = 75;
-      if (mouse.x > 20 && mouse.x < 300 && mouse.y > profitY && mouse.y < profitY + 20) {
-          isRevenueModalOpen = true;
-          return;
-      }
-  }
-
-  onMount(async () => {
-    if (!user?.id) {
-      goto("/login");
-      return;
+      ctx.stroke();
     }
-    await loadDashboard();
 
+    drawBase() {
+      const { ctx, width, height, input, data } = this;
+      if (!data) return;
+
+      const cx = width / 2;
+      const cy = height / 2;
+      const radius = 80;
+
+      // Interaction
+      const dist = Math.hypot(input.mouse.x - cx, input.mouse.y - cy);
+      const hovered = dist < radius;
+
+      if (hovered) {
+        document.body.style.cursor = "pointer";
+        if (input.clicked) {
+          this.handleLevelUp();
+        }
+      } else {
+        // Reset cursor if not hovered (check other UIs later)
+        document.body.style.cursor = "default";
+      }
+
+      // Outer Glow
+      const glow = ctx.createRadialGradient(cx, cy, radius * 0.8, cx, cy, radius * 2.5);
+      glow.addColorStop(0, hovered ? "rgba(99, 102, 241, 0.4)" : "rgba(99, 102, 241, 0.1)");
+      glow.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = glow;
+      ctx.beginPath(); ctx.arc(cx, cy, radius * 2.5, 0, Math.PI*2); ctx.fill();
+
+      // Rotating Ring
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(this.baseRotation);
+      ctx.strokeStyle = hovered ? "#818cf8" : "#4f46e5";
+      ctx.lineWidth = 4;
+      ctx.setLineDash([20, 10]);
+      ctx.beginPath(); ctx.arc(0, 0, radius + 10, 0, Math.PI*2); ctx.stroke();
+      ctx.restore();
+
+      // Main Circle
+      ctx.fillStyle = "#0f172a";
+      ctx.strokeStyle = hovered ? "#fff" : "#6366f1";
+      ctx.lineWidth = 2;
+      ctx.setLineDash([]);
+      ctx.beginPath(); ctx.arc(cx, cy, radius, 0, Math.PI*2);
+      ctx.fill(); ctx.stroke();
+
+      // Label
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = "#fff";
+      ctx.font = "bold 16px monospace";
+      ctx.fillText(data.company.name.substring(0, 12).toUpperCase(), cx, cy - 10);
+
+      ctx.font = "14px monospace";
+      ctx.fillStyle = "#94a3b8";
+      ctx.fillText(`LVL ${data.company.level}`, cx, cy + 10);
+
+      if (hovered) {
+        const cost = Math.floor(1000 * Math.pow(data.company.level, 1.5));
+        ctx.fillStyle = "#fbbf24";
+        ctx.font = "bold 12px monospace";
+        ctx.fillText(`UPGRADE: ${this.formatMoney(cost)}`, cx, cy + 30);
+      }
+    }
+
+    drawHUD() {
+      const { ctx, width, height, data, energy } = this;
+      if (!data) return;
+
+      // Top Bar Background
+      ctx.fillStyle = "rgba(15, 23, 42, 0.9)";
+      ctx.fillRect(0, 0, width, 60);
+      ctx.strokeStyle = "#334155";
+      ctx.beginPath(); ctx.moveTo(0, 60); ctx.lineTo(width, 60); ctx.stroke();
+
+      // Top Stats Helper
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+
+      const drawTopStat = (label: string, value: string, x: number, color: string = "#fff") => {
+        ctx.font = "bold 16px monospace";
+        ctx.fillStyle = "#94a3b8";
+        ctx.fillText(label, x, 30);
+        const m = ctx.measureText(label).width;
+        ctx.fillStyle = color;
+        ctx.fillText(value, x + m + 10, 30);
+        return x + m + ctx.measureText(value).width + 40; // Return new X
+      };
+
+      let x = 20;
+      x = drawTopStat("CASH", this.formatMoney(data.financials.cash), x, "#4ade80");
+      x = drawTopStat("VAL", this.formatMoney(data.financials.valuation), x, "#60a5fa");
+
+      // Profit Button
+      const profitLabel = "PROFIT";
+      const profitVal = this.formatMoney(data.financials.monthly_net_profit);
+      const profitX = x;
+      const profitW = 200; // estimated hit width
+
+      if (this.checkHover(profitX, 10, profitW, 40)) {
+         ctx.fillStyle = "rgba(255,255,255,0.1)";
+         ctx.fillRect(profitX - 5, 10, profitW, 40);
+         document.body.style.cursor = "pointer";
+         if (this.input.clicked) {
+             this.showRevenueModal = !this.showRevenueModal;
+         }
+      }
+      x = drawTopStat("PROFIT", profitVal, x, data.financials.monthly_net_profit >= 0 ? "#4ade80" : "#ef4444");
+
+      // Right Side Buttons
+      this.drawButton("QUIT", width - 100, 15, 80, 30, () => goto('/'), "#ef4444");
+
+      // Bottom Bar
+      const bH = 40;
+      const bY = height - bH;
+      const textY = bY + bH/2;
+
+      ctx.fillStyle = "rgba(15, 23, 42, 0.9)";
+      ctx.fillRect(0, bY, width, bH);
+      ctx.beginPath(); ctx.moveTo(0, bY); ctx.lineTo(width, bY); ctx.stroke();
+
+      x = 20;
+
+      const drawBottomStat = (label: string, value: string, color: string = "#fff") => {
+          ctx.font = "14px monospace";
+          ctx.fillStyle = "#94a3b8";
+          ctx.fillText(label, x, textY);
+          const m = ctx.measureText(label).width;
+          ctx.fillStyle = color;
+          ctx.fillText(value, x + m + 10, textY);
+          x += m + ctx.measureText(value).width + 40;
+      };
+
+      drawBottomStat("STAFF", `${data.staff.total_employees}`);
+      drawBottomStat("EFF", `${data.staff.average_efficiency}%`);
+
+      if (energy) {
+         const eColor = energy.productionSpeed < 1 ? "#fbbf24" : "#4ade80";
+         drawBottomStat("ENERGY", `${Math.round(energy.productionSpeed * 100)}%`, eColor);
+      }
+    }
+
+    drawRevenueModal() {
+        const { ctx, width, height, data } = this;
+        if (!data) return;
+
+        const w = 400;
+        const h = 300;
+        const x = (width - w) / 2;
+        const y = (height - h) / 2;
+
+        // Overlay
+        ctx.fillStyle = "rgba(0,0,0,0.7)";
+        ctx.fillRect(0,0,width,height);
+
+        // Panel
+        ctx.fillStyle = "#1e293b";
+        ctx.strokeStyle = "#475569";
+        ctx.lineWidth = 2;
+        ctx.fillRect(x, y, w, h);
+        ctx.strokeRect(x, y, w, h);
+
+        // Header
+        ctx.fillStyle = "#fff";
+        ctx.font = "bold 20px monospace";
+        ctx.textAlign = "center";
+        ctx.fillText("REVENUE BREAKDOWN", width/2, y + 40);
+
+        // Content
+        ctx.font = "16px monospace";
+        ctx.textAlign = "left";
+        let ty = y + 80;
+
+        const row = (label: string, val: number) => {
+            ctx.fillStyle = "#94a3b8";
+            ctx.fillText(label, x + 30, ty);
+            ctx.textAlign = "right";
+            ctx.fillStyle = val >= 0 ? "#4ade80" : "#ef4444";
+            ctx.fillText(this.formatMoney(val), x + w - 30, ty);
+            ctx.textAlign = "left";
+            ty += 30;
+        };
+
+        row("Gross Revenue", data.financials.monthly_net_profit + data.financials.daily_payroll * 30); // Approx
+        row("Expenses", -(data.financials.daily_payroll * 30));
+
+        ctx.beginPath(); ctx.moveTo(x+20, ty); ctx.lineTo(x+w-20, ty); ctx.stroke();
+        ty += 20;
+
+        row("Net Profit", data.financials.monthly_net_profit);
+
+        // Close Button
+        this.drawButton("CLOSE", width/2 - 50, y + h - 50, 100, 30, () => this.showRevenueModal = false);
+    }
+
+    drawButton(text: string, x: number, y: number, w: number, h: number, action: () => void, color: string = "#6366f1") {
+        const { ctx, input } = this;
+        const hovered = this.checkHover(x, y, w, h);
+
+        if (hovered) {
+            document.body.style.cursor = "pointer";
+            if (input.clicked) action();
+        }
+
+        ctx.fillStyle = hovered ? color : "#334155";
+        ctx.fillRect(x, y, w, h);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x, y, w, h);
+
+        ctx.fillStyle = "#fff";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.font = "bold 14px monospace";
+        ctx.fillText(text, x + w/2, y + h/2);
+    }
+
+    drawTextCentered(text: string, x: number, y: number, size: number, color: string) {
+        this.ctx.font = `bold ${size}px monospace`;
+        this.ctx.fillStyle = color;
+        this.ctx.textAlign = "center";
+        this.ctx.textBaseline = "middle";
+        this.ctx.fillText(text, x, y);
+    }
+
+    drawParticles() {
+        const { ctx } = this;
+        this.particles.forEach(p => {
+            ctx.globalAlpha = p.life;
+            ctx.fillStyle = p.color;
+            ctx.beginPath(); ctx.arc(p.x, p.y, 2, 0, Math.PI*2); ctx.fill();
+        });
+        ctx.globalAlpha = 1;
+    }
+
+    spawnParticles(x: number, y: number, count: number, color: string) {
+        for(let i=0; i<count; i++) {
+            this.particles.push({
+                x, y,
+                vx: (Math.random() - 0.5) * 10,
+                vy: (Math.random() - 0.5) * 10,
+                life: 1.0,
+                color
+            });
+        }
+    }
+
+    async handleLevelUp() {
+        if (!this.data) return;
+        const cost = Math.floor(1000 * Math.pow(this.data.company.level, 1.5));
+        if (this.data.financials.cash < cost) {
+            this.spawnParticles(this.width/2, this.height/2, 20, "#ef4444"); // Red fail
+            return;
+        }
+
+        try {
+            // Optimistic update for visual feedback
+            this.spawnParticles(this.width/2, this.height/2, 50, "#fbbf24"); // Gold success
+
+            // Real update
+             const companyFull = await pb.collection("companies").getOne(this.data.company.id);
+             await levelUpCompany(companyFull as unknown as Company, cost);
+             await this.loadData(pb.authStore.model!.id);
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    checkHover(x: number, y: number, w: number, h: number): boolean {
+        const mx = this.input.mouse.x;
+        const my = this.input.mouse.y;
+        return mx >= x && mx <= x + w && my >= y && my <= y + h;
+    }
+
+    formatMoney(val: number): string {
+        if (Math.abs(val) >= 1_000_000) return (val/1_000_000).toFixed(1) + "M€";
+        if (Math.abs(val) >= 1_000) return (val/1_000).toFixed(0) + "k€";
+        return val.toFixed(0) + "€";
+    }
+
+    destroy() {
+        cancelAnimationFrame(this.animationId);
+        window.removeEventListener("resize", () => this.resize());
+        // Clean up other listeners if needed
+    }
+  }
+
+  // --- SVELTE LIFECYCLE ---
+  let canvas: HTMLCanvasElement;
+  let game: Game;
+
+  onMount(() => {
     if (canvas) {
-      ctx = canvas.getContext("2d");
-      resize();
-      animate();
+        game = new Game(canvas);
+        game.init();
     }
   });
 
   onDestroy(() => {
-      if (typeof window !== 'undefined' && animationId) cancelAnimationFrame(animationId);
-      if (typeof document !== 'undefined') document.body.style.cursor = "default";
+    if (game) game.destroy();
   });
 
 </script>
 
 <svelte:head>
-  <title>Game Mode | Ketsuna</title>
+  <title>Ketsuna Engine</title>
 </svelte:head>
 
-<svelte:window onresize={resize} />
-
-<div class="relative w-full h-screen overflow-hidden bg-slate-950 text-slate-200 font-sans">
-
-    <canvas
-        bind:this={canvas}
-        onmousemove={handleMouseMove}
-        onclick={handleCanvasClick}
-        class="absolute inset-0 block cursor-crosshair"
-    ></canvas>
-
-    <!-- Overlay UI for Non-Game Actions -->
-    <div class="absolute top-4 right-4 flex gap-2">
-        <button
-            onclick={logout}
-            class="bg-slate-800/80 hover:bg-slate-700 text-slate-200 px-4 py-2 rounded-xl border border-slate-700 backdrop-blur-sm transition-all text-sm font-medium z-10 cursor-pointer"
-        >
-            Quitter
-        </button>
-    </div>
-
-    {#if loading}
-        <div class="absolute inset-0 flex items-center justify-center bg-slate-950/80 z-50">
-            <div class="text-center">
-                <div class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-indigo-500 border-r-transparent"></div>
-                <p class="mt-4 text-indigo-300">Initialisation du système...</p>
-            </div>
-        </div>
-    {/if}
-
-    {#if showCreateCompany}
-        <div class="absolute inset-0 flex items-center justify-center bg-slate-950/90 z-50 p-4">
-             <div class="max-w-md w-full">
-                <h2 class="text-2xl font-bold text-white mb-4 text-center">Initialisation de la Corporation</h2>
-                <CreateCompanyForm onCreated={loadDashboard} />
-             </div>
-        </div>
-    {/if}
-
-    {#if error}
-         <div class="absolute inset-0 flex items-center justify-center bg-slate-950/90 z-50">
-            <div class="bg-red-900/20 border border-red-500/50 p-6 rounded text-center">
-                <p class="text-red-400 font-bold">Erreur Critique</p>
-                <p class="text-red-300">{error}</p>
-            </div>
-        </div>
-    {/if}
-
-    {#if isRevenueModalOpen && dashboardData}
-        <RevenueDetailModal
-        isOpen={isRevenueModalOpen}
-        onClose={() => (isRevenueModalOpen = false)}
-        breakdown={dashboardData.financials.profit_breakdown}
-        daily_view={dashboardData.financials.daily_view}
-        monthlyProfit={dashboardData.financials.monthly_net_profit}
-        {formatCurrency}
-        />
-    {/if}
+<!-- Full Screen Container, Z-Index 50 to cover global layout -->
+<div class="fixed inset-0 z-50 bg-slate-950 overflow-hidden">
+    <canvas bind:this={canvas} class="block w-full h-full"></canvas>
 </div>
