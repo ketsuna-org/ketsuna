@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Machine, Recipe } from "$lib/pocketbase";
   import { slide } from "svelte/transition";
+  import { getItem } from "$lib/data/game-static";
 
   interface Props {
     machine: Machine;
@@ -22,7 +23,7 @@
     isExtractor = false,
   }: Props = $props();
 
-  let machineItem = $derived(machine.expand?.machine);
+  let machineItem = $derived(getItem(machine.machine_id));
   let isDepositEmpty = $derived(
     isExtractor &&
       currentDeposit &&
@@ -66,17 +67,20 @@
       {/if}
       <div class="flex flex-col gap-4 mb-4">
         <!-- Inputs -->
-        {#if machineRecipe.expand?.inputs_items && machineRecipe.expand.inputs_items.length > 0}
+        {#if machineRecipe.inputs_items && machineRecipe.inputs_items.length > 0}
           <div class="space-y-2">
             <span class="text-xs text-slate-500 font-semibold uppercase"
               >Requis</span
             >
             <div class="flex flex-wrap gap-2">
-              {#each machineRecipe.expand.inputs_items as input}
+              {#each machineRecipe.inputs_items as inputId}
+                {@const input = getItem(inputId)}
                 <div
                   class="flex items-center gap-2 px-3 py-1.5 bg-slate-900 rounded-lg text-xs border border-slate-800"
                 >
-                  <span class="text-slate-300 font-medium">{input.name}</span>
+                  <span class="text-slate-300 font-medium"
+                    >{input?.name || inputId}</span
+                  >
                   <span class="text-amber-400 font-mono font-bold"
                     >x{machineRecipe.input_quantity}</span
                   >
@@ -105,20 +109,21 @@
         {/if}
 
         <!-- Complex Ingredients (with specific quantity) -->
-        {#if machineRecipe.expand?.ingredients && machineRecipe.expand.ingredients.length > 0}
+        {#if machineRecipe.ingredients && machineRecipe.ingredients.length > 0}
           <div class="space-y-2 mt-2">
-            {#if !machineRecipe.expand?.inputs_items?.length}
+            {#if !machineRecipe.inputs_items?.length}
               <span class="text-xs text-slate-500 font-semibold uppercase"
                 >Requis</span
               >
             {/if}
             <div class="flex flex-wrap gap-2">
-              {#each machineRecipe.expand.ingredients as ing}
+              {#each machineRecipe.ingredients as ing}
+                {@const ingItem = getItem(ing.item)}
                 <div
                   class="flex items-center gap-2 px-3 py-1.5 bg-slate-900 rounded-lg text-xs border border-slate-800"
                 >
                   <span class="text-slate-300 font-medium"
-                    >{ing.expand?.item?.name || "???"}</span
+                    >{ingItem?.name || "???"}</span
                   >
                   <span class="text-amber-400 font-mono font-bold"
                     >x{ing.quantity}</span
@@ -129,7 +134,7 @@
           </div>
 
           <!-- Arrow Separator if not displayed above -->
-          {#if !machineRecipe.expand?.inputs_items?.length}
+          {#if !machineRecipe.inputs_items?.length}
             <div class="flex justify-center text-slate-600 mt-2">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -169,7 +174,7 @@
           >
             <span class="text-sm font-bold text-white flex items-center gap-2">
               <span class="text-indigo-400">📦</span>
-              {machineRecipe.expand?.output_item?.name ||
+              {getItem(machineRecipe.output_item)?.name ||
                 machineRecipe.name ||
                 "Item"}
             </span>
@@ -267,7 +272,8 @@
             >
             unité(s) de
             <span class="text-emerald-400 font-bold"
-              >{machineItem.expand?.product?.name || "Produit Inconnu"}</span
+              >{getItem(machineItem.product || "")?.name ||
+                "Produit Inconnu"}</span
             >
           </p>
           <p class="text-[10px] text-slate-500 mt-1">
@@ -324,17 +330,19 @@
       </div>
 
       <!-- Consumed Items -->
-      {#if machineItem.expand?.can_consume && Array.isArray(machineItem.expand.can_consume) && machineItem.expand.can_consume.length > 0}
+      {#if machineItem.can_consume && Array.isArray(machineItem.can_consume) && machineItem.can_consume.length > 0}
         <div class="space-y-2 mb-4">
           <span class="text-xs text-slate-500 font-semibold uppercase"
             >Consomme</span
           >
           <div class="flex flex-wrap gap-2">
-            {#each machineItem.expand.can_consume as consumable}
+            {#each machineItem.can_consume as consumableId}
+              {@const consumable = getItem(consumableId)}
               <div
                 class="flex items-center gap-2 px-3 py-1.5 bg-slate-900 rounded-lg text-xs border border-slate-800"
               >
-                <span class="text-slate-300 font-medium">{consumable.name}</span
+                <span class="text-slate-300 font-medium"
+                  >{consumable?.name || consumableId}</span
                 >
                 <span class="text-red-400 font-mono font-bold">x1</span>
               </div>

@@ -10,45 +10,10 @@
     onfire: (id: string) => void;
     assignedMachine?: string | null;
   }>();
-
-  function getRarityInfo(rarity: number) {
-    switch (rarity) {
-      case 3: // legendary
-        return {
-          label: "Legendary",
-          badge: "bg-amber-500/20 text-amber-400 border border-amber-500/50",
-          container:
-            "bg-amber-950/20 border-amber-500/30 hover:border-amber-500/60 hover:bg-amber-900/30",
-        };
-      case 2: // epic
-        return {
-          label: "Epic",
-          badge: "bg-purple-500/20 text-purple-400 border border-purple-500/50",
-          container:
-            "bg-purple-950/20 border-purple-500/30 hover:border-purple-500/60 hover:bg-purple-900/30",
-        };
-      case 1: // rare
-        return {
-          label: "Rare",
-          badge: "bg-blue-500/20 text-blue-400 border border-blue-500/50",
-          container:
-            "bg-blue-950/20 border-blue-500/30 hover:border-blue-500/60 hover:bg-blue-900/30",
-        };
-      default: // common
-        return {
-          label: "Common",
-          badge: "bg-slate-600/20 text-slate-400 border border-slate-600/50",
-          container:
-            "bg-slate-900/40 border-slate-700/50 hover:border-slate-600 hover:bg-slate-900/60",
-        };
-    }
-  }
-
-  let rarityInfo = $derived(getRarityInfo(employee.rarity));
 </script>
 
 <div
-  class="p-5 rounded-2xl border transition-all hover:shadow-lg group relative overflow-hidden {rarityInfo.container}"
+  class="p-5 rounded-2xl border transition-all hover:shadow-lg group relative overflow-hidden bg-slate-900/40 border-slate-700/50 hover:border-slate-600 hover:bg-slate-900/60"
 >
   <div class="flex justify-between items-start mb-4 relative z-10">
     <div>
@@ -72,11 +37,6 @@
         {employee.poste || "Employé"}
       </p>
     </div>
-    <span
-      class={`text-[10px] uppercase font-bold px-2 py-1 rounded-lg border ${rarityInfo.badge}`}
-    >
-      {rarityInfo.label}
-    </span>
   </div>
 
   <div class="space-y-3 relative z-10">
@@ -113,7 +73,7 @@
     </div>
 
     <!-- Skills Grid -->
-    <div class="grid grid-cols-4 gap-1.5">
+    <div class="grid grid-cols-3 gap-1.5">
       <div
         class="bg-slate-950/30 rounded-lg p-2 border border-slate-800/50 text-center"
       >
@@ -136,14 +96,6 @@
         <p class="text-[9px] text-slate-500 font-bold uppercase">🔧 Maint</p>
         <p class="text-emerald-400 font-bold font-mono text-sm">
           {employee.maintenance ?? 0}
-        </p>
-      </div>
-      <div
-        class="bg-slate-950/30 rounded-lg p-2 border border-slate-800/50 text-center"
-      >
-        <p class="text-[9px] text-slate-500 font-bold uppercase">⚡ Eff</p>
-        <p class="text-purple-400 font-bold font-mono text-sm">
-          {employee.efficiency ?? 0}%
         </p>
       </div>
     </div>

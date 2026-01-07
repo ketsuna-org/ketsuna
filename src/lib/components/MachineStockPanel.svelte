@@ -4,6 +4,7 @@
    * Allows clicking to assign a machine from inventory to active production.
    */
   import type { InventoryItem } from "$lib/pocketbase";
+  import { getItem } from "$lib/data/game-static";
 
   let {
     availableStock,
@@ -45,7 +46,7 @@
         >
           <div class="flex justify-between items-start">
             <span class="font-semibold text-sm text-indigo-100 truncate"
-              >{inv.expand?.item?.name || "Machine"}</span
+              >{getItem(inv.item_id)?.name || "Machine"}</span
             >
             <span
               class="bg-indigo-500/20 text-indigo-300 text-[10px] px-1.5 py-0.5 rounded border border-indigo-500/10"
@@ -71,7 +72,7 @@
                 if (qty > 0 && qty <= maxQty && !installing[inv.id]) {
                   installing[inv.id] = true;
                   try {
-                    await onAssign(inv.item, qty);
+                    await onAssign(inv.item_id, qty);
                     quantities[inv.id] = 1;
                   } finally {
                     installing[inv.id] = false;

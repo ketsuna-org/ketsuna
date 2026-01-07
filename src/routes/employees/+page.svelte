@@ -16,6 +16,7 @@
   import { page } from "$app/stores";
   import { goto } from "$app/navigation";
   import { notifications } from "$lib/notifications";
+  import { getItem } from "$lib/data/game-static";
 
   const PER_PAGE = 20;
 
@@ -134,7 +135,7 @@
   let employeeToMachine = $derived.by(() => {
     const map = new Map<string, string>();
     for (const machine of machines) {
-      const machineName = machine.expand?.machine?.name || "Machine";
+      const machineName = getItem(machine.machine_id)?.name || "Machine";
       for (const empId of machine.employees || []) {
         map.set(empId, machineName);
       }
@@ -270,13 +271,13 @@
         await Promise.all([
           pb.collection("employees").getList<Employee>(page, PER_PAGE, {
             filter,
-            sort: "-efficiency",
+            sort: "-created",
+            expand: "deposit,exploration",
             requestKey: null,
           }),
           page === 1
             ? pb.collection("machines").getList<Machine>(1, 100, {
                 filter: `company = "${$activeCompany.id}"`,
-                expand: "machine",
                 requestKey: null,
               })
             : Promise.resolve(null),

@@ -11,6 +11,12 @@
   import NavigationHub from "$lib/components/NavigationHub.svelte";
   import NavFab from "$lib/components/NavFab.svelte";
   import Footer from "$lib/components/Footer.svelte";
+  import { loadGameData } from "$lib/data/game-static";
+  // Import stores to initialize them (they auto-start when imported)
+  import { gamedataStore } from "$lib/stores/gamedataStore";
+  import { graphRefreshStore } from "$lib/stores/graphRefreshStore";
+
+  import { page } from "$app/stores";
 
   let { children } = $props();
 
@@ -20,7 +26,8 @@
     // Initialise Firebase/Analytics
     initFirebase();
 
-    // Sync auth state
+    // Load static game data from backend API
+    loadGameData();
     pb.authStore.onChange(async (token, model) => {
       currentUser.set(model);
       if (model && model.active_company) {
@@ -44,10 +51,12 @@
 </svelte:head>
 
 <div class="flex flex-col min-h-screen">
-  <div class="flex-grow">
+  <div class="grow">
     {@render children()}
   </div>
-  <Footer />
+  {#if !$page.url.pathname.startsWith("/factory")}
+    <Footer />
+  {/if}
 </div>
 
 <NotificationCenter />

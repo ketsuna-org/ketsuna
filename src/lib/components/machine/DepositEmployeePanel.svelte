@@ -1,26 +1,33 @@
 <script lang="ts">
-  import type { Machine, Employee } from "$lib/pocketbase";
+  import type { Employee } from "$lib/pocketbase";
   import pb from "$lib/pocketbase";
   import { notifications } from "$lib/notifications";
-  import { slide } from "svelte/transition";
+
+  // Using specific Deposit type interface or generic Record
+  interface Deposit {
+    id: string;
+    employees?: string[];
+    expand?: {
+      employees?: Employee[];
+    };
+    // Other fields can be optional
+  }
 
   interface Props {
-    machine: Machine;
+    deposit: Deposit;
     availableEmployees: Employee[];
-    busyEmployeeIds: Set<string>;
     isLoading: boolean;
     onLoadingChange: (loading: boolean) => void;
-    onMachineUpdate?: (() => void) | null;
+    onDepositUpdate?: (() => void) | null;
     onRefresh?: (() => Promise<void>) | null;
   }
 
   let {
-    machine,
+    deposit,
     availableEmployees,
-    busyEmployeeIds,
     isLoading,
     onLoadingChange,
-    onMachineUpdate = null,
+    onDepositUpdate = null,
     onRefresh = null,
   }: Props = $props();
 
@@ -50,16 +57,18 @@
   async function handleAssignEmployee(employeeId: string) {
     onLoadingChange(true);
     try {
-      await pb.send("/api/machines/assign-employee", {
+      // Use the specific custom endpoint for assignment validation logic
+      await pb.send("/api/deposits/assign-employee", {
         method: "POST",
         body: {
-          machineId: machine.id,
+          depositId: deposit.id,
           employeeId: employeeId,
         },
       });
+
       notifications.success("✨ Employé assigné");
       employeeSearchQuery = "";
-      onMachineUpdate?.();
+      onDepositUpdate?.();
     } catch (error: any) {
       notifications.error(`Erreur: ${error.message}`);
     } finally {
@@ -70,14 +79,15 @@
   async function handleRemoveEmployee(employeeId: string) {
     onLoadingChange(true);
     try {
-      await pb.send("/api/machines/unassign-employee", {
+      // Use the specific custom endpoint
+      await pb.send("/api/deposits/unassign-employee", {
         method: "POST",
         body: {
           employeeId: employeeId,
         },
       });
       notifications.success("✨ Employé désassigné");
-      onMachineUpdate?.();
+      onDepositUpdate?.();
     } catch (error: any) {
       notifications.error(`Erreur: ${error.message}`);
     } finally {
@@ -86,23 +96,26 @@
   }
 
   async function handleUnassignAll() {
-    const assigned = machine.expand?.employees || [];
-    if (assigned.length === 0) return;
+    if (!deposit.expand?.employees || deposit.expand.employees.length === 0)
+      return;
 
     onLoadingChange(true);
     try {
-      // Parallel unassign
-      await Promise.all(
-        assigned.map((emp: any) =>
-          pb.send("/api/machines/unassign-employee", {
-            method: "POST",
-            body: { employeeId: emp.id },
-          })
-        )
+      // Sequentially unassign all (optimally backend should have bulk unassign but manual loop is safe for now)
+      // Or updated deposit update logic? No, Employees have the relation.
+      // Let's loop for now or just trust manual removal.
+      // Better: Backend endpoints handle single ops.
+      // For 'Unassign All', we might want to just call unassign for each.
+      const promises = deposit.expand.employees.map((emp) =>
+        pb.send("/api/deposits/unassign-employee", {
+          method: "POST",
+          body: { employeeId: emp.id },
+        })
       );
+      await Promise.all(promises);
 
-      notifications.success(`${assigned.length} employé(s) désassigné(s)`);
-      onMachineUpdate?.();
+      notifications.success("Employés désassignés");
+      onDepositUpdate?.();
     } catch (error: any) {
       notifications.error(`Erreur: ${error.message}`);
     } finally {
@@ -119,8 +132,8 @@
         type="text"
         bind:value={employeeSearchQuery}
         onfocus={toggleDropdown}
-        placeholder="🔍 Rechercher un employé à assigner..."
-        class="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 transition-all"
+        placeholder="🔍 Rechercher un mineur..."
+        class="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50 transition-all"
       />
       {#if employeeSearchQuery}
         <button
@@ -138,7 +151,7 @@
     <!-- Dropdown with filtered results -->
     {#if showEmployeeDropdown && filteredAvailableEmployees.length > 0}
       <div
-        class="absolute top-full left-0 right-0 mt-2 bg-slate-900 border border-indigo-500/30 rounded-xl shadow-2xl overflow-hidden max-h-60 overflow-y-auto"
+        class="absolute top-full left-0 right-0 mt-2 bg-slate-900 border border-emerald-500/30 rounded-xl shadow-2xl overflow-hidden max-h-60 overflow-y-auto"
       >
         <div class="p-2 space-y-1">
           {#each filteredAvailableEmployees as employee (employee.id)}
@@ -149,7 +162,7 @@
             >
               <div class="flex items-center gap-2">
                 <div
-                  class="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold bg-indigo-500/20 text-indigo-400"
+                  class="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold bg-emerald-500/20 text-emerald-400"
                 >
                   {employee.name.charAt(0)}
                 </div>
@@ -162,9 +175,9 @@
               </div>
               <div class="flex items-center gap-2">
                 <span
-                  class="text-[10px] font-mono text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded"
+                  class="text-[10px] font-mono text-cyan-400 bg-cyan-500/10 px-1.5 py-0.5 rounded"
                 >
-                  🔧{employee.maintenance ?? 0}
+                  ⛏️{employee.mining ?? 0}
                 </span>
               </div>
             </button>
@@ -191,7 +204,7 @@
     ></button>
   {/if}
 
-  <!-- 2. Collapsible Header (Operator count) -->
+  <!-- 2. Collapsible Header (Mineur count) -->
   <div class="flex items-center justify-between">
     <button
       onclick={() => (showAssignedEmployees = !showAssignedEmployees)}
@@ -212,19 +225,19 @@
           : ''}"><polyline points="6 9 12 15 18 9"></polyline></svg
       >
       <span
-        class="w-1.5 h-1.5 rounded-full {machine.expand?.employees &&
-        machine.expand.employees.length > 0
+        class="w-1.5 h-1.5 rounded-full {deposit.expand?.employees &&
+        deposit.expand.employees.length > 0
           ? 'bg-emerald-500'
           : 'bg-slate-500'}"
       ></span>
       <span
         class="text-xs font-bold text-slate-400 uppercase tracking-wider group-hover:text-slate-300 transition-colors"
       >
-        Opérateurs ({machine.expand?.employees?.length || 0})
+        Mineurs ({deposit.expand?.employees?.length || 0})
       </span>
     </button>
 
-    {#if machine.expand?.employees && machine.expand.employees.length > 0}
+    {#if deposit.expand?.employees && deposit.expand.employees.length > 0}
       <button
         onclick={handleUnassignAll}
         disabled={isLoading}
@@ -237,20 +250,20 @@
 
   <!-- 3. Assigned employees list (Compact badges) -->
   {#if showAssignedEmployees}
-    {#if machine.expand?.employees && machine.expand.employees.length > 0}
+    {#if deposit.expand?.employees && deposit.expand.employees.length > 0}
       <div class="flex flex-wrap gap-2">
-        {#each machine.expand.employees as employee (employee.id)}
+        {#each deposit.expand.employees as employee (employee.id)}
           <div
             class="flex items-center gap-2 px-2.5 py-1.5 bg-slate-800/80 rounded-lg border border-slate-700/50 group hover:bg-slate-800 transition-colors"
           >
             <div
-              class="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold bg-indigo-500/20 text-indigo-400"
+              class="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold bg-emerald-500/20 text-emerald-400"
             >
               {employee.name.charAt(0)}
             </div>
             <span class="text-xs font-medium text-white">{employee.name}</span>
-            <span class="text-[10px] font-mono text-emerald-400"
-              >⚡{(employee.efficiency || 1.0).toFixed(1)}x</span
+            <span class="text-[10px] font-mono text-cyan-400"
+              >⛏️{employee.mining ?? 0}</span
             >
             <button
               onclick={() => handleRemoveEmployee(employee.id)}
@@ -266,7 +279,7 @@
       <div
         class="p-3 border border-dashed border-slate-800 rounded-lg text-center"
       >
-        <p class="text-xs text-slate-500">Aucun opérateur assigné</p>
+        <p class="text-xs text-slate-500">Aucun mineur assigné</p>
       </div>
     {/if}
   {/if}

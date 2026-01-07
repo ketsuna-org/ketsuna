@@ -1,5 +1,6 @@
 import Pocketbase, { LocalAuthStore } from "pocketbase";
 import type { RecordService } from "pocketbase";
+import type { Item, Recipe, Technology } from "$lib/types/game";
 
 // ============================================================================
 // Base Record Type (common fields for all collections)
@@ -8,10 +9,12 @@ export interface BaseRecord {
   id: string;
   created: string;
   updated: string;
+  collectionId: string;
+  collectionName: string;
 }
 
 // ============================================================================
-// Collection Types - Generated from pb_schema.json
+// Collection Types - Synchronized with pb_schema.json
 // ============================================================================
 
 // users (auth collection)
@@ -33,130 +36,115 @@ export interface User extends BaseRecord {
 
 // companies
 export interface Company extends BaseRecord {
-  collectionId?: string;
-  collectionName?: string;
   ceo: string;
   name: string;
+  location?: { lat: number; lng: number };
   balance: number;
   level: number;
   is_npc: boolean;
-  is_producing: string; // date
-  item_harvesting: string;
-  employee_count?: number; // computed field (not in schema, populated by queries)
-  machine_count?: number; // computed field (not in schema, populated by queries)
+  machine_count?: number; // Optional derived field
+  employee_count?: number; // Optional derived field
+  // Expanded relations
   expand?: {
     ceo?: User;
-    item_harvesting?: Item;
   };
 }
 
 // company_techs
 export interface CompanyTech extends BaseRecord {
   company: string;
-  technology: string;
+  technology_id: string; // Static ID
   expand?: {
     company?: Company;
-    technology?: Technology;
   };
 }
 
 // deposits
 export interface Deposit extends BaseRecord {
   company: string;
-  ressource: string;
+  ressource_id: string; // Static ID
   quantity: number;
-  size: number; // Niveau du gisement (1-10), détermine la capacité (size * 5 employés/machines)
-  location?: { lat: number; lon: number };
+  size: number;
+  location?: { lat: number; lng: number };
+  last_harvest_at?: string;
+  harvested?: number;
   expand?: {
     company?: Company;
-    ressource?: Item;
   };
+}
+
+// edge_relation (Connections for the factory canvas)
+export interface EdgeRelation extends BaseRecord {
+  input_id: string;
+  input_type: "deposit" | "machine" | "storage";
+  output_id: string;
+  output_type: "company" | "machine" | "storage";
+  item: string; // Static ID
 }
 
 // employees
 export interface Employee extends BaseRecord {
   employer: string;
   name: string;
-  rarity: number;
   salary: number;
-  efficiency: number;
   deposit?: string;
+  machine?: string; // Relation to machine where they work
   exploration?: string;
   exploration_luck: number; // 0-10
   mining: number; // 0-10
   energy: number; // 0-100
   maintenance: number; // 0-10
+  energy_cycle_start?: string;
+  // efficiency and rarity are NOT in schema.json, keeping optional if used in older logic or derived
+  efficiency?: number; 
+  rarity?: 0 | 1 | 2 | 3; 
   poste: "Manutentionnaire" | "Opérateur" | "Ouvrier" | "Mineur" | "Explorateur" | "PDG" | string;
   expand?: {
     employer?: Company;
     deposit?: Deposit;
+    machine?: Machine;
     exploration?: Exploration;
   };
 }
 
+
 // explorations
 export interface Exploration extends BaseRecord {
   company: string;
-  target_resource: string;
+  target_resource_id: string; // Static ID
   status: "En cours" | "Echec" | "Succès";
   end_time: string;
   expand?: {
     company?: Company;
-    target_resource?: Item;
   };
 }
 
 // inventory
 export interface InventoryItem extends BaseRecord {
   company: string;
-  item: string;
+  item_id: string; // Static ID
   quantity: number;
+  linked_storage?: string; // Relation to machines (Stockage)
   expand?: {
     company?: Company;
-    item?: Item;
+    linked_storage?: Machine;
   };
 }
 
-// items
-export interface Item extends BaseRecord {
-  name: string;
-  type: "Ressource Brute" | "Composant" | "Produit Fini" | "Machine" | "Stockage";
-  base_price: number;
-  volatility: number;
-  product: string;
-  product_quantity: number;
-  use_recipe: string;
-  production_time: number;
-  max_employee: number;
-  can_store: string[];
-  produce_energy: number;
-  can_consume: string[];
-  can_store_energy: number;
-  need_energy: number;
-  energy_type: "Soleil" | "Electricité" | "Fosille" | "Manuel";
-  circulating_supply: number;
-  market_demand: number;
-  minable: boolean;
-  is_explorable: boolean;
-  expand?: {
-    product?: Item;
-    use_recipe?: Recipe;
-    can_store?: Item[];
-    can_consume?: Item[];
-  };
-}
-
-// machines (assigned machines in workshop)
+// machines
 export interface Machine extends BaseRecord {
-  machine: string;
-  employees: string[];
+  machine_id: string; // Static ID
+  // employees is NOT a direct field in schema, but a reverse relation. 
+  // We keep it in expand. Removing top-level to avoid confusion, or optional.
   company: string;
   production_started_at: string;
   stored_energy: number;
-  deposit: string;
+  durability: number;
+  deposit?: string;
+  location?: { lat: number; lng: number };
+  placed: boolean;
   expand?: {
-    machine?: Item;
-    employees?: Employee[];
+    employees?: Employee[]; // Manually populated or expanded
     company?: Company;
     deposit?: Deposit;
   };
@@ -171,112 +159,33 @@ export interface Message extends BaseRecord {
   };
 }
 
-// recipes
-export interface Recipe extends BaseRecord {
-  name: string;
-  output_item: string;
-  production_time: number;
-  required_tech: string;
-  inputs_items: string[];
-  input_quantity: number;
-  ingredients: string[];
-  expand?: {
-    output_item?: Item;
-    required_tech?: Technology;
-    inputs_items?: Item[];
-    ingredients?: RecipeIngredient[];
-  };
-}
-
-// recipes_ingredients
-export interface RecipeIngredient extends BaseRecord {
-  item: string;
-  quantity: number;
-  expand?: {
-    item?: Item;
-  };
-}
-
-// reserve
-export interface Reserve extends BaseRecord {
-  company: string;
-  item: string;
-  quantity: number;
-  expand?: {
-    company?: Company;
-    item?: Item;
-  };
-}
-
-// shareholders
-export interface Shareholder extends BaseRecord {
-  holder_company: string;
-  stock: string;
-  quantity: number;
-  expand?: {
-    holder_company?: Company;
-    stock?: Stock;
-  };
-}
-
-// stocks
-export interface Stock extends BaseRecord {
-  company: string;
-  symbol: string;
-  share_price: number;
-  total_shares: number;
-  shares_owned_by_public: number;
-  volatility: number;
-  price_history_json: unknown;
-  expand?: {
-    company?: Company;
-  };
-}
-
-// technologies
-export interface Technology extends BaseRecord {
-  name: string;
-  description: string;
-  cost: number;
-  required_level: number;
-  item_unlocked: string[];
-  expand?: {
-    item_unlocked?: Item[];
-  };
-}
-
 // ============================================================================
 // TypedPocketBase - Provides typed collection() methods
 // ============================================================================
 export interface TypedPocketBase extends Pocketbase {
-  collection(idOrName: string): RecordService; // default fallback
+  collection(idOrName: string): RecordService;
   collection(idOrName: "users"): RecordService<User>;
   collection(idOrName: "companies"): RecordService<Company>;
   collection(idOrName: "company_techs"): RecordService<CompanyTech>;
   collection(idOrName: "deposits"): RecordService<Deposit>;
+  collection(idOrName: "edge_relation"): RecordService<EdgeRelation>;
   collection(idOrName: "employees"): RecordService<Employee>;
   collection(idOrName: "explorations"): RecordService<Exploration>;
   collection(idOrName: "inventory"): RecordService<InventoryItem>;
-  collection(idOrName: "items"): RecordService<Item>;
   collection(idOrName: "machines"): RecordService<Machine>;
   collection(idOrName: "messages"): RecordService<Message>;
-  collection(idOrName: "recipes"): RecordService<Recipe>;
-  collection(idOrName: "recipes_ingredients"): RecordService<RecipeIngredient>;
-  collection(idOrName: "reserve"): RecordService<Reserve>;
-  collection(idOrName: "shareholders"): RecordService<Shareholder>;
-  collection(idOrName: "stocks"): RecordService<Stock>;
-  collection(idOrName: "technologies"): RecordService<Technology>;
 }
+
+// Re-export static types for convenience
+export type { Item, Recipe, Technology };
 
 // ============================================================================
 // Initialize PocketBase Client
 // ============================================================================
 const authStore = new LocalAuthStore("ketsuna:auth");
+const pb = new Pocketbase("http://127.0.0.1:8090", authStore) as TypedPocketBase;
 
-const pb = new Pocketbase("https://api.ketsuna.com", authStore) as TypedPocketBase;
-
-// Désactiver l'auto-annulation globale pour éviter les erreurs "autocancelled"
-// lors des chargements rapides ou concurrents de données.
+// Global settings
 pb.autoCancellation(false);
 
 export default pb;

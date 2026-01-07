@@ -33,7 +33,7 @@
 </script>
 
 {#if isOpen}
-  <div class="fixed inset-0 z-[60] flex items-center justify-center p-4">
+  <div class="fixed inset-0 z-60 flex items-center justify-center p-4">
     <!-- Backdrop -->
     <div
       class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"
@@ -52,7 +52,7 @@
     >
       <!-- Glow effect -->
       <div
-        class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent {isDestructive
+        class="absolute top-0 left-0 w-full h-1 bg-linear-to-r from-transparent {isDestructive
           ? 'via-red-500'
           : 'via-amber-500'} to-transparent opacity-50"
       ></div>

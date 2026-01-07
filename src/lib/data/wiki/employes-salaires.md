@@ -39,4 +39,22 @@ Certains employés sont spécialisés dans des postes spécifiques (Mineur, Ing�
 
 - Les salaires sont déduits automatiquement toutes les 24h.
 - Licenciez les employés improductifs pour réduire les coûts.
-- Utilisez "Auto-Assign" dans l'Atelier pour optimiser automatiquement.
+
+## ⚡ Cycles de Travail & Énergie
+
+Le travail dans Ketsuna est rythmé par des cycles précis pour garantir la santé de vos employés.
+
+- **Cycle Total** : 48 minutes
+- **Phase de Travail (24 min)** : L'énergie des employés baisse progressivement de 100% à 0%.
+- **Phase de Repos (24 min)** : Les employés se reposent, leur énergie remonte de 0% à 100%.
+
+> [!NOTE]
+> L'énergie est synchronisée pour tous les employés de votre entreprise.
+
+## 🛠️ Maintenance
+
+Les machines s'usent avec le temps ! Pour éviter la casse, vous devez assigner des employés à la maintenance.
+
+- **Dépôt Machines** : Capacité = Taille du dépôt \* 1.
+- **Ratio** : 1 Machine équivaut à **5 employés** en terme de force de travail.
+- **Maintenance** : Max 1 employé par machine. Apporte un bonus de durabilité (+Skill / 10s).

@@ -1,5 +1,6 @@
 import pb from "$lib/pocketbase";
-import type { Technology } from "$lib/pocketbase";
+import type { CompanyTech } from "$lib/pocketbase";
+import { getAllTechnologies, type Technology } from "$lib/data/game-static";
 
 /**
  * Débloque une technologie pour une entreprise
@@ -26,19 +27,16 @@ export async function unlockTechnology(companyId: string, technology: Technology
  * Liste toutes les technologies et marque celles déjà possédées
  */
 export async function fetchTechTree(companyId: string) {
-    const [allTechs, ownedTechs] = await Promise.all([
-        pb.collection("technologies").getFullList<Technology>({
-            sort: "required_level,cost",
-            expand: "item_unlocked",
-            requestKey: null,
-        }),
-        pb.collection("company_techs").getFullList({
-            filter: `company="${companyId}"`,
-            requestKey: null,
-        })
-    ]);
+    // Get owned techs from PocketBase
+    const ownedTechs = await pb.collection("company_techs").getFullList<CompanyTech>({
+        filter: `company="${companyId}"`,
+        requestKey: null,
+    });
 
-    const ownedIds = new Set(ownedTechs.map(ot => ot.technology));
+    const ownedIds = new Set(ownedTechs.map(ot => ot.technology_id));
+
+    // Get all techs from static data
+    const allTechs = getAllTechnologies();
 
     return allTechs.map(tech => ({
         ...tech,

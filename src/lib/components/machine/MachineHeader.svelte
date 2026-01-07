@@ -1,5 +1,7 @@
 <script lang="ts">
   import type { Machine } from "$lib/pocketbase";
+  import { getItem } from "$lib/data/game-static";
+  import GameIcon from "$lib/components/GameIcon.svelte";
 
   interface Props {
     machine: Machine;
@@ -13,8 +15,14 @@
 <div class="mb-6 flex items-start justify-between">
   <div>
     <h3 class="text-xl font-bold text-white flex items-center gap-2">
-      <span class="p-1.5 bg-slate-800 rounded-lg text-lg">🤖</span>
-      {machine.expand?.machine?.name || "Machine"}
+      <span class="p-1.5 bg-slate-800 rounded-lg">
+        <GameIcon
+          icon={getItem(machine.machine_id)?.icon || "🤖"}
+          size={24}
+          alt={getItem(machine.machine_id)?.name || "Machine"}
+        />
+      </span>
+      {getItem(machine.machine_id)?.name || "Machine"}
     </h3>
     <p class="text-xs text-slate-400 font-medium ml-1 mt-1">
       Configuration & production

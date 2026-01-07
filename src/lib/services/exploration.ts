@@ -1,28 +1,6 @@
 import pb from "$lib/pocketbase";
-import type { Item } from "$lib/pocketbase";
-
-export interface Exploration {
-    id: string;
-    company: string;
-    target_resource: string;
-    status: "En cours" | "Succès" | "Echec";
-    end_time: string;
-    expand?: {
-        target_resource: Item;
-    };
-}
-
-export interface Deposit {
-    id: string;
-    company: string;
-    ressource: string; // Corrected to match schema 'ressource'
-    quantity: number;
-    size: number; // Niveau du gisement (1-10)
-    location?: { lat: number; lon: number };
-    expand?: {
-        ressource: Item;
-    };
-}
+import type { Exploration, Deposit } from "$lib/pocketbase";
+export type { Exploration, Deposit } ;
 
 export async function startExploration(targetResourceId: string) {
     return await pb.send("/api/exploration/start", {
@@ -36,8 +14,7 @@ export async function getExplorations(): Promise<Exploration[]> {
 }
 
 export async function getDeposits(companyId: string): Promise<Deposit[]> {
-    return await pb.collection("deposits").getFullList<Deposit>({
+    return await pb.collection("deposits").getFullList({
         filter: `company = "${companyId}"`,
-        expand: "ressource", // Corrected to match schema 'ressource'
     });
 }

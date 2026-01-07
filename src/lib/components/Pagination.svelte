@@ -26,6 +26,7 @@
       class="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:text-white hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
       disabled={currentPage === 1}
       onclick={() => goToPage(currentPage - 1)}
+      aria-label="Page précédente"
     >
       <svg
         xmlns="http://www.w3.org/2000/svg"
@@ -52,6 +53,7 @@
       class="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:text-white hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
       disabled={currentPage === totalPages}
       onclick={() => goToPage(currentPage + 1)}
+      aria-label="Page suivante"
     >
       <svg
         xmlns="http://www.w3.org/2000/svg"
