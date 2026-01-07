@@ -1,24 +1,17 @@
 ---
 title: Produits Finis
 category: ressources
-excerpt: Les biens de consommation à forte valeur ajoutée.
+excerpt: Les objets de haute valeur destinés à être vendus.
 ---
 
-## 📱 Produits Finis
+## 📦 Produits Finis
 
-Le sommet de la chaîne de valeur. Ces produits se vendent cher mais nécessitent des chaînes de production complexes.
+Ces objets complexes sont le résultat de longues chaînes de production. Ils ont une valeur élevée mais ne servent généralement pas à fabriquer d'autres objets.
 
-| Produit               | Prix Base | Volatilité | Composants requis                     |
-| --------------------- | --------- | ---------- | ------------------------------------- |
-| 🔧 Outil en Fer       | 194.60€   | 15%        | Lingot de Fer + Bois                  |
-| ⚡ Moteur Électrique  | 1 507.09€ | 25%        | Cuivre, Fer, Acier, Plastique         |
-| 📱 Smartphone         | 1 823.29€ | 65%        | Verre, Lithium, Or, Cuivre, Plastique |
-| 💻 Ordinateur         | 3 892.99€ | 40%        | Processeur, Circuit, Plastique        |
-| 🚁 Drone de Livraison | 7 576.62€ | 50%        | Moteur, Batterie, Circuit, Plastique  |
+> [!TIP] > **Vente** : Ces produits sont idéaux pour être vendus sur le marché pour générer des profits massifs.
 
-### 💰 Maximiser les Profits
-
-Les produits finis ont la **plus forte volatilité**. Surveillez les cours et vendez quand les prix sont hauts !
-
-- Le **Smartphone** (65% volatilité) peut doubler ou perdre la moitié de sa valeur.
-- L'**Outil en Fer** est stable et idéal pour des revenus constants.
+| Produit                  | Prix Base | Volatilité | Unité |
+| :----------------------- | :-------- | :--------- | :---- |
+| ⚡ **Moteur Électrique** | 2 500€    | 25%        | Unit  |
+| 📱 **Smartphone**        | 8 500€    | 45%        | Unit  |
+| 🖥️ **Ordinateur**        | 12 000€   | 40%        | Unit  |

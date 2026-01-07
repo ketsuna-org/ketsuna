@@ -642,11 +642,11 @@
             </div>
 
             <MachineStockPanel
-              availableStock={availableMachineStock}
+              availableStock={filteredInventory}
               onAssign={handleAssignMachineFromStock}
             />
 
-            {#if filteredMachinesByType.length === 0 && !machineSearchQuery}
+            {#if filteredMachines.length === 0 && !machineSearchQuery}
               <div
                 class="text-center py-16 bg-slate-950/50 rounded-xl border-2 border-dashed border-slate-800"
               >
@@ -670,12 +670,12 @@
 
               <div class="text-sm text-slate-500 font-medium px-1">
                 Affichage de <span class="text-white font-bold"
-                  >{filteredMachinesByType.length}</span
+                  >{filteredMachines.length}</span
                 >
                 {machineTypeTab === "machines" ? "machine(s)" : "stockage(s)"}
               </div>
 
-              {#if filteredMachinesByType.length === 0}
+              {#if filteredMachines.length === 0}
                 <div
                   class="text-center py-12 bg-slate-950/50 rounded-xl border border-slate-800"
                 >
@@ -689,7 +689,7 @@
                 </div>
               {:else}
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {#each filteredMachinesByType as machine (machine.id)}
+                  {#each filteredMachines as machine (machine.id)}
                     <MachineAssignment
                       {machine}
                       {availableEmployees}

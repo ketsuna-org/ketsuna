@@ -8,36 +8,32 @@ excerpt: Les matériaux de base à extraire ou récolter.
 
 Ce sont les matériaux primaires obtenus par récolte manuelle, exploration ou machines d'extraction.
 
-| Ressource            | Prix Base | Volatilité | Récoltable | Explorable |
-| -------------------- | --------- | ---------- | ---------- | ---------- |
-| 🪵 Bois              | 2€        | 0%         | ✅         | ❌         |
-| 🪨 Pierre            | 3€        | 0%         | ✅         | ❌         |
-| 🏖️ Silice (Sable)    | 6.63€     | 10%        | ✅         | ✅         |
-| ⬛ Minerai de Fer    | 8.09€     | 12%        | ❌         | ✅         |
-| 🔶 Minerai de Cuivre | 17.76€    | 18%        | ❌         | ✅         |
-| 🪨 Charbon           | 8.27€     | 25%        | ❌         | ✅         |
-| 💎 Or Brut           | 72.86€    | 40%        | ❌         | ✅         |
-| 🛢️ Pétrole Brut      | 56.82€    | 55%        | ❌         | ✅         |
-| 🔋 Lithium           | 16.94€    | 60%        | ❌         | ❌         |
+| Ressource            | Prix Base | Volatilité | Unité | Récoltable | Explorable |
+| -------------------- | --------- | ---------- | ----- | ---------- | ---------- |
+| 🪵 Bois              | 2.00€     | 0%         | Kg    | ✅         | ❌         |
+| 🪨 Pierre            | 3.00€     | 0%         | Kg    | ✅         | ❌         |
+| 🏜️ Silice (Sable)    | 6.63€     | 10%        | Kg    | ✅         | ❌         |
+| 🔩 Minerai de Fer    | 13.45€    | 15%        | Kg    | ❌         | ✅         |
+| 🟠 Minerai de Cuivre | 21.19€    | 20%        | Kg    | ❌         | ✅         |
+| 🪨 Charbon           | 8.27€     | 25%        | Kg    | ❌         | ✅         |
+| 💎 Or Brut           | 72.86€    | 40%        | Kg    | ❌         | ✅         |
+| 🛢️ Pétrole Brut      | 56.82€    | 55%        | L     | ❌         | ✅         |
+| 🔋 Lithium           | 16.94€    | 60%        | Kg    | ❌         | ❌         |
 
 ### 💡 Conseils
 
-- La **volatilité** indique à quel point les prix fluctuent. Le Lithium et le Pétrole sont les plus instables !
+- La **volatilité** indique à quel point les prix fluctuent.
 - Les ressources "Récoltables" peuvent être obtenues par le PDG ou via des gisements.
 - Les ressources "Explorables" nécessitent des **missions d'exploration** pour trouver des gisements.
 
 ### 🏞️ Gestion des Gisements
 
-L'exploitation des ressources a évolué pour plus de stratégie :
+L'exploitation des ressources repose sur la gestion efficace de vos gisements.
 
-- **Machines limitées** : Chaque gisement possède un nombre limité d'emplacements pour les machines. Choisissez bien votre équipement !
-- **Assignation directe** : Les employés peuvent désormais être assignés directement à un gisement pour booster la production de toutes les machines présentes sur ce site.
-- **Niveau des gisements** : Un gisement de niveau supérieur offre plus d'emplacements et un meilleur rendement.
+- **Capacité en Employés** : `Taille * 5` (Ex: Taille 10 -> 50 employés assignables)
+- **Capacité en Machines** : `Taille * 1` (Ex: Taille 10 -> 10 machines plaçables)
+- **Niveau des gisements** : Un gisement de niveau supérieur offre une taille plus importante.
 
-### 🧭 Exploration Avancée
+### 🧭 Exploration
 
-L'exploration ne coûte plus seulement de l'argent. Pour découvrir de nouveaux gisements, vous devez désormais **envoyer des employés** en mission.
-
-- Choisissez les employés les plus compétents pour maximiser vos chances.
-- Ils seront indisponibles le temps de l'expédition.
-- Bonne chance pour trouver des gisements rares !
+Pour découvrir de nouveaux gisements, vous devez **envoyer des employés** en mission. Choisissez les employés les plus compétents pour maximiser vos chances de trouver des gisements rares.

@@ -6,6 +6,7 @@
   import CompanyNode from "$lib/components/nodes/CompanyNode.svelte";
   import ZoneNode from "$lib/components/nodes/ZoneNode.svelte";
   import GameIcon from "$lib/components/GameIcon.svelte";
+  import ExplorationModal from "$lib/components/ExplorationModal.svelte";
   import { getItem } from "$lib/data/game-static";
   import {
     loadFactory,
@@ -45,6 +46,7 @@
   let nodes = $state<Node[]>([]);
   let edges = $state<Edge[]>([]);
   let unplacedMachines = $state<any[]>([]);
+  let showExploration = $state(false);
   let loading = $state(true);
 
   // Zone ID constant
@@ -444,6 +446,17 @@
     {/if}
 
     <div class="stats-section">
+      <h3>Actions</h3>
+      <button
+        class="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white py-2 px-3 rounded-xl font-bold transition-all shadow-lg hover:shadow-indigo-500/25"
+        onclick={() => (showExploration = true)}
+      >
+        <span>🧭</span>
+        <span>Exploration</span>
+      </button>
+    </div>
+
+    <div class="stats-section">
       <h3>Statistiques</h3>
       <div class="stat-row">
         <span>Machines</span>
@@ -506,6 +519,10 @@
       </div>
     </div>
   </div>
+{/if}
+
+{#if showExploration}
+  <ExplorationModal onClose={() => (showExploration = false)} />
 {/if}
 
 <style>

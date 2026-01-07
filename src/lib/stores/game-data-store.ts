@@ -6,52 +6,17 @@ import { writable, derived, get } from 'svelte/store';
 import pb from '$lib/pocketbase';
 
 // Types matching the backend response
-export interface Item {
-  id: string;
-  name: string;
-  type: string;
-  base_price: number;
-  volatility: number;
-  minable: boolean;
-  is_explorable: boolean;
-  use_recipe?: string;
-  production_time?: number;
-  max_employee?: number;
-  need_energy?: number;
-  produce_energy?: number;
-  energy_type?: string;
-  can_consume?: string[];
-  icon?: string;
-}
+import type { Item, Recipe, Technology } from '$lib/types/game';
+// Types are now imported from $lib/types/game to verify single source of truth
+export type { Item, Recipe, Technology } from '$lib/types/game';
 
 export interface RecipeIngredient {
   item_id: string;
   quantity: number;
 }
 
-export interface Recipe {
-  id: string;
-  name: string;
-  output_item: string;
-  output_quantity: number;
-  production_time: number;
-  required_tech: string;
-  inputs: RecipeIngredient[];
-  machine_type?: string;
-  icon?: string;
-}
 
-export interface Technology {
-  id: string;
-  name: string;
-  description: string;
-  cost: number;
-  required_level: number;
-  item_unlocked: string[];
-  prerequisites?: string[];
-  category?: string;
-  icon?: string;
-}
+
 
 interface GameData {
   items: Item[];

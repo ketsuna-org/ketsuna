@@ -35,6 +35,7 @@
       value: "type",
       options: [
         { label: "Machine", value: "Machine" },
+        { label: "Stockage", value: "Stockage" },
         { label: "Ressource Brute", value: "Ressource Brute" },
         { label: "Composant", value: "Composant" },
       ],
@@ -473,7 +474,7 @@
 
               {#if item.type === "Machine" || item.type === "Stockage"}
                 <div class="flex flex-wrap gap-2 mt-3">
-                  {#if item.energy_type === "Soleil"}
+                  {#if item.energy_type === "Soleil" || item.metadata?.energy_type === "Soleil"}
                     <div
                       class="flex items-center gap-1.5 text-xs bg-yellow-500/10 text-yellow-400 px-2 py-1 rounded-lg border border-yellow-500/20"
                       title="Fonctionne uniquement de 8h à 18h UTC"
@@ -482,20 +483,26 @@
                       <span>Solaire (8h-18h)</span>
                     </div>
                   {/if}
-                  {#if item.need_energy && item.need_energy > 0 && item.energy_type !== "Soleil"}
+                  {#if (item.need_energy && item.need_energy > 0 && item.energy_type !== "Soleil") || (item.metadata?.need_energy && item.metadata.need_energy > 0 && item.metadata.energy_type !== "Soleil")}
                     <div
                       class="flex items-center gap-1.5 text-xs bg-red-500/10 text-red-400 px-2 py-1 rounded-lg border border-red-500/20"
                     >
                       <span>⚡</span>
-                      <span>Conso: {item.need_energy} kW</span>
+                      <span
+                        >Conso: {item.metadata?.need_energy || item.need_energy}
+                        kW</span
+                      >
                     </div>
                   {/if}
-                  {#if item.produce_energy && item.produce_energy > 0}
+                  {#if (item.produce_energy && item.produce_energy > 0) || (item.metadata?.produce_energy && item.metadata.produce_energy > 0)}
                     <div
                       class="flex items-center gap-1.5 text-xs bg-emerald-500/10 text-emerald-400 px-2 py-1 rounded-lg border border-emerald-500/20"
                     >
                       <span>🔋</span>
-                      <span>Prod: +{item.produce_energy} kW</span>
+                      <span
+                        >Prod: +{item.metadata?.produce_energy ||
+                          item.produce_energy} kW</span
+                      >
                     </div>
                   {/if}
                   {#if item.can_store_energy && item.can_store_energy > 0}
@@ -506,12 +513,27 @@
                       <span>Stock: {item.can_store_energy} kWh</span>
                     </div>
                   {/if}
-                  {#if item.max_employee && item.max_employee > 1}
+                  {#if item.metadata?.storage_capacity && item.metadata.storage_capacity > 0}
+                    <div
+                      class="flex items-center gap-1.5 text-xs bg-blue-500/10 text-blue-400 px-2 py-1 rounded-lg border border-blue-500/20"
+                    >
+                      <span>📦</span>
+                      <span
+                        >Stock: {item.metadata.storage_capacity}
+                        {item.metadata.supported_storage_types?.[0] ||
+                          "u"}</span
+                      >
+                    </div>
+                  {/if}
+                  {#if (item.max_employee && item.max_employee > 1) || (item.metadata?.max_employee && item.metadata.max_employee > 1)}
                     <div
                       class="flex items-center gap-1.5 text-xs bg-indigo-500/10 text-indigo-400 px-2 py-1 rounded-lg border border-indigo-500/20"
                     >
                       <span>👥</span>
-                      <span>Max: {item.max_employee} emp.</span>
+                      <span
+                        >Max: {item.metadata?.max_employee || item.max_employee}
+                        emp.</span
+                      >
                     </div>
                   {/if}
                 </div>

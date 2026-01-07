@@ -1,23 +1,23 @@
 ---
 title: Composants
 category: ressources
-excerpt: Les pièces intermédiaires pour la fabrication avancée.
+excerpt: Les matériaux transformés utilisés pour la fabrication.
 ---
 
-## 🔧 Composants
+## ⚙️ Composants
 
-Produits transformés à partir de ressources brutes. Ils servent à fabriquer des produits finis complexes.
+Ces objets sont obtenus en transformant des ressources brutes ou d'autres composants. Ils servent d'ingrédients pour des recettes plus complexes.
 
-| Composant           | Prix Base | Volatilité | Fabriqué à partir de         |
-| ------------------- | --------- | ---------- | ---------------------------- |
-| Planche de Bois     | 15.45€    | 10%        | Bois (Scierie)               |
-| Lingot de Fer       | 41.12€    | 15%        | Minerai de Fer (Fonderie)    |
-| Lingot de Cuivre    | 36.78€    | 20%        | Minerai de Cuivre (Fonderie) |
-| Acier               | 64.22€    | 22%        | 3x Lingot de Fer (Presse)    |
-| Verre               | 42.42€    | 15%        | 10x Silice (Four)            |
-| Plastique           | 64.99€    | 30%        | Pétrole Brut (Raffinerie)    |
-| Câble Électrique    | 81.14€    | 18%        | Cuivre + Plastique           |
-| Engrenage           | 61.49€    | 10%        | Acier                        |
-| Circuit Simple      | 268.83€   | 35%        | Cuivre + Plastique           |
-| Processeur          | 1 560.83€ | 50%        | Circuit + Or + Lithium       |
-| Cellule de Batterie | 985.43€   | 45%        | Lithium + Plastique          |
+| Composant                  | Prix Base | Volatilité | Unité |
+| :------------------------- | :-------- | :--------- | :---- |
+| 🪵 **Planche de bois**     | 15.45€    | 10%        | Unit  |
+| 🔩 **Lingot de Fer**       | 41.12€    | 15%        | Unit  |
+| 🟠 **Lingot de Cuivre**    | 55.83€    | 18%        | Unit  |
+| ⬛ **Acier**               | 98.21€    | 12%        | Unit  |
+| 🪟 **Verre**               | 42.42€    | 15%        | Unit  |
+| 🧱 **Plastique**           | 64.99€    | 30%        | Unit  |
+| 🔌 **Câble Électrique**    | 81.14€    | 18%        | Unit  |
+| ⚙️ **Engrenage**           | 61.49€    | 10%        | Unit  |
+| 🔲 **Circuit Simple**      | 268.83€   | 35%        | Unit  |
+| 💻 **Processeur**          | 1560.83€  | 50%        | Unit  |
+| 🔋 **Cellule de Batterie** | 985.43€   | 45%        | Unit  |

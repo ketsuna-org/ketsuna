@@ -1,25 +1,7 @@
 import pb from "$lib/pocketbase";
 
-export interface MarketItem {
-    id: string;
-    name: string;
-    type: "Ressource Brute" | "Composant" | "Produit Fini" | "Machine" | "Stockage";
-    base_price: number;
-    volatility: number;
-    product?: string;
-    product_quantity?: number;
-    use_recipe?: string;
-    minable?: boolean;
-    circulating_supply?: number;
-    market_demand?: number;
-    // Energy properties
-    need_energy?: number;
-    produce_energy?: number;
-    can_store_energy?: number;
-    energy_type?: string;
-    // Machine capacity
-    max_employee?: number;
-}
+import type { Item as MarketItem } from "$lib/types/game";
+export type { MarketItem };
 
 /**
  * Achète un item au marché pour l'entreprise active
