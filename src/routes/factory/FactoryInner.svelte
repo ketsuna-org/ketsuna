@@ -529,6 +529,9 @@
         markerEnd: { type: "arrowclosed", color: "#3b82f6" },
         style: "stroke: #3b82f6; stroke-width: 5px;",
       }}
+      proOptions={{
+        hideAttribution: true,
+      }}
       onconnect={onConnect}
       ondelete={onDelete}
       onnodedrag={onNodeDrag}
@@ -536,10 +539,6 @@
     >
       <Background bgColor="#334155" gap={20} />
       <Controls />
-      <MiniMap
-        style="background-color: #0f172a; border: 1px solid #334155;"
-        nodeColor="#3b82f6"
-      />
     </SvelteFlow>
 
     <!-- Stats overlay -->

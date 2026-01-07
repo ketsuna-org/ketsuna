@@ -3,6 +3,8 @@
   import "@xyflow/svelte/dist/style.css";
   import { activeCompany } from "$lib/stores";
   import FactoryInner from "./FactoryInner.svelte";
+  import NotificationBell from "$lib/components/NotificationBell.svelte";
+  import GlobalChat from "$lib/components/GlobalChat.svelte";
 
   // Company reactive
   let company = $derived($activeCompany);
@@ -16,6 +18,17 @@
   <SvelteFlowProvider>
     <FactoryInner {company} />
   </SvelteFlowProvider>
+
+  <div class="ui-overlay pointer-events-none fixed inset-0 z-50">
+    <div class="absolute top-4 right-48 pointer-events-auto">
+      <NotificationBell />
+    </div>
+    <div
+      class="absolute bottom-6 left-1/2 -translate-x-1/2 pointer-events-auto"
+    >
+      <GlobalChat />
+    </div>
+  </div>
 </div>
 
 <style>

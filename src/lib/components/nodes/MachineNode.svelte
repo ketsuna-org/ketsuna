@@ -32,9 +32,6 @@
   let panelLoading = $state(false);
   let productionProgress = $state(0);
   let estimatedProduced = $state(0);
-  let durability = $state(1000);
-  let averageEnergy = $state(0);
-  let activeWorkers = $state(0);
 
   // Load data when node is selected
   $effect(() => {
@@ -98,9 +95,6 @@
       if (!machineRecord?.production_started_at) {
         productionProgress = 0;
         estimatedProduced = 0;
-        durability = machineRecord?.durability || 1000;
-        averageEnergy = 0;
-        activeWorkers = 0;
         return;
       }
 
@@ -110,21 +104,14 @@
 
       // Use lazy calculator for accurate calculations
       const result = calculateProductionProgress(
-        machineRecord,
-        machineData,
-        assignedEmployees,
+        machineRecord as any,
+        machineData as any,
+        assignedEmployees as any[],
         new Date(machineRecord.production_started_at)
       );
 
       productionProgress = result.progressPercent;
-      estimatedProduced = result.estimatedProduced; // Use .estimatedProduced (total items) or .cyclesCompleted?
-      // Original code used .cyclesCompleted for "estimatedProduced" variable but variable name implies quantity.
-      // Let's use result.estimatedProduced which includes bonus.
       estimatedProduced = result.estimatedProduced;
-
-      durability = result.currentDurability;
-      averageEnergy = result.averageEnergy;
-      activeWorkers = result.activeWorkers;
     }, 100); // Update 10 times per second for smooth animation
 
     return () => clearInterval(interval);
@@ -141,76 +128,6 @@
       </h3>
 
       <!-- Machine Stats Display -->
-      {#if machineRecord}
-        <div class="space-y-2 mb-3">
-          <!-- Durability -->
-          <div
-            class="bg-slate-800/50 border border-slate-600/30 rounded-lg p-2 space-y-1"
-          >
-            <div class="flex items-center justify-between">
-              <span class="text-xs font-medium text-slate-300"
-                >🔧 Durabilité:</span
-              >
-              <span
-                class="text-xs font-bold"
-                class:text-green-400={durability > 500}
-                class:text-yellow-400={durability > 200 && durability <= 500}
-                class:text-red-400={durability <= 200}
-              >
-                {durability.toFixed(0)} / 1000
-              </span>
-            </div>
-            <div class="h-1.5 bg-slate-700 rounded-full overflow-hidden">
-              <div
-                class="h-full transition-all duration-300"
-                class:bg-green-500={durability > 500}
-                class:bg-yellow-500={durability > 200 && durability <= 500}
-                class:bg-red-500={durability <= 200}
-                style="width: {(durability / 1000) * 100}%"
-              ></div>
-            </div>
-          </div>
-
-          <!-- Energy (if has employees) -->
-          {#if (machineRecord?.expand?.employees?.length ?? 0) > 0}
-            <div
-              class="bg-slate-800/50 border border-slate-600/30 rounded-lg p-2 space-y-1"
-            >
-              <div class="flex items-center justify-between">
-                <span class="text-xs font-medium text-slate-300"
-                  >⚡ Énergie Moy.:</span
-                >
-                <span
-                  class="text-xs font-bold"
-                  class:text-green-400={activeWorkers > 0}
-                  class:text-orange-400={activeWorkers === 0}
-                >
-                  {averageEnergy.toFixed(0)}%
-                </span>
-              </div>
-              <div class="flex items-center gap-2">
-                <div
-                  class="flex-1 h-1.5 bg-slate-700 rounded-full overflow-hidden"
-                >
-                  <div
-                    class="h-full transition-all duration-100"
-                    class:bg-green-500={activeWorkers > 0}
-                    class:bg-orange-500={activeWorkers === 0}
-                    style="width: {averageEnergy}%"
-                  ></div>
-                </div>
-                <span
-                  class="text-[10px] font-medium"
-                  class:text-green-400={activeWorkers > 0}
-                  class:text-orange-400={activeWorkers === 0}
-                >
-                  {activeWorkers > 0 ? "🟢 Actif" : "🔴 Attente"}
-                </span>
-              </div>
-            </div>
-          {/if}
-        </div>
-      {/if}
 
       {#if loading}
         <div class="flex justify-center py-4">
@@ -255,9 +172,6 @@
       <div class="progress-bar">
         <div class="progress-fill" style="width: {productionProgress}%"></div>
       </div>
-      {#if estimatedProduced > 0}
-        <span class="production-count">+{estimatedProduced}</span>
-      {/if}
     </div>
   {/if}
 
@@ -363,12 +277,5 @@
     height: 100%;
     background: linear-gradient(90deg, #3b82f6, #60a5fa);
     transition: width 0.1s linear;
-  }
-
-  .production-count {
-    font-size: 8px;
-    color: #60a5fa;
-    font-weight: 700;
-    text-shadow: 0 0 4px rgba(96, 165, 250, 0.5);
   }
 </style>

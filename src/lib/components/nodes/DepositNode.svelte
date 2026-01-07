@@ -32,10 +32,13 @@
   let panelLoading = $state(false);
   let miningProgress = $state(0);
   let estimatedHarvested = $state(0);
-  let averageEnergy = $state(0);
-  let activeWorkers = $state(0);
-  let currentQuantity = $state(data.quantity || 0); // Local state for realtime updates
+  let currentQuantity = $state(0); // Local state for realtime updates
   let unsubscribe: () => void;
+
+  // Initialize from data on mount
+  $effect(() => {
+    currentQuantity = data.quantity || 0;
+  });
 
   const quantityPercent = $derived(
     currentQuantity ? Math.min(100, (currentQuantity / 10000) * 100) : 0
@@ -106,7 +109,7 @@
 
       // Manually attach to expand for compatibility
       if (!dep.expand) dep.expand = {};
-      dep.expand.employees = assignedEmps;
+      (dep.expand as any).employees = assignedEmps;
 
       depositRecord = dep;
 
@@ -154,16 +157,12 @@
     }
   }
 
-  // ... (unchanged)
-
   // Real-time mining progress using Graph Economy calculations
   $effect(() => {
     const interval = setInterval(() => {
       if (!depositRecord?.last_harvest_at) {
         miningProgress = 0;
         estimatedHarvested = 0;
-        averageEnergy = 0;
-        activeWorkers = 0;
         return;
       }
 
@@ -171,8 +170,6 @@
       if (assignedEmployees.length === 0) {
         miningProgress = 0;
         estimatedHarvested = 0;
-        averageEnergy = 0;
-        activeWorkers = 0;
         return;
       }
 
@@ -185,8 +182,6 @@
 
       miningProgress = result.progressPercent;
       estimatedHarvested = result.estimatedYield;
-      averageEnergy = result.averageEnergy;
-      activeWorkers = result.activeWorkers;
     }, 100); // Update 10 times per second
 
     return () => clearInterval(interval);
@@ -231,47 +226,6 @@
             </div>
           {/if}
 
-          <!-- Energy Status Display -->
-          {#if depositRecord.expand?.employees?.length > 0}
-            <div
-              class="bg-slate-800/50 border border-slate-600/30 rounded-lg p-2 space-y-1"
-            >
-              <div class="flex items-center justify-between">
-                <span class="text-xs font-medium text-slate-300"
-                  >⚡ Énergie Moy.:</span
-                >
-                <span
-                  class="text-xs font-bold"
-                  class:text-green-400={activeWorkers > 0}
-                  class:text-orange-400={activeWorkers === 0}
-                >
-                  {averageEnergy.toFixed(0)}%
-                </span>
-              </div>
-              <div class="flex items-center gap-2">
-                <div
-                  class="flex-1 h-1.5 bg-slate-700 rounded-full overflow-hidden"
-                >
-                  <div
-                    class="h-full transition-all duration-100"
-                    class:bg-green-500={activeWorkers > 0}
-                    class:bg-orange-500={activeWorkers === 0}
-                    style="width: {averageEnergy}%"
-                  ></div>
-                </div>
-                <span
-                  class="text-[10px] font-medium"
-                  class:text-green-400={activeWorkers > 0}
-                  class:text-orange-400={activeWorkers === 0}
-                >
-                  {activeWorkers > 0
-                    ? `🟢 ${activeWorkers} Actifs`
-                    : "🔴 Repos"}
-                </span>
-              </div>
-            </div>
-          {/if}
-
           <DepositEmployeePanel
             deposit={depositRecord}
             {availableEmployees}
@@ -305,9 +259,6 @@
       <div class="progress-bar">
         <div class="progress-fill" style="width: {miningProgress}%"></div>
       </div>
-      {#if estimatedHarvested > 0}
-        <span class="production-count">+{estimatedHarvested}</span>
-      {/if}
     </div>
   {/if}
 
@@ -403,12 +354,5 @@
     height: 100%;
     background: linear-gradient(90deg, #10b981, #34d399);
     transition: width 0.1s linear;
-  }
-
-  .production-count {
-    font-size: 8px;
-    color: #34d399;
-    font-weight: 700;
-    text-shadow: 0 0 4px rgba(52, 211, 153, 0.5);
   }
 </style>
