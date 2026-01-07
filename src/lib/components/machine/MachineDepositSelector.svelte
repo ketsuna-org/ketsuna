@@ -179,10 +179,7 @@
                 {:else}
                   <div class="p-3 text-center text-xs text-slate-500">
                     Aucun gisement compatible trouvé.<br />
-                    <a
-                      href="/exploration"
-                      class="text-teal-400 underline mt-1 block">Explorer</a
-                    >
+                    Lancez une exploration depuis la page Usine.
                   </div>
                 {/if}
               </div>
@@ -230,10 +227,7 @@
                 {:else}
                   <div class="p-3 text-center text-xs text-slate-500">
                     Aucun gisement compatible trouvé.<br />
-                    <a
-                      href="/exploration"
-                      class="text-teal-400 underline mt-1 block">Explorer</a
-                    >
+                    Lancez une exploration depuis la page Usine.
                   </div>
                 {/if}
               </div>

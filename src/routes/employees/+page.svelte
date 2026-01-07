@@ -271,7 +271,8 @@
         await Promise.all([
           pb.collection("employees").getList<Employee>(page, PER_PAGE, {
             filter,
-            sort: "-efficiency",
+            sort: "-created",
+            expand: "deposit,exploration",
             requestKey: null,
           }),
           page === 1

@@ -28,6 +28,7 @@ export async function hireRandomEmployee(company: Company, quantity: number = 1)
     };
 
     try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const response: any = await pb.send('/api/employees/hire', {
             method: 'POST',
             body: JSON.stringify(payload),
@@ -53,6 +54,7 @@ export async function hireRandomEmployee(company: Company, quantity: number = 1)
         } else {
             throw new Error("Format de réponse invalide");
         }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
         let msg = error.message || "Erreur lors du recrutement";
         if (error.data && error.data.message) {
@@ -71,7 +73,8 @@ export async function getHireCostPreview(): Promise<HireCostPreview> {
             method: 'GET'
         }) as HireCostPreview;
         return response;
-    } catch (error: any) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (error: unknown) {
         // Fallback values if endpoint fails
         return {
             averageHiringFee: 221,

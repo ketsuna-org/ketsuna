@@ -23,20 +23,6 @@
       description: "Vue d'ensemble de votre entreprise",
     },
     {
-      label: "Marché",
-      href: "/market",
-      icon: "🛒",
-      color: "from-emerald-500 to-teal-600",
-      description: "Achetez et vendez des ressources",
-    },
-    {
-      label: "Inventaire",
-      href: "/inventory",
-      icon: "📦",
-      color: "from-blue-500 to-cyan-600",
-      description: "Gérez vos ressources et produits",
-    },
-    {
       label: "Employés",
       href: "/employees",
       icon: "👥",
@@ -51,18 +37,11 @@
       description: "Débloquez de nouvelles technologies",
     },
     {
-      label: "Atelier",
-      href: "/workshop",
+      label: "Usine",
+      href: "/factory",
       icon: "⚙️",
       color: "from-slate-500 to-zinc-600",
-      description: "Production manuelle et automatique",
-    },
-    {
-      label: "Exploration",
-      href: "/exploration",
-      icon: "🔭",
-      color: "from-teal-600 to-emerald-800",
-      description: "Découvrez des gisements",
+      description: "Gérez votre usine",
     },
     {
       label: "Monde",
@@ -122,7 +101,7 @@
           class="text-4xl md:text-5xl font-black text-white tracking-tight mb-2"
         >
           <span
-            class="bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent"
+            class="bg-linear-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent"
           >
             Tableau de Bord
           </span>
@@ -140,7 +119,7 @@
           <button
             onclick={() => navigateTo(item.href)}
             class="group relative flex flex-col items-center justify-center p-6 md:p-8 rounded-2xl
-                               bg-gradient-to-br {item.color} 
+                               bg-linear-to-br {item.color} 
                                shadow-lg shadow-black/30
                                hover:scale-105 hover:shadow-xl hover:shadow-black/40
                                active:scale-95
@@ -167,7 +146,7 @@
 
             <!-- Description (Desktop only) -->
             <span
-              class="hidden md:block text-white/70 text-xs text-center mt-1 max-w-[120px]"
+              class="hidden md:block text-white/70 text-xs text-center mt-1 max-w-30"
             >
               {item.description}
             </span>

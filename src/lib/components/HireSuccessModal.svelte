@@ -7,41 +7,6 @@
     employee: Employee;
     onclose: () => void;
   }>();
-
-  function getRarityInfo(rarity: number) {
-    switch (rarity) {
-      case 3: // Legendary
-        return {
-          label: "Légendaire",
-          badge: "bg-amber-500/20 text-amber-400 border border-amber-500/50",
-          glow: "bg-amber-500",
-          icon: "text-amber-400 bg-amber-500/10 border-amber-500/20",
-        };
-      case 2: // Epic
-        return {
-          label: "Épique",
-          badge: "bg-purple-500/20 text-purple-400 border border-purple-500/50",
-          glow: "bg-purple-500",
-          icon: "text-purple-400 bg-purple-500/10 border-purple-500/20",
-        };
-      case 1: // Rare
-        return {
-          label: "Rare",
-          badge: "bg-blue-500/20 text-blue-400 border border-blue-500/50",
-          glow: "bg-blue-500",
-          icon: "text-blue-400 bg-blue-500/10 border-blue-500/20",
-        };
-      default: // Common
-        return {
-          label: "Commun",
-          badge: "bg-slate-600/20 text-slate-400 border border-slate-600/50",
-          glow: "bg-slate-500",
-          icon: "text-slate-400 bg-slate-500/10 border-slate-500/20",
-        };
-    }
-  }
-
-  let info = $derived(getRarityInfo(employee.rarity));
 </script>
 
 <div
@@ -55,16 +20,16 @@
     <!-- Background Glow -->
     <div class="absolute inset-0 opacity-10 pointer-events-none">
       <div
-        class="absolute -top-24 -left-24 w-64 h-64 {info.glow} rounded-full blur-[100px]"
+        class="absolute -top-24 -left-24 w-64 h-64 bg-indigo-500 rounded-full blur-[100px]"
       ></div>
       <div
-        class="absolute -bottom-24 -right-24 w-64 h-64 {info.glow} rounded-full blur-[100px]"
+        class="absolute -bottom-24 -right-24 w-64 h-64 bg-indigo-500 rounded-full blur-[100px]"
       ></div>
     </div>
 
     <div class="p-8 text-center relative z-10">
       <div
-        class="w-24 h-24 mx-auto rounded-full flex items-center justify-center mb-6 border shadow-inner {info.icon}"
+        class="w-24 h-24 mx-auto rounded-full flex items-center justify-center mb-6 border shadow-inner text-indigo-400 bg-indigo-500/10 border-indigo-500/20"
         in:fly={{ y: 20, delay: 200 }}
       >
         <span class="text-5xl">✨</span>
@@ -85,9 +50,9 @@
         in:fly={{ y: 20, delay: 450 }}
       >
         <div
-          class={`inline-block px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border mb-4 ${info.badge}`}
+          class="inline-block px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border mb-4 bg-slate-600/20 text-slate-400 border-slate-600/50"
         >
-          {info.label}
+          {employee.poste || "Recruté"}
         </div>
         <h3 class="text-2xl font-bold text-white mb-6">{employee.name}</h3>
 

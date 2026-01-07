@@ -7,6 +7,9 @@
   import ZoneNode from "$lib/components/nodes/ZoneNode.svelte";
   import GameIcon from "$lib/components/GameIcon.svelte";
   import ExplorationModal from "$lib/components/ExplorationModal.svelte";
+  import MarketView from "$lib/components/MarketView.svelte";
+  import InventoryView from "$lib/components/InventoryView.svelte";
+  import Modal from "$lib/components/Modal.svelte";
   import { getItem } from "$lib/data/game-static";
   import {
     loadFactory,
@@ -47,6 +50,8 @@
   let edges = $state<Edge[]>([]);
   let unplacedMachines = $state<any[]>([]);
   let showExploration = $state(false);
+  let showMarket = $state(false);
+  let showInventory = $state(false);
   let loading = $state(true);
 
   // Zone ID constant
@@ -447,13 +452,29 @@
 
     <div class="stats-section">
       <h3>Actions</h3>
-      <button
-        class="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white py-2 px-3 rounded-xl font-bold transition-all shadow-lg hover:shadow-indigo-500/25"
-        onclick={() => (showExploration = true)}
-      >
-        <span>🧭</span>
-        <span>Exploration</span>
-      </button>
+      <div class="grid grid-cols-2 gap-2">
+        <button
+          class="bg-indigo-600 hover:bg-indigo-500 text-white py-2 px-3 rounded-xl font-bold transition-all shadow-lg hover:shadow-indigo-500/25 flex flex-col items-center gap-1 text-xs"
+          onclick={() => (showExploration = true)}
+        >
+          <span class="text-lg">🧭</span>
+          <span>Exploration</span>
+        </button>
+        <button
+          class="bg-emerald-600 hover:bg-emerald-500 text-white py-2 px-3 rounded-xl font-bold transition-all shadow-lg hover:shadow-emerald-500/25 flex flex-col items-center gap-1 text-xs"
+          onclick={() => (showMarket = true)}
+        >
+          <span class="text-lg">🛒</span>
+          <span>Marché</span>
+        </button>
+        <button
+          class="bg-cyan-600 hover:bg-cyan-500 text-white py-2 px-3 rounded-xl font-bold transition-all shadow-lg hover:shadow-cyan-500/25 flex flex-col items-center gap-1 text-xs col-span-2"
+          onclick={() => (showInventory = true)}
+        >
+          <span class="text-lg">📦</span>
+          <span>Inventaire & Stock</span>
+        </button>
+      </div>
     </div>
 
     <div class="stats-section">
@@ -485,7 +506,12 @@
       bind:nodes
       bind:edges
       {nodeTypes}
-      defaultEdgeOptions={{ type: "smoothstep", animated: true }}
+      defaultEdgeOptions={{
+        type: "smoothstep",
+        animated: true,
+        markerEnd: { type: "arrowclosed", color: "#3b82f6" },
+        style: "stroke: #3b82f6; stroke-width: 5px;",
+      }}
       onconnect={onConnect}
       ondelete={onDelete}
       onnodedrag={onNodeDrag}
@@ -523,6 +549,24 @@
 
 {#if showExploration}
   <ExplorationModal onClose={() => (showExploration = false)} />
+{/if}
+
+{#if showMarket}
+  <Modal
+    title="<span class='text-2xl'>🛒</span> Marché Global"
+    onClose={() => (showMarket = false)}
+  >
+    <MarketView />
+  </Modal>
+{/if}
+
+{#if showInventory}
+  <Modal
+    title="<span class='text-2xl'>📦</span> Inventaire & Stockage"
+    onClose={() => (showInventory = false)}
+  >
+    <InventoryView />
+  </Modal>
 {/if}
 
 <style>
