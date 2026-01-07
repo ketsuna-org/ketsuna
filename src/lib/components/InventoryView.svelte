@@ -157,11 +157,6 @@
     loadInventory(1, false);
   }
 
-  async function loadMore() {
-    if (loadingMore || !hasMore) return;
-    await loadInventory(currentPage + 1, true);
-  }
-
   async function subscribeToInventory() {
     if (unsubscribe) unsubscribe();
 

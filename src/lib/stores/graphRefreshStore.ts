@@ -7,12 +7,19 @@ import { writable, get } from 'svelte/store';
 import pb from '$lib/pocketbase';
 import { activeCompany } from '$lib/stores';
 
+interface StorageInventoryItem {
+  item_id: string;
+  quantity: number;
+  storage_id: string;
+}
+
 interface GraphRefreshState {
   lastRefresh: Date | null;
   nextRefresh: Date | null;
   isRefreshing: boolean;
   error: string | null;
   producedItems: Record<string, number> | null;
+  storageInventory: Record<string, StorageInventoryItem> | null;
 }
 
 // Auto-refresh interval: 30 seconds (adjustable)
@@ -25,6 +32,7 @@ function createGraphRefreshStore() {
     isRefreshing: false,
     error: null,
     producedItems: null,
+    storageInventory: null,
   });
 
   let intervalId: NodeJS.Timeout | null = null;
@@ -56,6 +64,7 @@ function createGraphRefreshStore() {
       });
 
       const producedItems = response.producedItems || {};
+      const storageInventory = response.storageInventory || {};
 
       set({
         lastRefresh: new Date(),
@@ -63,11 +72,14 @@ function createGraphRefreshStore() {
         isRefreshing: false,
         error: null,
         producedItems,
+        storageInventory,
       });
 
       console.log('[GRAPH_REFRESH] Refresh successful', {
         producedCount: Object.keys(producedItems).length,
+        storageCount: Object.keys(storageInventory).length,
         items: producedItems,
+        storage: storageInventory,
       });
     } catch (err: any) {
       console.error('[GRAPH_REFRESH] Refresh failed:', err);
