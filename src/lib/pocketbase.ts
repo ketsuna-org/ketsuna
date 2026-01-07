@@ -66,6 +66,8 @@ export interface Deposit extends BaseRecord {
   quantity: number;
   size: number;
   location?: { lat: number; lng: number };
+  last_harvest_at?: string;
+  harvested?: number;
   expand?: {
     company?: Company;
   };
@@ -74,9 +76,9 @@ export interface Deposit extends BaseRecord {
 // edge_relation (Connections for the factory canvas)
 export interface EdgeRelation extends BaseRecord {
   input_id: string;
-  input_type: "deposit" | "machine";
+  input_type: "deposit" | "machine" | "storage";
   output_id: string;
-  output_type: "company";
+  output_type: "company" | "machine" | "storage";
   item: string; // Static ID
 }
 
@@ -86,17 +88,21 @@ export interface Employee extends BaseRecord {
   name: string;
   salary: number;
   deposit?: string;
+  machine?: string; // Relation to machine where they work
   exploration?: string;
   exploration_luck: number; // 0-10
   mining: number; // 0-10
   energy: number; // 0-100
   maintenance: number; // 0-10
-  efficiency: number; // 1-200
-  rarity: 0 | 1 | 2 | 3; // 0=Common, 1=Rare, 2=Epic, 3=Legendary
+  energy_cycle_start?: string;
+  // efficiency and rarity are NOT in schema.json, keeping optional if used in older logic or derived
+  efficiency?: number; 
+  rarity?: 0 | 1 | 2 | 3; 
   poste: "Manutentionnaire" | "Opérateur" | "Ouvrier" | "Mineur" | "Explorateur" | "PDG" | string;
   expand?: {
     employer?: Company;
     deposit?: Deposit;
+    machine?: Machine;
     exploration?: Exploration;
   };
 }
@@ -128,15 +134,17 @@ export interface InventoryItem extends BaseRecord {
 // machines
 export interface Machine extends BaseRecord {
   machine_id: string; // Static ID
-  employees: string[];
+  // employees is NOT a direct field in schema, but a reverse relation. 
+  // We keep it in expand. Removing top-level to avoid confusion, or optional.
   company: string;
   production_started_at: string;
   stored_energy: number;
+  durability: number;
   deposit?: string;
   location?: { lat: number; lng: number };
   placed: boolean;
   expand?: {
-    employees?: Employee[];
+    employees?: Employee[]; // Manually populated or expanded
     company?: Company;
     deposit?: Deposit;
   };

@@ -9,7 +9,7 @@ import { getItem } from '$lib/data/game-static';
 // Types
 export interface FactoryNode {
   id: string;
-  type: 'machine' | 'deposit' | 'company' | 'zone';
+  type: 'machine' | 'deposit' | 'company' | 'zone' | 'storage';
   position: { x: number; y: number };
   data: {
     itemId?: string;
@@ -72,6 +72,7 @@ export const NODE_DIMENSIONS = {
   deposit: { width: 140, height: 120 },
   company: { width: 220, height: 160 },
   zone: { width: 0, height: 0 },
+  storage: { width: 140, height: 140 },
 };
 
 // Check collision between nodes
@@ -139,17 +140,20 @@ export async function loadFactory(companyId: string): Promise<{
       const location = machine.location;
       const staticItem = getItem(machine.machine_id);
 
+      // Determine node type: storage vs machine
+      const nodeType = staticItem?.type === 'Stockage' ? 'storage' : 'machine';
+
       nodes.push({
         id: machine.id,
-        type: "machine",
+        type: nodeType,
         position: {
           x: location?.lng ?? 0,
           y: location?.lat ?? 0,
         },
         data: {
           itemId: machine.machine_id,
-          name: staticItem?.name ?? "Machine",
-          icon: staticItem?.icon || "⚙️",
+          name: staticItem?.name ?? (nodeType === 'storage' ? 'Stockage' : 'Machine'),
+          icon: staticItem?.icon || (nodeType === 'storage' ? '📦' : '⚙️'),
           placed: true,
         },
       });
@@ -238,13 +242,18 @@ export async function placeNode(
 
 // Update node position
 export async function updateNodePosition(
-  type: 'machine' | 'deposit' | 'company',
+  type: 'machine' | 'deposit' | 'company' | 'storage',
   id: string,
   x: number,
   y: number
 ): Promise<boolean> {
   try {
-    const collection = type === 'machine' ? 'machines' : type === 'deposit' ? 'deposits' : 'companies';
+    // Map storage to machines collection
+    const collection = 
+      type === 'machine' || type === 'storage' ? 'machines' : 
+      type === 'deposit' ? 'deposits' : 
+      'companies';
+    
     await pb.collection(collection).update(id, {
       location: { lng: x, lat: y },
     });

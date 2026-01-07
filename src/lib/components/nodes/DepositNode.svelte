@@ -10,6 +10,7 @@
   import DepositEmployeePanel from "$lib/components/machine/DepositEmployeePanel.svelte";
   import pb, { type Employee } from "$lib/pocketbase";
   import { activeCompany } from "$lib/stores";
+  import { calculateMiningProgress } from "$lib/graph/lazyCalculator";
 
   type DepositNode = Node<
     {
@@ -24,15 +25,48 @@
 
   let { id, data, selected }: NodeProps<DepositNode> = $props();
 
-  const quantityPercent = $derived(
-    data.quantity ? Math.min(100, (data.quantity / 10000) * 100) : 0
-  );
-
   // State for assignments
   let depositRecord = $state<any>(null);
   let availableEmployees = $state<Employee[]>([]);
   let loading = $state(false);
   let panelLoading = $state(false);
+  let miningProgress = $state(0);
+  let estimatedHarvested = $state(0);
+  let averageEnergy = $state(0);
+  let activeWorkers = $state(0);
+  let currentQuantity = $state(data.quantity || 0); // Local state for realtime updates
+  let unsubscribe: () => void;
+
+  const quantityPercent = $derived(
+    currentQuantity ? Math.min(100, (currentQuantity / 10000) * 100) : 0
+  );
+
+  $effect(() => {
+    // Initial data load for quantity even if not selected
+    loadRealtimeData();
+
+    // Subscribe to deposit updates
+    pb.collection("deposits")
+      .subscribe(id, (e) => {
+        if (e.action === "update") {
+          const newQty = e.record.quantity;
+          if (typeof newQty === "number") {
+            currentQuantity = newQty;
+            // Update internal record if loaded
+            if (depositRecord) {
+              depositRecord.quantity = newQty;
+              depositRecord.last_harvest_at = e.record.last_harvest_at;
+              depositRecord.harvested = e.record.harvested;
+            }
+          }
+        }
+      })
+      .then((unsub) => (unsubscribe = unsub));
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  });
 
   $effect(() => {
     if (selected) {
@@ -41,6 +75,21 @@
       untrack(() => loadData());
     }
   });
+
+  async function loadRealtimeData() {
+    try {
+      const rec = await pb
+        .collection("deposits")
+        .getOne(id, { fields: "quantity,last_harvest_at,harvested" });
+      currentQuantity = rec.quantity;
+      if (depositRecord) {
+        depositRecord.last_harvest_at = rec.last_harvest_at;
+        depositRecord.harvested = rec.harvested;
+      }
+    } catch (e) {
+      console.error("Failed to load deposit realtime", e);
+    }
+  }
 
   async function loadData() {
     if (loading) return;
@@ -87,6 +136,61 @@
       console.error("Failed to refresh employees", e);
     }
   }
+
+  async function handleHarvest() {
+    if (!depositRecord || !depositRecord.id) return;
+    panelLoading = true;
+    try {
+      await pb.send("/api/deposits/harvest", {
+        method: "POST",
+        body: { depositId: depositRecord.id },
+      });
+      await loadData(); // Refresh to show 0 harvested
+    } catch (e: any) {
+      console.error("Failed to harvest", e);
+      alert(e.message || "Erreur lors de la récolte");
+    } finally {
+      panelLoading = false;
+    }
+  }
+
+  // ... (unchanged)
+
+  // Real-time mining progress using Graph Economy calculations
+  $effect(() => {
+    const interval = setInterval(() => {
+      if (!depositRecord?.last_harvest_at) {
+        miningProgress = 0;
+        estimatedHarvested = 0;
+        averageEnergy = 0;
+        activeWorkers = 0;
+        return;
+      }
+
+      const assignedEmployees = depositRecord.expand?.employees || [];
+      if (assignedEmployees.length === 0) {
+        miningProgress = 0;
+        estimatedHarvested = 0;
+        averageEnergy = 0;
+        activeWorkers = 0;
+        return;
+      }
+
+      // Use lazy calculator for accurate calculations
+      const result = calculateMiningProgress(
+        depositRecord,
+        assignedEmployees,
+        new Date(depositRecord.last_harvest_at)
+      );
+
+      miningProgress = result.progressPercent;
+      estimatedHarvested = result.estimatedYield;
+      averageEnergy = result.averageEnergy;
+      activeWorkers = result.activeWorkers;
+    }, 100); // Update 10 times per second
+
+    return () => clearInterval(interval);
+  });
 </script>
 
 <div class="deposit-node" class:selected>
@@ -104,14 +208,79 @@
           ></div>
         </div>
       {:else if depositRecord}
-        <DepositEmployeePanel
-          deposit={depositRecord}
-          {availableEmployees}
-          isLoading={panelLoading}
-          onLoadingChange={(l) => (panelLoading = l)}
-          onDepositUpdate={handleDepositUpdate}
-          onRefresh={refreshAvailableEmployees}
-        />
+        <div class="space-y-3">
+          {#if depositRecord.harvested && depositRecord.harvested > 0}
+            <div
+              class="bg-amber-900/20 border border-amber-500/30 rounded-lg p-3 space-y-2"
+            >
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-medium text-amber-200"
+                  >⛏️ Récolté:</span
+                >
+                <span class="text-sm font-bold text-amber-400"
+                  >{depositRecord.harvested.toLocaleString()}</span
+                >
+              </div>
+              <button
+                onclick={handleHarvest}
+                disabled={panelLoading}
+                class="w-full py-1.5 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white text-xs font-bold rounded-lg transition-colors"
+              >
+                🫣 Récolter
+              </button>
+            </div>
+          {/if}
+
+          <!-- Energy Status Display -->
+          {#if depositRecord.expand?.employees?.length > 0}
+            <div
+              class="bg-slate-800/50 border border-slate-600/30 rounded-lg p-2 space-y-1"
+            >
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-medium text-slate-300"
+                  >⚡ Énergie Moy.:</span
+                >
+                <span
+                  class="text-xs font-bold"
+                  class:text-green-400={activeWorkers > 0}
+                  class:text-orange-400={activeWorkers === 0}
+                >
+                  {averageEnergy.toFixed(0)}%
+                </span>
+              </div>
+              <div class="flex items-center gap-2">
+                <div
+                  class="flex-1 h-1.5 bg-slate-700 rounded-full overflow-hidden"
+                >
+                  <div
+                    class="h-full transition-all duration-100"
+                    class:bg-green-500={activeWorkers > 0}
+                    class:bg-orange-500={activeWorkers === 0}
+                    style="width: {averageEnergy}%"
+                  ></div>
+                </div>
+                <span
+                  class="text-[10px] font-medium"
+                  class:text-green-400={activeWorkers > 0}
+                  class:text-orange-400={activeWorkers === 0}
+                >
+                  {activeWorkers > 0
+                    ? `🟢 ${activeWorkers} Actifs`
+                    : "🔴 Repos"}
+                </span>
+              </div>
+            </div>
+          {/if}
+
+          <DepositEmployeePanel
+            deposit={depositRecord}
+            {availableEmployees}
+            isLoading={panelLoading}
+            onLoadingChange={(l) => (panelLoading = l)}
+            onDepositUpdate={handleDepositUpdate}
+            onRefresh={refreshAvailableEmployees}
+          />
+        </div>
       {:else}
         <p class="text-xs text-red-400">Erreur chargement</p>
       {/if}
@@ -122,13 +291,25 @@
     <span class="icon">{data.icon}</span>
     <span class="name">{data.name}</span>
 
-    {#if data.quantity !== undefined}
+    {#if currentQuantity !== undefined}
       <div class="quantity-bar">
         <div class="quantity-fill" style="width: {quantityPercent}%"></div>
       </div>
-      <span class="quantity-text">{data.quantity?.toLocaleString()}</span>
+      <span class="quantity-text">{currentQuantity?.toLocaleString()}</span>
     {/if}
   </div>
+
+  <!-- Mining Progress Bar -->
+  {#if depositRecord?.last_harvest_at && miningProgress > 0}
+    <div class="progress-container">
+      <div class="progress-bar">
+        <div class="progress-fill" style="width: {miningProgress}%"></div>
+      </div>
+      {#if estimatedHarvested > 0}
+        <span class="production-count">+{estimatedHarvested}</span>
+      {/if}
+    </div>
+  {/if}
 
   <Handle type="source" position={Position.Right} />
 </div>
@@ -197,5 +378,37 @@
   .quantity-text {
     font-size: 9px;
     color: #94a3b8;
+  }
+
+  .progress-container {
+    position: absolute;
+    bottom: 4px;
+    left: 4px;
+    right: 4px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    z-index: 3;
+  }
+
+  .progress-bar {
+    flex: 1;
+    height: 3px;
+    background: rgba(30, 41, 59, 0.8);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #10b981, #34d399);
+    transition: width 0.1s linear;
+  }
+
+  .production-count {
+    font-size: 8px;
+    color: #34d399;
+    font-weight: 700;
+    text-shadow: 0 0 4px rgba(52, 211, 153, 0.5);
   }
 </style>

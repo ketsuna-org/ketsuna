@@ -5,6 +5,7 @@
   import DepositNode from "$lib/components/nodes/DepositNode.svelte";
   import CompanyNode from "$lib/components/nodes/CompanyNode.svelte";
   import ZoneNode from "$lib/components/nodes/ZoneNode.svelte";
+  import StorageNode from "$lib/components/nodes/StorageNode.svelte";
   import GameIcon from "$lib/components/GameIcon.svelte";
   import ExplorationModal from "$lib/components/ExplorationModal.svelte";
   import MarketView from "$lib/components/MarketView.svelte";
@@ -24,6 +25,8 @@
     NODE_DIMENSIONS,
     type FactoryNode,
   } from "$lib/services/factory";
+  import { graphRefreshStore } from "$lib/stores/graphRefreshStore";
+  import { gamedataStore } from "$lib/stores/gamedataStore";
   import {
     SvelteFlow,
     Background,
@@ -43,6 +46,7 @@
     deposit: DepositNode,
     company: CompanyNode,
     zone: ZoneNode,
+    storage: StorageNode,
   };
 
   // State
@@ -140,8 +144,8 @@
         extent: "parent" as const,
         draggable: true,
         selectable: true,
-        // Only machines can be removed, company and deposits are permanent
-        deletable: node.type === "machine",
+        // Machines and storages can be removed, company and deposits are permanent
+        deletable: node.type === "machine" || node.type === "storage",
       }));
 
       nodes = [zoneNode, ...childNodes] as Node[];
@@ -169,6 +173,19 @@
   // Effect to watch for company changes
   $effect(() => {
     if (company?.id) {
+      loadData();
+    }
+  });
+
+  // Effect to reload data when graph refresh completes
+  let lastRefreshTime: Date | null = null;
+  $effect(() => {
+    const currentRefreshTime = $graphRefreshStore.lastRefresh;
+
+    // Only reload if we have a new refresh (not initial null)
+    if (currentRefreshTime && currentRefreshTime !== lastRefreshTime) {
+      lastRefreshTime = currentRefreshTime;
+      console.log("[FACTORY] Graph refresh detected, reloading factory data");
       loadData();
     }
   });
@@ -307,7 +324,7 @@
       const roundedY = Math.round(node.position.y);
 
       const success = await updateNodePosition(
-        node.type as "machine" | "deposit" | "company",
+        node.type as "machine" | "deposit" | "company" | "storage",
         node.id,
         roundedX,
         roundedY
@@ -367,9 +384,9 @@
     nodes: Node[];
     edges: Edge[];
   }) {
-    // Handle node deletions (machines only - can be "unplaced")
+    // Handle node deletions (machines and storages can be "unplaced")
     for (const node of deletedNodes) {
-      if (node.type === "machine") {
+      if (node.type === "machine" || node.type === "storage") {
         const success = await unplaceNode("machine", node.id);
         if (success) {
           // Update local state directly instead of reloading

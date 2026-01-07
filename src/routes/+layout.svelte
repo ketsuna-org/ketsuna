@@ -12,6 +12,9 @@
   import NavFab from "$lib/components/NavFab.svelte";
   import Footer from "$lib/components/Footer.svelte";
   import { loadGameData } from "$lib/data/game-static";
+  // Import stores to initialize them (they auto-start when imported)
+  import { gamedataStore } from "$lib/stores/gamedataStore";
+  import { graphRefreshStore } from "$lib/stores/graphRefreshStore";
 
   import { page } from "$app/stores";
 

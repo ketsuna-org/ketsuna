@@ -3,7 +3,7 @@
   import { activeCompany } from "$lib/stores";
   import pb from "$lib/pocketbase";
   import type { InventoryItem, Company } from "$lib/pocketbase";
-  import { fly, fade } from "svelte/transition";
+  import { fade } from "svelte/transition";
   import { sellItem } from "$lib/services/inventory";
   import { notifications } from "$lib/notifications";
   import { goto } from "$app/navigation";
@@ -52,9 +52,6 @@
     const parts: string[] = [`company = "${$activeCompany.id}"`];
 
     if (searchQuery.trim()) {
-      // Note: Full-text name search in PB won't work easily with static IDs
-      // unless we filter by item_id or do client-side filtering.
-      // For now, we'll search in item_id if it contains the string.
       parts.push(`item_id ~ "${searchQuery.trim()}"`);
     }
 
@@ -104,12 +101,10 @@
 
     if (page === 1) {
       loading = true;
-      // Trigger lazy calculation on first page load
       try {
         await pb.send("/api/inventory/refresh", { method: "POST" });
       } catch (e) {
         console.warn("Failed to refresh inventory production", e);
-        // Continue anyway - we'll just show stale data
       }
     } else {
       loadingMore = true;
@@ -122,7 +117,8 @@
         .collection("inventory")
         .getList<InventoryItem>(page, PER_PAGE, {
           filter,
-          sort: "item_id", // Sort by ID as a fallback
+          sort: "linked_storage,item_id", // Sort by storage first, then item
+          expand: "linked_storage",
           requestKey: null,
         });
 
@@ -178,27 +174,22 @@
           if (record.company !== $activeCompany?.id) return;
 
           if (action === "create" || action === "update") {
-            // Fetch updated record with expand to ensure we have item details
             try {
               const updatedRecord = await pb
                 .collection("inventory")
-                .getOne<InventoryItem>(record.id);
+                .getOne<InventoryItem>(record.id, { expand: "linked_storage" });
 
               const index = inventory.findIndex((i) => i.id === record.id);
               if (index > -1) {
-                // Update existing item
                 inventory[index] = updatedRecord;
               } else {
-                // Add new item and sort
-                inventory.push(updatedRecord);
-                inventory.sort((a, b) => {
-                  const nameA = getItem(a.item_id)?.name || "";
-                  const nameB = getItem(b.item_id)?.name || "";
-                  return nameA.localeCompare(nameB);
-                });
+                if (action === "create") {
+                  loadInventory(1, false);
+                } else {
+                  inventory.push(updatedRecord);
+                }
               }
 
-              // Initialize sell quantity if new
               if (!sellQuantities[record.id]) {
                 sellQuantities = { ...sellQuantities, [record.id]: 1 };
               }
@@ -237,7 +228,6 @@
       const res = await sellItem(invItem.item_id, qty);
       notifications.success(`Vente réussie: +${formatCurrency(res.revenue)}`);
 
-      // Update local state immediately
       const index = inventory.findIndex((i) => i.id === invItem.id);
       if (index !== -1) {
         const newQty = inventory[index].quantity - qty;
@@ -246,12 +236,10 @@
           delete sellQuantities[invItem.id];
         } else {
           inventory[index].quantity = newQty;
-          // Reset sell quantity to 1
           sellQuantities[invItem.id] = 1;
         }
       }
 
-      // Refresh company balance
       if ($activeCompany) {
         const updatedCompany = await pb
           .collection("companies")
@@ -284,6 +272,41 @@
         subscribeToInventory();
       });
     }
+  });
+
+  // Helper to get display name for storage
+  function getStorageName(invItem: InventoryItem): string {
+    if (!invItem.linked_storage || !invItem.expand?.linked_storage) {
+      return "Inventaire Général";
+    }
+    const machine = invItem.expand.linked_storage;
+    const itemDef = getItem(machine.machine_id);
+    return itemDef ? itemDef.name : "Entrepôt";
+  }
+
+  type InventoryGroup = {
+    name: string;
+    isGeneral: boolean;
+    items: InventoryItem[];
+  };
+
+  let inventoryGroups = $derived.by(() => {
+    const groups: InventoryGroup[] = [];
+    let currentGroup: InventoryGroup | null = null;
+
+    for (const item of inventory) {
+      const name = getStorageName(item);
+      if (!currentGroup || currentGroup.name !== name) {
+        currentGroup = {
+          name,
+          isGeneral: name === "Inventaire Général",
+          items: [],
+        };
+        groups.push(currentGroup);
+      }
+      currentGroup.items.push(item);
+    }
+    return groups;
   });
 </script>
 
@@ -360,267 +383,310 @@
         </p>
       </div>
     {:else}
-      <div
-        class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
-      >
-        {#each inventory as invItem (invItem.id)}
-          {@const item = getItem(invItem.item_id)}
-          {@const resalePrice = item ? item.base_price / 2 : 0}
-          {@const totalValue = resalePrice * invItem.quantity}
-
-          {#if item}
+      <div class="space-y-12">
+        {#each inventoryGroups as group}
+          <div class="space-y-6">
+            <!-- Group Header -->
             <div
-              class="group bg-slate-900/50 border border-slate-800 rounded-2xl p-5 hover:border-indigo-500/30 hover:bg-slate-900/80 hover:shadow-xl hover:shadow-indigo-500/10 flex flex-col justify-between relative overflow-hidden backdrop-blur-sm transition-all"
+              class="flex items-center gap-4 pb-3 border-b border-slate-800/50 relative overflow-hidden group/header"
             >
-              <!-- Decorative gradient blob -->
               <div
-                class="absolute top-0 right-0 w-32 h-32 bg-indigo-500/0 group-hover:bg-indigo-500/5 rounded-full blur-2xl transition-all duration-500 -translate-y-1/2 translate-x-1/2 pointer-events-none"
+                class="absolute bottom-0 left-0 w-32 h-px bg-linear-to-r from-indigo-500 to-transparent"
               ></div>
 
-              <div class="relative z-10">
-                <div class="flex justify-between items-start mb-4">
-                  <!-- Icon -->
-                  <div
-                    class="p-3 rounded-2xl bg-slate-950 border border-slate-800 text-slate-400 group-hover:text-indigo-400 group-hover:border-indigo-500/30 transition-all shadow-sm"
-                  >
-                    {#if item.type === "Machine"}
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="24"
-                        height="24"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        ><path
-                          d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"
-                        /></svg
-                      >
-                    {:else if item.type === "Ressource Brute"}
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="24"
-                        height="24"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        ><path
-                          d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"
-                        /><polyline
-                          points="3.27 6.96 12 12.01 20.73 6.96"
-                        /><line x1="12" y1="22.08" x2="12" y2="12" /></svg
-                      >
-                    {:else}
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="24"
-                        height="24"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        ><rect
-                          x="2"
-                          y="7"
-                          width="20"
-                          height="14"
-                          rx="2"
-                          ry="2"
-                        /><path
-                          d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"
-                        /></svg
-                      >
-                    {/if}
-                  </div>
-                  <!-- Badge -->
-                  <span
-                    class="text-[10px] font-bold uppercase tracking-wider bg-slate-950 border border-slate-800 px-2 py-1 rounded-lg text-slate-500"
-                  >
-                    {item.type}
-                  </span>
-                </div>
-
-                <h3
-                  class="text-xl font-bold text-white mb-4 leading-tight min-h-14"
-                >
-                  {item.name}
-                </h3>
-
-                <div class="grid grid-cols-2 gap-2 mb-4">
-                  <div
-                    class="bg-slate-950/50 p-2 rounded-xl border border-slate-800/50"
-                  >
-                    <div
-                      class="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-0.5"
+              <div
+                class="w-12 h-12 rounded-2xl bg-slate-900/80 flex items-center justify-center border border-slate-800 shadow-xl shadow-black/20 group-hover/header:border-indigo-500/30 group-hover/header:shadow-indigo-500/10 transition-all duration-500 relative overflow-hidden"
+              >
+                <div
+                  class="absolute inset-0 bg-linear-to-br from-indigo-500/10 to-transparent opacity-0 group-hover/header:opacity-100 transition-opacity"
+                ></div>
+                <div class="relative z-10 text-indigo-400">
+                  {#if group.isGeneral}
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="24"
+                      height="24"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.5"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      ><rect width="20" height="14" x="2" y="3" rx="2" /><line
+                        x1="8"
+                        x2="16"
+                        y1="21"
+                        y2="21"
+                      /><line x1="12" x2="12" y1="17" y2="21" /></svg
                     >
-                      Quantité
-                    </div>
-                    <div class="text-2xl font-mono font-black text-white">
-                      {invItem.quantity}
-                    </div>
-                  </div>
-                  <div
-                    class="bg-emerald-950/20 p-2 rounded-xl border border-emerald-500/10 text-right"
-                  >
-                    <div
-                      class="text-[10px] text-emerald-500/70 uppercase font-bold tracking-wider mb-0.5"
+                  {:else}
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="24"
+                      height="24"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.5"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      ><path
+                        d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"
+                      /><path d="m3.3 7 8.7 5 8.7-5" /><path
+                        d="M12 22.08V12"
+                      /></svg
                     >
-                      Valeur
-                    </div>
-                    <div
-                      class="text-lg font-mono font-bold text-emerald-400 truncate"
-                      title={formatCurrency(totalValue)}
-                    >
-                      {formatCurrency(totalValue)}
-                    </div>
-                  </div>
+                  {/if}
                 </div>
               </div>
 
-              <!-- Action Section -->
-              <div
-                class="space-y-3 pt-4 border-t border-slate-800/50 relative z-10"
-              >
-                <div class="flex items-center justify-between px-1">
-                  <span class="text-xs font-medium text-slate-500"
-                    >Prix revente</span
-                  >
-                  <span class="font-mono font-bold text-slate-300 text-sm"
-                    >{formatCurrency(resalePrice)}
-                    <span class="text-[10px] text-slate-600 font-normal"
-                      >/u</span
-                    ></span
-                  >
-                </div>
-
-                <div class="flex flex-col gap-3">
-                  <!-- Qty Selector -->
-                  <div
-                    class="flex items-center gap-1 bg-slate-950 rounded-xl p-1 border border-slate-800 w-full"
-                  >
-                    <button
-                      onclick={() =>
-                        setSellQuantity(
-                          invItem.id,
-                          getSellQuantity(invItem.id) - 1,
-                          invItem.quantity
-                        )}
-                      disabled={getSellQuantity(invItem.id) <= 1}
-                      class="w-8 h-8 rounded-lg bg-slate-900 hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white transition-all disabled:opacity-30 disabled:hover:bg-slate-900 border border-slate-800"
-                      >-</button
+              <div>
+                <h2
+                  class="text-2xl font-bold text-white tracking-tight flex items-center gap-3"
+                >
+                  {group.name}
+                  {#if !group.isGeneral}
+                    <span
+                      class="px-2 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-[10px] font-bold text-indigo-400 uppercase tracking-widest"
+                      >Stockage</span
                     >
-                    <input
-                      type="number"
-                      class="flex-1 min-w-0 bg-transparent text-center font-mono font-bold text-sm text-white focus:outline-none"
-                      value={getSellQuantity(invItem.id)}
-                      oninput={(e) =>
-                        setSellQuantity(
-                          invItem.id,
-                          parseInt(e.currentTarget.value) || 1,
-                          invItem.quantity
-                        )}
-                    />
-                    <button
-                      onclick={() =>
-                        setSellQuantity(
-                          invItem.id,
-                          getSellQuantity(invItem.id) + 1,
-                          invItem.quantity
-                        )}
-                      disabled={getSellQuantity(invItem.id) >= invItem.quantity}
-                      class="w-8 h-8 rounded-lg bg-slate-900 hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white transition-all disabled:opacity-30 disabled:hover:bg-slate-900 border border-slate-800"
-                      >+</button
-                    >
-                    <button
-                      onclick={() =>
-                        setSellQuantity(
-                          invItem.id,
-                          invItem.quantity,
-                          invItem.quantity
-                        )}
-                      class="px-2 h-8 text-[10px] font-bold bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 hover:text-indigo-300 rounded-lg transition-colors border border-indigo-500/20 ml-1"
-                    >
-                      MAX
-                    </button>
-                  </div>
-
-                  <div class="flex gap-2 w-full">
-                    <!-- Deposit Button -->
-                    <button
-                      onclick={() => handleDeposit(invItem)}
-                      disabled={depositingIds[invItem.id] ||
-                        sellingIds[invItem.id]}
-                      class="w-12 h-10 flex shrink-0 items-center justify-center bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl font-bold transition-all shadow-lg shadow-black/20 border border-slate-700 hover:border-slate-600 disabled:opacity-50 disabled:cursor-not-allowed group/lock"
-                      title="Déposer dans la réserve sécurisée"
-                    >
-                      {#if depositingIds[invItem.id]}
-                        <div
-                          class="w-4 h-4 border-2 border-slate-500 border-t-white rounded-full animate-spin"
-                        ></div>
-                      {:else}
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="16"
-                          height="16"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          stroke-width="2"
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          class="group-hover/lock:text-emerald-400 transition-colors"
-                          ><rect
-                            x="3"
-                            y="11"
-                            width="18"
-                            height="11"
-                            rx="2"
-                            ry="2"
-                          /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg
-                        >
-                      {/if}
-                    </button>
-
-                    <!-- Sell Button -->
-                    <button
-                      onclick={() => handleSell(invItem)}
-                      disabled={sellingIds[invItem.id] ||
-                        getSellQuantity(invItem.id) <= 0}
-                      class="flex-1 h-10 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-emerald-900/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 border border-emerald-500/50"
-                    >
-                      {#if sellingIds[invItem.id]}
-                        <div
-                          class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"
-                        ></div>
-                      {:else}
-                        <span>Vendre</span>
-                      {/if}
-                    </button>
-                  </div>
-                </div>
-
-                <div class="text-center pt-1">
-                  <button
-                    onclick={() => openSellAllConfirmation(invItem)}
-                    class="text-[10px] text-slate-500 hover:text-emerald-400 transition-colors uppercase font-bold tracking-wider hover:underline decoration-emerald-500/30 underline-offset-4"
-                  >
-                    Tout vendre immédiatement
-                  </button>
-                </div>
+                  {/if}
+                </h2>
+                <p class="text-slate-400 text-sm font-medium">
+                  {group.items.length} item{group.items.length > 1 ? "s" : ""} dans
+                  cette section
+                </p>
               </div>
             </div>
-          {/if}
+
+            <!-- Items Grid -->
+            <div
+              class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+            >
+              {#each group.items as invItem (invItem.id)}
+                {@const item = getItem(invItem.item_id)}
+                {@const resalePrice = item ? item.base_price / 2 : 0}
+
+                {#if item}
+                  {@const typeColor =
+                    item.type === "Machine"
+                      ? "amber"
+                      : item.type === "Ressource Brute"
+                        ? "emerald"
+                        : "cyan"}
+
+                  <div
+                    class="group relative bg-slate-900/40 hover:bg-slate-900/60 border border-slate-800 hover:border-{typeColor}-500/30 rounded-3xl p-1 transition-all duration-300 hover:shadow-2xl hover:shadow-{typeColor}-500/10 hover:-translate-y-1 backdrop-blur-md"
+                  >
+                    <!-- Glossy overlay -->
+                    <div
+                      class="absolute inset-0 rounded-3xl bg-linear-to-b from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
+                    ></div>
+
+                    <div
+                      class="relative h-full flex flex-col p-5 rounded-[20px] overflow-hidden"
+                    >
+                      <!-- Background Glow Blob -->
+                      <div
+                        class="absolute -right-12 -top-12 w-48 h-48 bg-{typeColor}-500/10 rounded-full blur-3xl group-hover:bg-{typeColor}-500/20 transition-all duration-500"
+                      ></div>
+
+                      <!-- Header: Icon & Qty -->
+                      <div
+                        class="flex justify-between items-start mb-6 relative z-10"
+                      >
+                        <div class="relative">
+                          <div
+                            class="w-14 h-14 rounded-2xl bg-slate-950/80 border border-slate-800 group-hover:border-{typeColor}-500/40 flex items-center justify-center p-2 shadow-lg transition-colors duration-300"
+                          >
+                            <!-- Item Icon Component or Fallback SVG -->
+                            {#if item.icon && item.icon.startsWith("/")}
+                              <img
+                                src={item.icon}
+                                alt={item.name}
+                                class="w-full h-full object-contain"
+                              />
+                            {:else}
+                              <span class="text-2xl">
+                                {#if item.type === "Machine"}🏭{:else if item.type === "Ressource Brute"}🪨{:else}📦{/if}
+                              </span>
+                            {/if}
+                          </div>
+                          <!-- Rarity/Type Dot -->
+                          <div
+                            class="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-slate-900 flex items-center justify-center"
+                          >
+                            <div
+                              class="w-2.5 h-2.5 rounded-full bg-{typeColor}-500 shadow-[0_0_8px_rgba(var(--{typeColor}-500),0.8)] animate-pulse"
+                            ></div>
+                          </div>
+                        </div>
+
+                        <div class="text-right">
+                          <div
+                            class="text-3xl font-black text-white tracking-tight tabular-nums drop-shadow-lg"
+                          >
+                            {Math.floor(invItem.quantity)}
+                          </div>
+                          <div
+                            class="text-[10px] font-bold uppercase tracking-wider text-{typeColor}-400/80"
+                          >
+                            En Stock
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Content -->
+                      <div class="relative z-10 mb-6 flex-1">
+                        <h3
+                          class="text-lg font-bold text-slate-200 group-hover:text-white transition-colors line-clamp-1"
+                          title={item.name}
+                        >
+                          {item.name}
+                        </h3>
+                        <div class="flex items-center gap-2 mt-1">
+                          <span
+                            class="text-xs font-semibold px-2 py-0.5 rounded bg-slate-800/80 text-slate-400 border border-slate-700/50 group-hover:border-{typeColor}-500/20 transition-colors"
+                          >
+                            {item.type}
+                          </span>
+                        </div>
+                      </div>
+
+                      <!-- Footer / Actions -->
+                      <div
+                        class="relative z-10 mt-auto pt-4 border-t border-slate-800/50 group-hover:border-{typeColor}-500/10 transition-colors space-y-3"
+                      >
+                        <!-- Price Info -->
+                        <div class="flex justify-between items-center text-xs">
+                          <span class="text-slate-500 font-medium"
+                            >Valeur unitaire</span
+                          >
+                          <span class="text-slate-300 font-mono font-bold"
+                            >{formatCurrency(resalePrice)}</span
+                          >
+                        </div>
+
+                        <!-- Interactive Controls (Always visible for better UX, or reveal on hover) -->
+                        <div class="flex flex-col gap-2">
+                          <!-- Qty Input -->
+                          <div
+                            class="flex items-center bg-slate-950/50 rounded-lg p-1 border border-slate-800 group-hover:border-slate-700 transition-colors"
+                          >
+                            <button
+                              onclick={() =>
+                                setSellQuantity(
+                                  invItem.id,
+                                  getSellQuantity(invItem.id) - 1,
+                                  invItem.quantity
+                                )}
+                              disabled={getSellQuantity(invItem.id) <= 1}
+                              class="w-6 h-6 flex items-center justify-center rounded bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white disabled:opacity-30 transition-colors"
+                              >-</button
+                            >
+                            <input
+                              type="number"
+                              value={getSellQuantity(invItem.id)}
+                              oninput={(e) =>
+                                setSellQuantity(
+                                  invItem.id,
+                                  parseInt(e.currentTarget.value) || 1,
+                                  invItem.quantity
+                                )}
+                              class="flex-1 bg-transparent text-center font-mono text-sm font-bold text-white focus:outline-none min-w-0"
+                            />
+                            <button
+                              onclick={() =>
+                                setSellQuantity(
+                                  invItem.id,
+                                  getSellQuantity(invItem.id) + 1,
+                                  invItem.quantity
+                                )}
+                              disabled={getSellQuantity(invItem.id) >=
+                                invItem.quantity}
+                              class="w-6 h-6 flex items-center justify-center rounded bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white disabled:opacity-30 transition-colors"
+                              >+</button
+                            >
+                          </div>
+
+                          <!-- Buttons -->
+                          <div class="grid grid-cols-[auto_1fr] gap-2">
+                            <button
+                              onclick={() => handleDeposit(invItem)}
+                              disabled={depositingIds[invItem.id] ||
+                                sellingIds[invItem.id]}
+                              class="h-9 w-9 flex items-center justify-center rounded-lg bg-slate-800/50 hover:bg-indigo-500 hover:shadow-lg hover:shadow-indigo-500/30 text-slate-400 hover:text-white border border-slate-700 hover:border-indigo-400 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed group/deposit"
+                              title="Déposer dans la réserve"
+                            >
+                              {#if depositingIds[invItem.id]}
+                                <div
+                                  class="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"
+                                ></div>
+                              {:else}
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  width="16"
+                                  height="16"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  stroke-width="2"
+                                  stroke-linecap="round"
+                                  stroke-linejoin="round"
+                                  ><rect
+                                    x="3"
+                                    y="11"
+                                    width="18"
+                                    height="11"
+                                    rx="2"
+                                    ry="2"
+                                  /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg
+                                >
+                              {/if}
+                            </button>
+
+                            <button
+                              onclick={() => handleSell(invItem)}
+                              disabled={sellingIds[invItem.id] ||
+                                getSellQuantity(invItem.id) <= 0}
+                              class="h-9 flex items-center justify-center gap-2 rounded-lg bg-emerald-500/10 hover:bg-emerald-500 text-emerald-500 hover:text-white border border-emerald-500/20 hover:border-emerald-400 font-bold text-xs uppercase tracking-wide transition-all duration-300 shadow-sm hover:shadow-lg hover:shadow-emerald-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {#if sellingIds[invItem.id]}
+                                <div
+                                  class="w-3 h-3 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin"
+                                ></div>
+                              {:else}
+                                Vendre
+                              {/if}
+                            </button>
+                          </div>
+                        </div>
+
+                        <!-- "Sell All" Link -->
+                        <div class="text-center">
+                          <button
+                            onclick={() => openSellAllConfirmation(invItem)}
+                            class="text-[9px] font-bold text-slate-600 hover:text-white transition-colors uppercase tracking-widest hover:underline decoration-white/30"
+                          >
+                            Tout Vendre
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                {/if}
+              {/each}
+            </div>
+          </div>
         {/each}
       </div>
+    {/if}
 
-      <InfiniteScroll onLoadMore={loadMore} loading={loadingMore} {hasMore} />
+    {#if hasMore}
+      <InfiniteScroll
+        loading={loadingMore}
+        onLoadMore={() => loadInventory(currentPage + 1, true)}
+      />
     {/if}
   {/if}
 </div>
