@@ -9,7 +9,7 @@ import { getItem } from '$lib/data/game-static';
 // Types
 export interface FactoryNode {
   id: string;
-  type: 'machine' | 'deposit' | 'company' | 'zone'; 
+  type: 'machine' | 'deposit' | 'company' | 'zone';
   position: { x: number; y: number };
   data: {
     itemId?: string;
@@ -40,6 +40,8 @@ export interface FactoryEdge {
   target: string;
   sourceHandle?: string;
   targetHandle?: string;
+  animated?: boolean;
+  type?: string;
   data?: {
     item: string;
   };
@@ -118,7 +120,7 @@ export async function loadFactory(companyId: string): Promise<{
       id: company.id,
       type: "company",
       position: {
-        x: companyLocation?.lon ?? 750,
+        x: companyLocation?.lng ?? 750,
         y: companyLocation?.lat ?? 750,
       },
       data: {
@@ -136,12 +138,12 @@ export async function loadFactory(companyId: string): Promise<{
     for (const machine of machines) {
       const location = machine.location;
       const staticItem = getItem(machine.machine_id);
-      
+
       nodes.push({
         id: machine.id,
         type: "machine",
         position: {
-          x: location?.lon  ?? 0,
+          x: location?.lng ?? 0,
           y: location?.lat ?? 0,
         },
         data: {
@@ -161,12 +163,12 @@ export async function loadFactory(companyId: string): Promise<{
     for (const deposit of deposits) {
       const location = deposit.location;
       const staticItem = getItem(deposit.ressource_id);
-      
+
       nodes.push({
         id: deposit.id,
         type: "deposit",
         position: {
-          x: location?.lon ?? 0,
+          x: location?.lng ?? 0,
           y: location?.lat ?? 0,
         },
         data: {
@@ -179,16 +181,16 @@ export async function loadFactory(companyId: string): Promise<{
       });
     }
 
-    // Load edges from edge_relation
-    const edgeRelations = await pb.collection('edge_relation').getFullList({
-      filter: `output_type = "company"`,
-    });
+    // Load edges from edge_relation (fetch all accessible edges)
+    const edgeRelations = await pb.collection('edge_relation').getFullList();
 
     for (const edge of edgeRelations) {
       edges.push({
         id: edge.id,
         source: edge.input_id,
         target: edge.output_id,
+        animated: true,
+        type: 'smoothstep',
         data: {
           item: edge.item,
         },
@@ -224,7 +226,7 @@ export async function placeNode(
   try {
     const collection = type === 'machine' ? 'machines' : 'deposits';
     await pb.collection(collection).update(id, {
-      location: { lon: x, lat: y },
+      location: { lng: x, lat: y },
       placed: true,
     });
     return true;
@@ -244,7 +246,7 @@ export async function updateNodePosition(
   try {
     const collection = type === 'machine' ? 'machines' : type === 'deposit' ? 'deposits' : 'companies';
     await pb.collection(collection).update(id, {
-      location: { lon: x, lat: y },
+      location: { lng: x, lat: y },
     });
     return true;
   } catch (error) {
@@ -254,10 +256,12 @@ export async function updateNodePosition(
 }
 
 // Create an edge connection
+// Create an edge connection
 export async function createEdge(
   inputId: string,
   inputType: 'machine' | 'deposit',
   outputId: string,
+  outputType: 'machine' | 'company' | 'deposit', // Added outputType
   item: string
 ): Promise<string | null> {
   try {
@@ -265,7 +269,7 @@ export async function createEdge(
       input_id: inputId,
       input_type: inputType,
       output_id: outputId,
-      output_type: 'company',
+      output_type: outputType, // Use dynamic outputType
       item: item,
     });
     return record.id;
@@ -282,6 +286,24 @@ export async function deleteEdge(edgeId: string): Promise<boolean> {
     return true;
   } catch (error) {
     console.error('Failed to delete edge:', error);
+    return false;
+  }
+}
+
+// Unplace a node (remove from canvas, return to sidebar)
+export async function unplaceNode(
+  type: 'machine' | 'deposit',
+  id: string
+): Promise<boolean> {
+  try {
+    const collection = type === 'machine' ? 'machines' : 'deposits';
+    await pb.collection(collection).update(id, {
+      placed: false,
+      location: null,
+    });
+    return true;
+  } catch (error) {
+    console.error('Failed to unplace node:', error);
     return false;
   }
 }

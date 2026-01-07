@@ -1,15 +1,17 @@
 <script lang="ts">
-  import { Handle, Position } from "@xyflow/svelte";
-  import type { NodeProps } from "@xyflow/svelte";
+  import { Handle, Position, type Node, type NodeProps } from "@xyflow/svelte";
   import { activeCompany } from "$lib/stores";
 
-  type CompanyNodeProps = NodeProps<{
-    name: string;
-    icon: string;
-    placed: boolean;
-  }>;
+  type CompanyNode = Node<
+    {
+      name: string;
+      icon: string;
+      placed: boolean;
+    },
+    "company"
+  >;
 
-  let { data }: CompanyNodeProps = $props();
+  let { data }: NodeProps<CompanyNode> = $props();
   let company = $derived($activeCompany);
 </script>
 

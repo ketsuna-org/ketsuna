@@ -1,11 +1,11 @@
 <script lang="ts">
-  import { onMount, onDestroy } from "svelte";
+  import { onMount } from "svelte";
   import pb from "$lib/pocketbase";
-  import { activeCompany } from "$lib/stores";
   import MachineNode from "$lib/components/nodes/MachineNode.svelte";
   import DepositNode from "$lib/components/nodes/DepositNode.svelte";
   import CompanyNode from "$lib/components/nodes/CompanyNode.svelte";
   import ZoneNode from "$lib/components/nodes/ZoneNode.svelte";
+  import GameIcon from "$lib/components/GameIcon.svelte";
   import { getItem } from "$lib/data/game-static";
   import {
     loadFactory,
@@ -16,9 +16,9 @@
     placeNode,
     createEdge,
     deleteEdge,
+    unplaceNode,
     NODE_DIMENSIONS,
     type FactoryNode,
-    type FactoryEdge,
   } from "$lib/services/factory";
   import {
     SvelteFlow,
@@ -74,12 +74,36 @@
   }
 
   // Get the svelte flow instance (correct hook usage)
-  const { screenToFlowPosition, getNodes } = useSvelteFlow();
+  const { screenToFlowPosition, getNodes, fitView } = useSvelteFlow();
 
   let canvasBounds = $derived(getCanvasBounds(company?.level || 1));
 
-  let unsubscribeMachines: (() => void) | null = null;
-  let unsubscribeEdges: (() => void) | null = null;
+  // Group unplaced machines by machine_id for stacking
+  interface GroupedMachine {
+    machine_id: string;
+    ids: string[]; // Array of actual record IDs
+    count: number;
+  }
+
+  let groupedUnplacedMachines = $derived.by(() => {
+    const groups = new Map<string, string[]>();
+    for (const machine of unplacedMachines) {
+      const existing = groups.get(machine.machine_id) || [];
+      existing.push(machine.id);
+      groups.set(machine.machine_id, existing);
+    }
+    return Array.from(groups.entries()).map(([machine_id, ids]) => ({
+      machine_id,
+      ids,
+      count: ids.length,
+    })) as GroupedMachine[];
+  });
+
+  // Removed real-time subscriptions - they cause unnecessary refreshes
+  // Since the user is the one making changes, we don't need them
+
+  // Track if this is the initial load (for one-time fitView)
+  let hasInitiallyLoaded = false;
 
   async function loadData() {
     if (!company?.id) return;
@@ -107,11 +131,27 @@
         ...node,
         parentId: ZONE_ID,
         extent: "parent" as const,
+        draggable: true,
+        selectable: true,
+        // Only machines can be removed, company and deposits are permanent
+        deletable: node.type === "machine",
       }));
 
       nodes = [zoneNode, ...childNodes] as Node[];
       edges = data.edges as Edge[];
       unplacedMachines = await loadUnplacedMachines(company.id);
+
+      // Focus on the company node ONLY on initial load
+      if (!hasInitiallyLoaded && nodes.length > 0) {
+        hasInitiallyLoaded = true;
+        setTimeout(() => {
+          fitView({
+            nodes: [{ id: company.id }],
+            padding: 2,
+            duration: 800,
+          });
+        }, 100);
+      }
     } catch (err) {
       console.error("Failed to load factory data:", err);
     } finally {
@@ -119,45 +159,18 @@
     }
   }
 
-  // Effect to watch for company changes (resolves infinite loading)
+  // Effect to watch for company changes
   $effect(() => {
     if (company?.id) {
       loadData();
-      subscribeToData();
     }
   });
 
-  async function subscribeToData() {
-    if (!company?.id) return;
-
-    try {
-      unsubscribeMachines = await pb
-        .collection("machines")
-        .subscribe("*", () => {
-          loadData();
-        });
-
-      unsubscribeEdges = await pb
-        .collection("edge_relation")
-        .subscribe("*", () => {
-          loadData();
-        });
-    } catch (err) {
-      console.error("Failed to subscribe to factory data", err);
-    }
-  }
-
   onMount(() => {
-    // Initial load try
+    // Initial load
     if (company?.id) {
       loadData();
-      subscribeToData();
     }
-
-    return () => {
-      if (unsubscribeMachines) unsubscribeMachines();
-      if (unsubscribeEdges) unsubscribeEdges();
-    };
   });
 
   // Handle DnD Start
@@ -189,16 +202,16 @@
     });
 
     const machineDim = NODE_DIMENSIONS.machine;
-    const x = position.x - machineDim.width / 2;
-    const y = position.y - machineDim.height / 2;
+    const x = Math.round(position.x - machineDim.width / 2);
+    const y = Math.round(position.y - machineDim.height / 2);
 
-    // Filter out zone node for collision check
-    const childNodes = nodes.filter((n) => n.type !== "zone") as FactoryNode[];
+    // Filter out zone node for collision check - TEMPORARILY DISABLED
+    // const childNodes = nodes.filter((n) => n.type !== "zone") as FactoryNode[];
 
-    if (checkCollision(x, y, machineDim.width, machineDim.height, childNodes)) {
-      console.warn("Cannot place: collision detected");
-      return;
-    }
+    // if (checkCollision(x, y, machineDim.width, machineDim.height, childNodes)) {
+    //   console.warn("Cannot place: collision detected");
+    //   return;
+    // }
 
     if (
       x < 0 ||
@@ -218,69 +231,121 @@
     }
   }
 
-  async function onNodeDragStop(event: any, node: any) {
-    // Don't allow moving the zone node
-    if (node.id === ZONE_ID) return;
+  async function onNodeDragStop({
+    targetNode: node,
+    nodes: _eventNodes, // Renamed to avoid shadowing component state
+  }: {
+    targetNode: Node | null;
+    nodes: Node[];
+    event: MouseEvent | TouchEvent;
+  }) {
+    // 1. Guard clause for null target or specific restricted zones
+    if (!node || node.id === ZONE_ID) return;
 
-    const childNodes = nodes.filter((n) => n.type !== "zone") as FactoryNode[];
-    const dim =
-      NODE_DIMENSIONS[node.type as keyof typeof NODE_DIMENSIONS] ||
-      NODE_DIMENSIONS.machine;
+    // 2. Use measured dimensions for precision (critical for collision)
+    // Svelte Flow populates 'measured' after the node renders.
+    const nodeDim = {
+      width:
+        node.measured?.width ??
+        NODE_DIMENSIONS[node.type as keyof typeof NODE_DIMENSIONS]?.width ??
+        140,
+      height:
+        node.measured?.height ??
+        NODE_DIMENSIONS[node.type as keyof typeof NODE_DIMENSIONS]?.height ??
+        100,
+    };
 
-    if (
+    // 3. Filter child nodes for collision (excluding the one being dragged)
+    // Use component-level nodes state, not the event's nodes array
+    const otherNodes = nodes.filter(
+      (n) => n.type !== "zone" && n.id !== node.id
+    ) as FactoryNode[];
+
+    // 4. Boundary Validation
+    const isOutOfBounds =
       node.position.x < 0 ||
       node.position.y < 0 ||
-      node.position.x > canvasBounds.width - dim.width ||
-      node.position.y > canvasBounds.height - dim.height
-    ) {
+      node.position.x > canvasBounds.width - nodeDim.width ||
+      node.position.y > canvasBounds.height - nodeDim.height;
+
+    if (isOutOfBounds) {
       console.warn("Node out of bounds, resetting position");
-      await loadData();
+      await loadData(); // Revert state from source of truth
       return;
     }
 
-    if (
-      checkCollision(
-        node.position.x,
-        node.position.y,
-        dim.width,
-        dim.height,
-        childNodes,
-        node.id
-      )
-    ) {
-      console.warn("Collision detected, resetting position");
-      await loadData();
-      return;
-    }
-
-    await updateNodePosition(
-      node.type as "machine" | "deposit" | "company",
-      node.id,
+    // 5. Collision Validation - TEMPORARILY DISABLED for debugging
+    // The collision logic was causing false positives, preventing all node movement
+    // TODO: Re-enable after fixing the collision detection logic
+    /*
+    const hasCollision = checkCollision(
       node.position.x,
-      node.position.y
+      node.position.y,
+      nodeDim.width,
+      nodeDim.height,
+      otherNodes,
+      node.id
     );
+
+    if (hasCollision) {
+      console.warn("Collision detected, resetting position");
+      await loadData(); // Revert state
+      return;
+    }
+    */
+
+    // 6. Persistence
+    try {
+      const roundedX = Math.round(node.position.x);
+      const roundedY = Math.round(node.position.y);
+
+      const success = await updateNodePosition(
+        node.type as "machine" | "deposit" | "company",
+        node.id,
+        roundedX,
+        roundedY
+      );
+
+      if (!success) {
+        await loadData();
+      } else {
+        // Update local state with rounded values to avoid visual drift
+        const nodeIndex = nodes.findIndex((n) => n.id === node.id);
+        if (nodeIndex !== -1) {
+          nodes[nodeIndex].position = { x: roundedX, y: roundedY };
+        }
+      }
+    } catch (error) {
+      console.error("Failed to update node position:", error);
+      await loadData();
+    }
   }
 
-  async function onConnect(params: Connection) {
-    if (!params.source || !params.target) return;
+  async function onConnect(connection: Connection) {
+    if (!connection.source || !connection.target) return;
 
-    const sourceNode = nodes.find((n) => n.id === params.source);
-    const targetNode = nodes.find((n) => n.id === params.target);
+    const sourceNode = nodes.find((n) => n.id === connection.source);
+    const targetNode = nodes.find((n) => n.id === connection.target);
 
     if (!sourceNode || !targetNode) return;
 
+    /* Restriction removed: connections now allowed between machines
     if (targetNode.type !== "company") {
       console.warn(
         "Connections are only supported to the Company node for now."
       );
       return;
     }
+    */
 
     const success = await createEdge(
-      params.source,
+      connection.source,
       sourceNode.type as "machine" | "deposit",
       targetNode.id,
-      sourceNode.data.itemId || sourceNode.data.resourceId || ""
+      targetNode.type as "machine" | "company" | "deposit",
+      (sourceNode.data.itemId as string) ||
+        (sourceNode.data.resourceId as string) ||
+        ""
     );
 
     if (success) {
@@ -288,31 +353,45 @@
     }
   }
 
-  async function onDelete(params: { edges: Edge[] }) {
-    for (const edge of params.edges) {
+  async function onDelete({
+    nodes: deletedNodes,
+    edges: deletedEdges,
+  }: {
+    nodes: Node[];
+    edges: Edge[];
+  }) {
+    // Handle node deletions (machines only - can be "unplaced")
+    for (const node of deletedNodes) {
+      if (node.type === "machine") {
+        const success = await unplaceNode("machine", node.id);
+        if (success) {
+          // Update local state directly instead of reloading
+          nodes = nodes.filter((n) => n.id !== node.id);
+          // Reload unplaced machines to show it in sidebar
+          unplacedMachines = await loadUnplacedMachines(company.id);
+        }
+      }
+      // Note: deposits and company nodes cannot be removed this way
+    }
+
+    // Handle edge deletions
+    for (const edge of deletedEdges) {
       await deleteEdge(edge.id);
     }
-    await loadData();
+
+    // Only reload if edges were deleted (to update connection state)
+    if (deletedEdges.length > 0) {
+      await loadData();
+    }
   }
 
-  function onNodesChange(changes: any[]) {
-    // Basic manual implementation if applyNodeChanges is missing
-    // Svelte Flow Svelte 5 usually handles this via bind:nodes or internal state
-    // but if we are providing nodes, we should handle selection/dragging changes
-    for (const change of changes) {
-      if (change.type === "position" && change.dragging) {
-        const node = nodes.find((n) => n.id === change.id);
-        if (node && change.position) {
-          node.position = change.position;
-        }
-      }
-      if (change.type === "select") {
-        const node = nodes.find((n) => n.id === change.id);
-        if (node) {
-          node.selected = change.selected;
-        }
-      }
-    }
+  function onNodeDrag(_event: {
+    targetNode: Node | null;
+    nodes: Node[];
+    event: MouseEvent | TouchEvent;
+  }) {
+    // Let Svelte Flow handle position updates via bind:nodes
+    // No manual intervention needed during drag
   }
 </script>
 
@@ -331,24 +410,33 @@
       >
     </div>
 
-    {#if unplacedMachines.length > 0}
+    {#if groupedUnplacedMachines.length > 0}
       <div class="unplaced-section">
         <h3>Machines à placer</h3>
         <div class="unplaced-list">
-          {#each unplacedMachines as machine}
-            {@const item = getItem(machine.machine_id)}
+          {#each groupedUnplacedMachines as group}
+            {@const item = getItem(group.machine_id)}
             <div
               class="unplaced-item"
               draggable="true"
               role="button"
               tabindex="0"
-              ondragstart={(e) => onDragStart(e, machine.id)}
+              ondragstart={(e) => onDragStart(e, group.ids[0])}
             >
-              <span class="item-icon">{item?.icon || "⚙️"}</span>
+              <div class="item-icon">
+                <GameIcon
+                  icon={item?.icon || "⚙️"}
+                  size={24}
+                  alt={item?.name || "Machine"}
+                />
+              </div>
               <div class="item-info">
                 <span class="item-name">{item?.name || "Machine"}</span>
-                <span class="item-id">{machine.machine_id}</span>
+                <span class="item-id">{group.machine_id}</span>
               </div>
+              {#if group.count > 1}
+                <span class="item-count">×{group.count}</span>
+              {/if}
             </div>
           {/each}
         </div>
@@ -382,13 +470,13 @@
   >
     <SvelteFlow
       bind:nodes
-      {edges}
+      bind:edges
       {nodeTypes}
-      fitView
-      onnodeschange={onNodesChange}
-      onnodeDragStop={onNodeDragStop}
+      defaultEdgeOptions={{ type: "smoothstep", animated: true }}
       onconnect={onConnect}
       ondelete={onDelete}
+      onnodedrag={onNodeDrag}
+      onnodedragstop={onNodeDragStop}
     >
       <Background bgColor="#334155" gap={20} />
       <Controls />
@@ -554,6 +642,17 @@
     font-family: monospace;
   }
 
+  .item-count {
+    margin-left: auto;
+    padding: 4px 10px;
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+  }
+
   .stats-section {
     display: flex;
     flex-direction: column;
@@ -636,6 +735,27 @@
   /* SvelteFlow overrides */
   :global(.svelte-flow) {
     background: #0f172a !important;
+  }
+
+  :global(.svelte-flow__edge-path) {
+    stroke: #64748b;
+    stroke-width: 3;
+    transition: stroke 0.3s;
+  }
+
+  :global(.svelte-flow__edge.animated .svelte-flow__edge-path) {
+    stroke: #3b82f6;
+    stroke-dasharray: 5;
+    animation: dashdraw 0.5s linear infinite;
+  }
+
+  @keyframes dashdraw {
+    from {
+      stroke-dashoffset: 10;
+    }
+    to {
+      stroke-dashoffset: 0;
+    }
   }
 
   :global(.svelte-flow__minimap) {

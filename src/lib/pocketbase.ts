@@ -38,7 +38,7 @@ export interface User extends BaseRecord {
 export interface Company extends BaseRecord {
   ceo: string;
   name: string;
-  location?: { lat: number; lon: number };
+  location?: { lat: number; lng: number };
   balance: number;
   level: number;
   is_npc: boolean;
@@ -65,7 +65,7 @@ export interface Deposit extends BaseRecord {
   ressource_id: string; // Static ID
   quantity: number;
   size: number;
-  location?: { lat: number; lon: number };
+  location?: { lat: number; lng: number };
   expand?: {
     company?: Company;
   };
@@ -133,7 +133,7 @@ export interface Machine extends BaseRecord {
   production_started_at: string;
   stored_energy: number;
   deposit?: string;
-  location?: { lat: number; lon: number };
+  location?: { lat: number; lng: number };
   placed: boolean;
   expand?: {
     employees?: Employee[];
@@ -155,7 +155,7 @@ export interface Message extends BaseRecord {
 // TypedPocketBase - Provides typed collection() methods
 // ============================================================================
 export interface TypedPocketBase extends Pocketbase {
-  collection(idOrName: string): RecordService; 
+  collection(idOrName: string): RecordService;
   collection(idOrName: "users"): RecordService<User>;
   collection(idOrName: "companies"): RecordService<Company>;
   collection(idOrName: "company_techs"): RecordService<CompanyTech>;

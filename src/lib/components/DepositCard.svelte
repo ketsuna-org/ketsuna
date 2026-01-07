@@ -4,6 +4,7 @@
   import { notifications } from "$lib/notifications";
   import { slide } from "svelte/transition";
   import ConfirmationModal from "$lib/components/ConfirmationModal.svelte";
+  import GameIcon from "$lib/components/GameIcon.svelte";
   import { getItem } from "$lib/data/game-static";
 
   interface Props {
@@ -126,9 +127,13 @@
   <div class="flex justify-between items-start mb-4 relative z-10">
     <div>
       <h3 class="text-lg font-bold text-white flex items-center gap-2">
-        <span class="p-1.5 bg-emerald-500/10 rounded-lg text-emerald-400"
-          >{getItem(deposit.ressource_id)?.icon || "⛏️"}</span
-        >
+        <span class="p-1.5 bg-emerald-500/10 rounded-lg text-emerald-400">
+          <GameIcon
+            icon={getItem(deposit.ressource_id)?.icon || "⛏️"}
+            size={20}
+            alt={getItem(deposit.ressource_id)?.name || "Ressource"}
+          />
+        </span>
         {getItem(deposit.ressource_id)?.name || "Ressource"}
       </h3>
       <div
@@ -208,7 +213,11 @@
             class="flex items-center justify-between bg-amber-900/20 rounded-lg p-2 border border-amber-500/20 group"
           >
             <div class="flex items-center gap-2">
-              <span class="text-sm">🏭</span>
+              <GameIcon
+                icon={getItem(mach.machine_id)?.icon || "🏭"}
+                size={16}
+                alt={getItem(mach.machine_id)?.name || "Machine"}
+              />
               <div>
                 <span class="text-xs text-white font-medium block"
                   >{getItem(mach.machine_id)?.name || "Machine"}</span
