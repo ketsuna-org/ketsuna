@@ -16,11 +16,11 @@
 
   const navItems: NavItem[] = [
     {
-      label: "Société",
-      href: "/dashboard",
-      icon: "🏢",
+      label: "Usine",
+      href: "/factory",
+      icon: "🏭",
       color: "from-indigo-500 to-purple-600",
-      description: "Vue d'ensemble de votre entreprise",
+      description: "Gérez votre production",
     },
     {
       label: "Employés",
@@ -35,13 +35,6 @@
       icon: "🔬",
       color: "from-violet-500 to-purple-600",
       description: "Débloquez de nouvelles technologies",
-    },
-    {
-      label: "Usine",
-      href: "/factory",
-      icon: "⚙️",
-      color: "from-slate-500 to-zinc-600",
-      description: "Gérez votre usine",
     },
     {
       label: "Monde",

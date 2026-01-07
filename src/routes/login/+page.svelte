@@ -35,7 +35,7 @@
         });
         await pb.collection("users").authWithPassword(email, password);
       }
-      goto("/dashboard");
+      goto("/factory");
     } catch (err: any) {
       console.log("Full error object:", err);
 
@@ -73,7 +73,7 @@
 
     try {
       await pb.collection("users").authWithOAuth2({ provider: "discord" });
-      goto("/dashboard");
+      goto("/factory");
     } catch (err: any) {
       error = err.message || "Erreur lors de la connexion Discord";
     } finally {

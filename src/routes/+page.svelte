@@ -81,7 +81,7 @@
 
   function startPlaying() {
     if (pb.authStore.isValid) {
-      goto("/dashboard");
+      goto("/factory");
     } else {
       goto("/login");
     }

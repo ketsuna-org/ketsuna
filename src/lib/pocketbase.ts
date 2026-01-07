@@ -183,7 +183,7 @@ export type { Item, Recipe, Technology };
 // Initialize PocketBase Client
 // ============================================================================
 const authStore = new LocalAuthStore("ketsuna:auth");
-const pb = new Pocketbase("http://127.0.0.1:8090", authStore) as TypedPocketBase;
+const pb = new Pocketbase("https://api.ketsuna.com", authStore) as TypedPocketBase;
 
 // Global settings
 pb.autoCancellation(false);
