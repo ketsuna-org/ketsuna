@@ -31,21 +31,8 @@
   let hasMore = $state(true);
   let totalItems = $state(0);
 
-  // Real rarity counts from database (not just loaded employees)
-  let rarityCounts = $state<Record<string, number>>({
-    "0": 0,
-    "1": 0,
-    "2": 0,
-    "3": 0,
-  });
-
   // Collapsible state (collapsed by default)
   let isListExpanded = $state(false);
-
-  // Bulk fire state
-  let bulkFireRarity = $state<string>("");
-  let showBulkFireConfirm = $state(false);
-  let bulkFiring = $state(false);
 
   // Filter states
   let searchQuery = $state("");
@@ -68,31 +55,13 @@
         { label: "Directeur", value: "Directeur" },
       ],
     },
-    {
-      label: "Toutes raretés",
-      value: "rarity",
-      options: [
-        { label: "Common", value: "0" },
-        { label: "Rare", value: "1" },
-        { label: "Epic", value: "2" },
-        { label: "Legendary", value: "3" },
-      ],
-    },
   ];
-
-  const rarityLabels: Record<string, { label: string; color: string }> = {
-    "0": { label: "Common", color: "text-slate-400" },
-    "1": { label: "Rare", color: "text-blue-400" },
-    "2": { label: "Epic", color: "text-purple-400" },
-    "3": { label: "Legendary", color: "text-amber-400" },
-  };
 
   // Stats derived from loaded employees
   let employeeStats = $derived.by(() => {
     const stats = {
       totalSalary: 0,
       avgEfficiency: 0,
-      byRarity: { "0": 0, "1": 0, "2": 0, "3": 0 } as Record<string, number>,
     };
     if (employees.length === 0) return stats;
 
@@ -100,17 +69,10 @@
     for (const emp of employees) {
       stats.totalSalary += emp.salary || 0;
       totalEff += emp.efficiency || 1;
-      stats.byRarity[String(emp.rarity)] =
-        (stats.byRarity[String(emp.rarity)] || 0) + 1;
     }
     stats.avgEfficiency = totalEff / employees.length;
     return stats;
   });
-
-  // Count employees to bulk fire (use real DB counts, not just loaded employees)
-  let bulkFireCount = $derived(
-    bulkFireRarity ? rarityCounts[bulkFireRarity] || 0 : 0
-  );
 
   // Build PocketBase filter string from current filters
   function buildFilterString(): string {
@@ -123,9 +85,6 @@
     }
     if (selectedFilters.poste) {
       parts.push(`poste = "${selectedFilters.poste}"`);
-    }
-    if (selectedFilters.rarity) {
-      parts.push(`rarity = ${selectedFilters.rarity}`);
     }
 
     return parts.join(" && ");
@@ -145,7 +104,7 @@
 
   // Derived state from URL
   let showDeleteModal = $derived(
-    $page.url.searchParams.get("state") === "delete"
+    $page.url.searchParams.get("state") === "delete",
   );
   let deleteId = $derived($page.url.searchParams.get("id"));
   let employeeToDelete = $derived(employees.find((e) => e.id === deleteId));
@@ -163,7 +122,7 @@
       activeCompany.set(updated);
 
       notifications.success(
-        `${result.hiredCount} employé(s) recruté(s) pour ${result.totalCost}€`
+        `${result.hiredCount} employé(s) recruté(s) pour ${result.totalCost}€`,
       );
     } catch (e: any) {
       notifications.error(e.message);
@@ -200,47 +159,6 @@
     }
   }
 
-  async function handleBulkFire() {
-    if (!bulkFireRarity || !$activeCompany || bulkFireCount === 0) return;
-
-    bulkFiring = true;
-    try {
-      // Get all employees of this rarity
-      const toFire = await pb.collection("employees").getFullList<Employee>({
-        filter: `employer = "${$activeCompany.id}" && rarity = ${bulkFireRarity}`,
-        requestKey: null,
-      });
-
-      // Delete them one by one
-      let deleted = 0;
-      for (const emp of toFire) {
-        try {
-          await pb.collection("employees").delete(emp.id);
-          deleted++;
-        } catch (e) {
-          console.error("Failed to delete", emp.id, e);
-        }
-      }
-
-      // Update local state
-      employees = employees.filter((e) => String(e.rarity) !== bulkFireRarity);
-      totalItems = Math.max(0, totalItems - deleted);
-
-      const updated = await pb
-        .collection("companies")
-        .getOne<Company>($activeCompany.id);
-      activeCompany.set(updated);
-
-      notifications.success(`${deleted} employé(s) licencié(s)`);
-      showBulkFireConfirm = false;
-      bulkFireRarity = "";
-    } catch (e: any) {
-      notifications.error("Erreur: " + e.message);
-    } finally {
-      bulkFiring = false;
-    }
-  }
-
   async function loadEmployees(page: number = 1, append: boolean = false) {
     if (!$activeCompany) return;
 
@@ -253,37 +171,21 @@
     try {
       const filter = buildFilterString();
 
-      // On first page, also fetch total counts per rarity for accurate bulk fire counts
-      const rarityCountPromises =
+      const [empResult, machineResult, preview] = await Promise.all([
+        pb.collection("employees").getList<Employee>(page, PER_PAGE, {
+          filter,
+          sort: "-created",
+          expand: "deposit,exploration",
+          requestKey: null,
+        }),
         page === 1
-          ? ["0", "1", "2", "3"].map((rarity) =>
-              pb
-                .collection("employees")
-                .getList<Employee>(1, 1, {
-                  filter: `employer = "${$activeCompany!.id}" && rarity = ${rarity}`,
-                  requestKey: null,
-                })
-                .then((res) => ({ rarity, count: res.totalItems }))
-            )
-          : [];
-
-      const [empResult, machineResult, preview, ...rarityResults] =
-        await Promise.all([
-          pb.collection("employees").getList<Employee>(page, PER_PAGE, {
-            filter,
-            sort: "-created",
-            expand: "deposit,exploration",
-            requestKey: null,
-          }),
-          page === 1
-            ? pb.collection("machines").getList<Machine>(1, 100, {
-                filter: `company = "${$activeCompany.id}"`,
-                requestKey: null,
-              })
-            : Promise.resolve(null),
-          page === 1 ? getHireCostPreview() : Promise.resolve(null),
-          ...rarityCountPromises,
-        ]);
+          ? pb.collection("machines").getList<Machine>(1, 100, {
+              filter: `company = "${$activeCompany.id}"`,
+              requestKey: null,
+            })
+          : Promise.resolve(null),
+        page === 1 ? getHireCostPreview() : Promise.resolve(null),
+      ]);
 
       if (append) {
         employees = [...employees, ...empResult.items];
@@ -296,20 +198,6 @@
       }
       if (preview) {
         costPreview = preview;
-      }
-
-      // Update rarity counts from DB results
-      if (rarityResults.length > 0) {
-        const newCounts: Record<string, number> = {
-          "0": 0,
-          "1": 0,
-          "2": 0,
-          "3": 0,
-        };
-        for (const res of rarityResults) {
-          newCounts[res.rarity] = res.count;
-        }
-        rarityCounts = newCounts;
       }
 
       totalItems = empResult.totalItems;
@@ -338,6 +226,15 @@
     if (loadingMore || !hasMore) return;
     await loadEmployees(currentPage + 1, true);
   }
+
+  // Load employees on mount
+  onMount(() => {
+    if ($activeCompany) {
+      currentPage = 1;
+      hasMore = true;
+      loadEmployees(1, false);
+    }
+  });
 
   // Reload when company changes
   $effect(() => {
@@ -487,47 +384,6 @@
                 {employeeStats.avgEfficiency.toFixed(1)}%
               </p>
             </div>
-            <div class="flex gap-3 items-end">
-              {#each Object.entries(rarityCounts) as [rarity, count]}
-                {#if count > 0}
-                  <div class="text-center">
-                    <p
-                      class="text-lg font-black {rarityLabels[rarity]?.color ||
-                        'text-slate-400'}"
-                    >
-                      {count}
-                    </p>
-                    <p class="text-[10px] text-slate-500">
-                      {rarityLabels[rarity]?.label}
-                    </p>
-                  </div>
-                {/if}
-              {/each}
-            </div>
-          </div>
-
-          <!-- Bulk Fire Section -->
-          <div
-            class="flex items-center gap-3 bg-slate-950/50 p-3 rounded-xl border border-slate-800"
-          >
-            <select
-              bind:value={bulkFireRarity}
-              class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-red-500"
-            >
-              <option value="">Licencier par rareté...</option>
-              {#each Object.entries(rarityLabels) as [value, info]}
-                {#if rarityCounts[value] > 0}
-                  <option {value}>{info.label} ({rarityCounts[value]})</option>
-                {/if}
-              {/each}
-            </select>
-            <button
-              onclick={() => (showBulkFireConfirm = true)}
-              disabled={!bulkFireRarity || bulkFireCount === 0}
-              class="px-4 py-2 bg-red-600/20 hover:bg-red-600/30 text-red-400 font-bold rounded-lg border border-red-500/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm flex items-center gap-2"
-            >
-              🔥 Licencier {bulkFireCount > 0 ? `(${bulkFireCount})` : ""}
-            </button>
           </div>
         </div>
 
@@ -634,15 +490,5 @@
     confirmText="Licencier"
     onConfirm={confirmFire}
     onCancel={cancelFire}
-  />
-{/if}
-
-{#if showBulkFireConfirm && bulkFireRarity}
-  <DeleteConfirmation
-    title="Licenciement groupé"
-    message={`Voulez-vous vraiment licencier <strong>tous les ${bulkFireCount} employés ${rarityLabels[bulkFireRarity]?.label}</strong> ? Cette action est irréversible.`}
-    confirmText={bulkFiring ? "En cours..." : `Licencier ${bulkFireCount}`}
-    onConfirm={handleBulkFire}
-    onCancel={() => (showBulkFireConfirm = false)}
   />
 {/if}

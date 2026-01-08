@@ -96,8 +96,8 @@ export interface Employee extends BaseRecord {
   maintenance: number; // 0-10
   energy_cycle_start?: string;
   // efficiency and rarity are NOT in schema.json, keeping optional if used in older logic or derived
-  efficiency?: number; 
-  rarity?: 0 | 1 | 2 | 3; 
+  efficiency?: number;
+  rarity?: 0 | 1 | 2 | 3;
   poste: "Manutentionnaire" | "Opérateur" | "Ouvrier" | "Mineur" | "Explorateur" | "PDG" | string;
   expand?: {
     employer?: Company;

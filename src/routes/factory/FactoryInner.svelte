@@ -282,7 +282,7 @@
     // 3. Filter child nodes for collision (excluding the one being dragged)
     // Use component-level nodes state, not the event's nodes array
     const otherNodes = nodes.filter(
-      (n) => n.type !== "zone" && n.id !== node.id
+      (n) => n.type !== "zone" && n.id !== node.id,
     ) as FactoryNode[];
 
     // 4. Boundary Validation
@@ -327,7 +327,7 @@
         node.type as "machine" | "deposit" | "company" | "storage",
         node.id,
         roundedX,
-        roundedY
+        roundedY,
       );
 
       if (!success) {
@@ -369,7 +369,7 @@
       targetNode.type as "machine" | "company" | "deposit",
       (sourceNode.data.itemId as string) ||
         (sourceNode.data.resourceId as string) ||
-        ""
+        "",
     );
 
     if (success) {
@@ -764,7 +764,7 @@
   .stats-overlay {
     position: absolute;
     top: 16px;
-    right: 16px;
+    left: 16px;
     display: flex;
     flex-direction: column;
     gap: 8px;

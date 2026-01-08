@@ -6,6 +6,7 @@
   import NotificationBell from "$lib/components/NotificationBell.svelte";
   import GlobalChat from "$lib/components/GlobalChat.svelte";
   import CreateCompanyForm from "$lib/components/CreateCompanyForm.svelte";
+  import UserMenu from "$lib/components/UserMenu.svelte";
 
   // Company reactive
   let company = $derived($activeCompany);
@@ -46,7 +47,10 @@
     </SvelteFlowProvider>
 
     <div class="ui-overlay pointer-events-none fixed inset-0 z-50">
-      <div class="absolute top-4 right-48 pointer-events-auto">
+      <div class="absolute top-4 right-4 pointer-events-auto">
+        <UserMenu />
+      </div>
+      <div class="absolute top-4 right-20 pointer-events-auto">
         <NotificationBell />
       </div>
       <div
