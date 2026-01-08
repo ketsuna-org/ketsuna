@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Handle, Position, type Node, type NodeProps } from "@xyflow/svelte";
-  import { activeCompany } from "$lib/stores";
+  import { activeCompany, refreshActiveCompany } from "$lib/stores";
+  import { levelUpCompany } from "$lib/services/company";
 
   type CompanyNode = Node<
     {
@@ -13,6 +14,28 @@
 
   let { data }: NodeProps<CompanyNode> = $props();
   let company = $derived($activeCompany);
+
+  let isUpgrading = $state(false);
+  let upgradeCost = $derived(company ? Math.floor(1000 * Math.pow(company.level || 1, 1.5)) : 0);
+  let canUpgrade = $derived(company && (company.balance || 0) >= upgradeCost);
+
+  async function handleUpgrade(event: MouseEvent) {
+    if (event) {
+        event.stopPropagation();
+    }
+    
+    if (!company || isUpgrading || !canUpgrade) return;
+    
+    isUpgrading = true;
+    try {
+      await levelUpCompany(company, upgradeCost);
+      await refreshActiveCompany();
+    } catch (e: any) {
+      alert(e.message || "Erreur lors de l'amélioration");
+    } finally {
+      isUpgrading = false;
+    }
+  }
 </script>
 
 <div class="company-node">
@@ -25,6 +48,16 @@
       <span class="balance">{company?.balance?.toLocaleString() || 0} $</span>
       <span class="level">Niveau {company?.level || 1}</span>
     </div>
+
+    <button 
+      class="upgrade-btn nodrag" 
+      class:disabled={!canUpgrade}
+      onclick={handleUpgrade}
+      disabled={!canUpgrade || isUpgrading}
+      title="Coût: {upgradeCost.toLocaleString()} $"
+    >
+      {isUpgrading ? "..." : "⬆️"}
+    </button>
   </div>
 </div>
 
@@ -89,5 +122,35 @@
     padding: 2px 8px;
     border-radius: 10px;
     margin-top: 4px;
+  }
+
+  .upgrade-btn {
+    margin-top: 8px;
+    background: #f59e0b;
+    border: none;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    color: #1e293b;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    font-size: 14px;
+  }
+  
+  .upgrade-btn:hover:not(.disabled) {
+    transform: scale(1.1);
+    background: #fbbf24;
+    box-shadow: 0 0 10px rgba(251, 191, 36, 0.5);
+  }
+  
+  .upgrade-btn.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: #475569;
+    color: #94a3b8;
   }
 </style>

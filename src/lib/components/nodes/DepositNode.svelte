@@ -41,7 +41,7 @@
   });
 
   const quantityPercent = $derived(
-    currentQuantity ? Math.min(100, (currentQuantity / 10000) * 100) : 0
+    currentQuantity ? Math.min(100, (currentQuantity / 10000) * 100) : 0,
   );
 
   $effect(() => {
@@ -177,7 +177,7 @@
       const result = calculateMiningProgress(
         depositRecord,
         assignedEmployees,
-        new Date(depositRecord.last_harvest_at)
+        new Date(depositRecord.last_harvest_at),
       );
 
       miningProgress = result.progressPercent;
@@ -244,7 +244,6 @@
   <div class="node-content">
     <span class="icon">{data.icon}</span>
     <span class="name">{data.name}</span>
-
     {#if currentQuantity !== undefined}
       <div class="quantity-bar">
         <div class="quantity-fill" style="width: {quantityPercent}%"></div>
