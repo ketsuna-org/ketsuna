@@ -39,7 +39,7 @@
           updateUnreadCount();
         } else if (e.action === "update") {
           notifications = notifications.map((n) =>
-            n.id === e.record.id ? e.record : n
+            n.id === e.record.id ? e.record : n,
           );
           updateUnreadCount();
         }
@@ -61,12 +61,22 @@
   }
 
   async function markAllRead() {
-    notifications.forEach((n) => (n.is_read = true));
+    const unreadNotifications = notifications.filter((n) => !n.is_read);
+    if (unreadNotifications.length === 0) return;
+
+    // Mise à jour locale (optimiste)
+    notifications = notifications.map((n) => ({ ...n, is_read: true }));
     updateUnreadCount();
-    for (const n of notifications) {
-      if (!n.is_read) {
-        pb.collection("notifications").update(n.id, { is_read: true });
-      }
+
+    try {
+      // Mettre à jour dans PocketBase en parallèle
+      await Promise.all(
+        unreadNotifications.map((n) =>
+          pb.collection("notifications").update(n.id, { is_read: true }),
+        ),
+      );
+    } catch (err) {
+      console.error("Failed to mark all as read in PocketBase", err);
     }
   }
 
