@@ -16,16 +16,18 @@
   let company = $derived($activeCompany);
 
   let isUpgrading = $state(false);
-  let upgradeCost = $derived(company ? Math.floor(1000 * Math.pow(company.level || 1, 1.5)) : 0);
+  let upgradeCost = $derived(
+    company ? Math.floor(1000 * Math.pow(company.level || 1, 1.5)) : 0,
+  );
   let canUpgrade = $derived(company && (company.balance || 0) >= upgradeCost);
 
   async function handleUpgrade(event: MouseEvent) {
     if (event) {
-        event.stopPropagation();
+      event.stopPropagation();
     }
-    
+
     if (!company || isUpgrading || !canUpgrade) return;
-    
+
     isUpgrading = true;
     try {
       await levelUpCompany(company, upgradeCost);
@@ -49,8 +51,8 @@
       <span class="level">Niveau {company?.level || 1}</span>
     </div>
 
-    <button 
-      class="upgrade-btn nodrag" 
+    <button
+      class="upgrade-btn nodrag"
       class:disabled={!canUpgrade}
       onclick={handleUpgrade}
       disabled={!canUpgrade || isUpgrading}
@@ -140,13 +142,13 @@
     transition: all 0.2s;
     font-size: 14px;
   }
-  
+
   .upgrade-btn:hover:not(.disabled) {
     transform: scale(1.1);
     background: #fbbf24;
     box-shadow: 0 0 10px rgba(251, 191, 36, 0.5);
   }
-  
+
   .upgrade-btn.disabled {
     opacity: 0.5;
     cursor: not-allowed;
