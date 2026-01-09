@@ -17,7 +17,7 @@
 
   let isUpgrading = $state(false);
   let upgradeCost = $derived(
-    company ? Math.floor(1000 * Math.pow(company.level || 1, 1.5)) : 0,
+    company ? Math.floor(1000 * Math.pow(company.level || 1, 1.5)) : 0
   );
   let canUpgrade = $derived(company && (company.balance || 0) >= upgradeCost);
 
@@ -56,9 +56,13 @@
       class:disabled={!canUpgrade}
       onclick={handleUpgrade}
       disabled={!canUpgrade || isUpgrading}
-      title="Coût: {upgradeCost.toLocaleString()} $"
+      title="Cliquer pour améliorer"
     >
-      {isUpgrading ? "..." : "⬆️"}
+      {#if isUpgrading}
+        ...
+      {:else}
+        ⬆️ {upgradeCost.toLocaleString()} $
+      {/if}
     </button>
   </div>
 </div>
@@ -130,9 +134,10 @@
     margin-top: 8px;
     background: #f59e0b;
     border: none;
-    border-radius: 50%;
-    width: 28px;
-    height: 28px;
+    border-radius: 8px;
+    padding: 4px 12px;
+    width: auto;
+    min-height: 28px;
     color: #1e293b;
     font-weight: bold;
     cursor: pointer;
