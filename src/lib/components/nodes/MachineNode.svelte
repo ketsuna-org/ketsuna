@@ -155,6 +155,7 @@
             : null}
 
           {#if recipe}
+            {@const outItem = getItem(recipe.output_item)}
             <div class="mt-4 pt-4 border-t border-slate-700">
               <h3
                 class="text-sm font-bold text-white mb-2 flex items-center gap-2"
@@ -205,7 +206,6 @@
                     >Sorties:</span
                   >
                   <div class="flex flex-wrap gap-1">
-                    {@const outItem = getItem(recipe.output_item)}
                     <span
                       class="bg-emerald-950/30 border border-emerald-900/50 text-emerald-300 px-1.5 py-0.5 rounded text-[10px]"
                     >
