@@ -232,28 +232,76 @@
     <!-- Bottom Section -->
     <div class="bottom-section">
       <!-- Research Status -->
-      <div class="panel research-status">
-        <h3 class="panel-subtitle">AUCUNE RECHERCHE EN COURS</h3>
-        {#if pendingResearch}
-          <div class="research-info">
-            <span class="research-name">{pendingResearch.name}</span>
-            <span class="research-badge">En cours</span>
+      <div class="panel research-status-panel">
+        <div class="panel-glow"></div>
+        <div class="panel-inner">
+          <div class="panel-header">
+            <div class="status-indicator" class:active={pendingResearch}>
+              <span class="pulse-ring"></span>
+              <span class="pulse-dot"></span>
+            </div>
+            <h3 class="panel-title">
+              {#if pendingResearch}
+                RECHERCHE EN COURS
+              {:else}
+                AUCUNE RECHERCHE
+              {/if}
+            </h3>
           </div>
-        {:else}
-          <div class="waiting-badge">En attente</div>
-        {/if}
+
+          {#if pendingResearch}
+            <div class="research-active">
+              <div class="research-icon">🔬</div>
+              <div class="research-details">
+                <span class="research-name">{pendingResearch.name}</span>
+                <div class="research-progress">
+                  <div class="progress-bar">
+                    <div class="progress-fill animate-pulse"></div>
+                  </div>
+                  <span class="progress-label">Analyse en cours...</span>
+                </div>
+              </div>
+              <span class="research-badge">EN COURS</span>
+            </div>
+          {:else}
+            <div class="research-idle">
+              <div class="idle-icon">⏳</div>
+              <p class="idle-text">
+                Sélectionnez une technologie pour lancer une recherche
+              </p>
+            </div>
+          {/if}
+        </div>
       </div>
 
       <!-- Help Section -->
-      <div class="panel help-section">
-        <h3 class="panel-subtitle">BESOIN D'AIDE ?</h3>
-        <p class="help-text">
-          La recherche et développement vise à élever le niveau de ton
-          entreprise dans chaque domaine, débloquant ainsi de nouveaux outils
-          pour optimiser ta production. En investissant dans la recherche, tu
-          renforces la compétitivité de ton entreprise et ouvre la voie à des
-          technologies avancées...
-        </p>
+      <div class="panel help-panel">
+        <div class="panel-glow help-glow"></div>
+        <div class="panel-inner">
+          <div class="panel-header">
+            <div class="help-icon">💡</div>
+            <h3 class="panel-title">CENTRE D'AIDE</h3>
+          </div>
+          <p class="help-text">
+            La recherche et développement vise à élever le niveau de ton
+            entreprise dans chaque domaine, débloquant ainsi de nouveaux outils
+            pour optimiser ta production.
+          </p>
+          <div class="help-features">
+            <div class="feature">
+              <span class="feature-icon">🔓</span>
+              <span>Débloque machines & recettes</span>
+            </div>
+            <div class="feature">
+              <span class="feature-icon">📈</span>
+              <span>Augmente ta compétitivité</span>
+            </div>
+            <div class="feature">
+              <span class="feature-icon">⚡</span>
+              <span>Accède aux technologies avancées</span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   {:else}
@@ -387,81 +435,295 @@
     }
   }
 
-  /* Bottom Section */
+  /* Bottom Section - Premium Layout */
   .bottom-section {
     display: grid;
     grid-template-columns: 1fr 1.5fr;
-    gap: 1rem;
-    padding: 1.5rem;
-    max-width: 900px;
+    gap: 1.5rem;
+    padding: 2rem;
+    max-width: 1000px;
     margin: 0 auto;
   }
 
   @media (max-width: 768px) {
     .bottom-section {
       grid-template-columns: 1fr;
+      padding: 1rem;
     }
   }
 
+  /* Panel Base - Glassmorphism */
   .panel {
-    background: #0a0a14;
-    border: 2px solid #2d2d44;
-    padding: 1.25rem;
+    position: relative;
+    border-radius: 1.5rem;
+    overflow: hidden;
+    background: linear-gradient(
+      180deg,
+      rgba(30, 41, 59, 0.6) 0%,
+      rgba(15, 23, 42, 0.8) 100%
+    );
+    border: 1px solid rgba(100, 116, 139, 0.2);
+    backdrop-filter: blur(10px);
   }
 
-  .panel-subtitle {
-    font-size: 0.75rem;
-    font-weight: 800;
-    color: #ffffff;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin-bottom: 1rem;
-    font-family: "Courier New", monospace;
+  .panel-glow {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(
+      ellipse at top,
+      rgba(99, 102, 241, 0.12) 0%,
+      transparent 70%
+    );
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.4s ease;
   }
 
-  .research-status {
-    display: flex;
-    flex-direction: column;
+  .panel:hover .panel-glow {
+    opacity: 1;
   }
 
-  .waiting-badge {
-    margin-top: auto;
-    padding: 0.75rem 1.5rem;
-    background: #1a1a2e;
-    border: 2px solid #3d3d5c;
-    text-align: center;
-    color: #6666aa;
-    font-weight: 600;
-    font-size: 0.875rem;
+  .panel-inner {
+    position: relative;
+    padding: 1.5rem;
+    z-index: 1;
   }
 
-  .research-info {
+  .panel-header {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    margin-top: auto;
-    padding: 0.75rem 1rem;
-    background: #1a1a2e;
-    border: 2px solid #00ff88;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .panel-title {
+    font-size: 0.8125rem;
+    font-weight: 700;
+    color: #e2e8f0;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin: 0;
+  }
+
+  /* Status Indicator */
+  .status-indicator {
+    position: relative;
+    width: 12px;
+    height: 12px;
+  }
+
+  .pulse-dot {
+    position: absolute;
+    inset: 2px;
+    background: #64748b;
+    border-radius: 50%;
+    transition: background 0.3s ease;
+  }
+
+  .pulse-ring {
+    position: absolute;
+    inset: 0;
+    border: 2px solid #64748b;
+    border-radius: 50%;
+    opacity: 0;
+  }
+
+  .status-indicator.active .pulse-dot {
+    background: #10b981;
+  }
+
+  .status-indicator.active .pulse-ring {
+    border-color: #10b981;
+    animation: pulse-expand 1.5s ease-out infinite;
+  }
+
+  @keyframes pulse-expand {
+    0% {
+      transform: scale(1);
+      opacity: 0.8;
+    }
+    100% {
+      transform: scale(2.5);
+      opacity: 0;
+    }
+  }
+
+  /* Research Status Panel */
+  .research-status-panel {
+    border-color: rgba(99, 102, 241, 0.25);
+  }
+
+  .research-status-panel:hover {
+    border-color: rgba(99, 102, 241, 0.45);
+    box-shadow: 0 8px 32px rgba(99, 102, 241, 0.15);
+  }
+
+  /* Research Active State */
+  .research-active {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: linear-gradient(
+      135deg,
+      rgba(16, 185, 129, 0.08) 0%,
+      rgba(99, 102, 241, 0.08) 100%
+    );
+    border: 1px solid rgba(16, 185, 129, 0.25);
+    border-radius: 0.75rem;
+  }
+
+  .research-icon {
+    font-size: 2rem;
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+  }
+
+  .research-details {
+    flex: 1;
+    min-width: 0;
   }
 
   .research-name {
-    color: #00ff88;
+    display: block;
+    font-size: 0.9375rem;
     font-weight: 600;
+    color: #f1f5f9;
+    margin-bottom: 0.5rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .research-progress {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .research-progress .progress-bar {
+    height: 4px;
+    background: rgba(51, 65, 85, 0.6);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .research-progress .progress-fill {
+    width: 70%;
+    height: 100%;
+    background: linear-gradient(90deg, #10b981 0%, #6366f1 100%);
+    border-radius: 2px;
+  }
+
+  .progress-label {
+    font-size: 0.6875rem;
+    color: #64748b;
+    font-family: ui-monospace, monospace;
   }
 
   .research-badge {
-    background: #00ff88;
-    color: #0a0a14;
-    padding: 0.25rem 0.5rem;
-    font-size: 0.75rem;
+    padding: 0.375rem 0.75rem;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: #fff;
+    font-size: 0.6875rem;
     font-weight: 700;
+    border-radius: 9999px;
     text-transform: uppercase;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+  }
+
+  /* Research Idle State */
+  .research-idle {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+    text-align: center;
+  }
+
+  .idle-icon {
+    font-size: 2.5rem;
+    margin-bottom: 0.75rem;
+    opacity: 0.6;
+  }
+
+  .idle-text {
+    color: #64748b;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    max-width: 200px;
+    margin: 0;
+  }
+
+  /* Help Panel */
+  .help-panel {
+    border-color: rgba(139, 92, 246, 0.2);
+  }
+
+  .help-panel:hover {
+    border-color: rgba(139, 92, 246, 0.4);
+    box-shadow: 0 8px 32px rgba(139, 92, 246, 0.12);
+  }
+
+  .help-glow {
+    background: radial-gradient(
+      ellipse at top,
+      rgba(139, 92, 246, 0.12) 0%,
+      transparent 70%
+    );
+  }
+
+  .help-icon {
+    font-size: 1.25rem;
   }
 
   .help-text {
-    color: #8888aa;
+    color: #94a3b8;
     font-size: 0.875rem;
-    line-height: 1.6;
+    line-height: 1.7;
+    margin: 0 0 1.25rem 0;
+  }
+
+  .help-features {
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+  }
+
+  .feature {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 0.625rem 0.875rem;
+    background: rgba(51, 65, 85, 0.25);
+    border-radius: 0.5rem;
+    font-size: 0.8125rem;
+    color: #cbd5e1;
+    transition: all 0.2s ease;
+  }
+
+  .feature:hover {
+    background: rgba(99, 102, 241, 0.12);
+    transform: translateX(4px);
+  }
+
+  .feature-icon {
+    font-size: 1rem;
+  }
+
+  /* Animate pulse for progress bar */
+  @keyframes animate-width {
+    0%,
+    100% {
+      width: 60%;
+    }
+    50% {
+      width: 85%;
+    }
+  }
+
+  .animate-pulse {
+    animation: animate-width 2s ease-in-out infinite;
   }
 </style>
