@@ -185,7 +185,7 @@ export type { Item, Recipe, Technology };
 const authStore = new LocalAuthStore("ketsuna:auth");
 
 const url = import.meta.env.VITE_POKETBASE_URL || "https://api.ketsuna.com";
-const pb = new Pocketbase("https://api.ketsuna.com", authStore) as TypedPocketBase;
+const pb = new Pocketbase(url, authStore) as TypedPocketBase;
 
 // Global settings
 pb.autoCancellation(false);
