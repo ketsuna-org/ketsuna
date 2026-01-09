@@ -1,22 +1,32 @@
 <script lang="ts">
   import { fade, fly } from "svelte/transition";
   import { quintOut } from "svelte/easing";
-  import pb from "$lib/pocketbase";
+  import pb, { type User } from "$lib/pocketbase";
   import { currentUser } from "$lib/stores";
   import { notifications } from "$lib/notifications";
 
   let { onClose } = $props<{ onClose: () => void }>();
 
-  let user = $derived($currentUser);
+  let user = $derived(pb.authStore.record as User);
 
   // Form state
-  let username = $state(user?.username || "");
-  let email = $state(user?.email || "");
-  let currentPassword = $state("");
+  let username = $state("");
+  let email = $state("");
   let newPassword = $state("");
   let confirmPassword = $state("");
   let avatarFile: File | null = $state(null);
-  let avatarPreview = $state(user?.avatar || "");
+  let avatarPreview = $state("");
+
+  // Sync form fields when user changes
+  $effect(() => {
+    if (user) {
+      username = user.username || "";
+      email = user.email || "";
+      avatarPreview = user.avatar
+        ? pb.files.getURL(user, user.avatar, { thumb: "100x100" })
+        : "";
+    }
+  });
 
   let loading = $state(false);
   let error = $state("");
@@ -89,7 +99,7 @@
   async function updatePassword() {
     if (!user?.id) return;
 
-    if (!currentPassword || !newPassword || !confirmPassword) {
+    if (!newPassword || !confirmPassword) {
       error = "Tous les champs sont requis";
       return;
     }
@@ -109,13 +119,11 @@
 
     try {
       await pb.collection("users").update(user.id, {
-        oldPassword: currentPassword,
         password: newPassword,
         passwordConfirm: confirmPassword,
       });
 
       notifications.success("Mot de passe modifié avec succès");
-      currentPassword = "";
       newPassword = "";
       confirmPassword = "";
     } catch (err: any) {
@@ -145,7 +153,7 @@
   >
     <!-- Header -->
     <div
-      class="px-6 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 flex items-center justify-between"
+      class="px-6 py-4 bg-linear-to-r from-indigo-600 to-purple-600 flex items-center justify-between"
     >
       <h2 class="text-2xl font-bold text-white flex items-center gap-2">
         <svg
@@ -218,11 +226,7 @@
         <div
           class="mb-4 p-3 bg-red-500/10 border border-red-500/50 rounded-lg text-red-400 text-sm flex items-center gap-2"
         >
-          <svg
-            class="w-5 h-5 flex-shrink-0"
-            fill="currentColor"
-            viewBox="0 0 20 20"
-          >
+          <svg class="w-5 h-5 shrink-0" fill="currentColor" viewBox="0 0 20 20">
             <path
               fill-rule="evenodd"
               d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
@@ -245,7 +249,7 @@
           <div class="flex flex-col items-center gap-4">
             <div class="relative">
               <div
-                class="w-32 h-32 rounded-full overflow-hidden bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-4xl font-bold border-4 border-slate-700"
+                class="w-32 h-32 rounded-full overflow-hidden bg-linear-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-4xl font-bold border-4 border-slate-700"
               >
                 {#if avatarPreview}
                   <img
@@ -333,7 +337,7 @@
           <button
             type="submit"
             disabled={loading}
-            class="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-semibold rounded-lg transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+            class="w-full py-3 bg-linear-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-semibold rounded-lg transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? "Enregistrement..." : "Enregistrer les modifications"}
           </button>
@@ -351,7 +355,7 @@
           >
             <p class="text-sm text-slate-300 flex items-start gap-2">
               <svg
-                class="w-5 h-5 text-indigo-400 flex-shrink-0 mt-0.5"
+                class="w-5 h-5 text-indigo-400 shrink-0 mt-0.5"
                 fill="currentColor"
                 viewBox="0 0 20 20"
               >
@@ -367,24 +371,6 @@
               >
             </p>
           </div>
-
-          <!-- Current Password -->
-          <div>
-            <label
-              for="current-password"
-              class="block text-sm font-medium text-slate-300 mb-2"
-            >
-              Mot de passe actuel
-            </label>
-            <input
-              id="current-password"
-              type="password"
-              bind:value={currentPassword}
-              class="w-full px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              required
-            />
-          </div>
-
           <!-- New Password -->
           <div>
             <label
@@ -423,7 +409,7 @@
           <button
             type="submit"
             disabled={loading}
-            class="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-semibold rounded-lg transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+            class="w-full py-3 bg-linear-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-semibold rounded-lg transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? "Modification..." : "Modifier le mot de passe"}
           </button>

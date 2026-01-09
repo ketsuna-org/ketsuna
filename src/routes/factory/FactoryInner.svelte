@@ -15,6 +15,7 @@
   import {
     loadFactory,
     loadUnplacedMachines,
+    loadUnplacedDeposits,
     getCanvasBounds,
     checkCollision,
     updateNodePosition,
@@ -53,6 +54,7 @@
   let nodes = $state<Node[]>([]);
   let edges = $state<Edge[]>([]);
   let unplacedMachines = $state<any[]>([]);
+  let unplacedDeposits = $state<any[]>([]);
   let showExploration = $state(false);
   let showMarket = $state(false);
   let showInventory = $state(false);
@@ -151,6 +153,7 @@
       nodes = [zoneNode, ...childNodes] as Node[];
       edges = data.edges as Edge[];
       unplacedMachines = await loadUnplacedMachines(company.id);
+      unplacedDeposits = await loadUnplacedDeposits(company.id);
 
       // Focus on the company node ONLY on initial load
       if (!hasInitiallyLoaded && nodes.length > 0) {
@@ -197,10 +200,20 @@
     }
   });
 
-  // Handle DnD Start
+  // Handle DnD Start for machines
   function onDragStart(event: DragEvent, machineId: string) {
     if (event.dataTransfer) {
       event.dataTransfer.setData("application/svelteflow", machineId);
+      event.dataTransfer.setData("nodeType", "machine");
+      event.dataTransfer.effectAllowed = "move";
+    }
+  }
+
+  // Handle DnD Start for deposits
+  function onDragStartDeposit(event: DragEvent, depositId: string) {
+    if (event.dataTransfer) {
+      event.dataTransfer.setData("application/svelteflow", depositId);
+      event.dataTransfer.setData("nodeType", "deposit");
       event.dataTransfer.effectAllowed = "move";
     }
   }
@@ -217,40 +230,42 @@
 
     if (!event.dataTransfer) return;
 
-    const machineId = event.dataTransfer.getData("application/svelteflow");
-    if (!machineId) return;
+    const nodeId = event.dataTransfer.getData("application/svelteflow");
+    const nodeType = event.dataTransfer.getData("nodeType") || "machine";
+    if (!nodeId) return;
 
     const position = screenToFlowPosition({
       x: event.clientX,
       y: event.clientY,
     });
 
-    const machineDim = NODE_DIMENSIONS.machine;
-    const x = Math.round(position.x - machineDim.width / 2);
-    const y = Math.round(position.y - machineDim.height / 2);
+    // Get dimensions based on node type
+    const nodeDim =
+      nodeType === "deposit"
+        ? NODE_DIMENSIONS.deposit
+        : NODE_DIMENSIONS.machine;
+    const x = Math.round(position.x - nodeDim.width / 2);
+    const y = Math.round(position.y - nodeDim.height / 2);
 
-    // Filter out zone node for collision check - TEMPORARILY DISABLED
-    // const childNodes = nodes.filter((n) => n.type !== "zone") as FactoryNode[];
-
-    // if (checkCollision(x, y, machineDim.width, machineDim.height, childNodes)) {
-    //   console.warn("Cannot place: collision detected");
-    //   return;
-    // }
-
+    // Bounds check
     if (
       x < 0 ||
       y < 0 ||
-      x > canvasBounds.width - machineDim.width ||
-      y > canvasBounds.height - machineDim.height
+      x > canvasBounds.width - nodeDim.width ||
+      y > canvasBounds.height - nodeDim.height
     ) {
       console.warn("Cannot place: out of bounds");
       return;
     }
 
-    const success = await placeNode("machine", machineId, x, y);
+    // Place the node (machines use "machine", deposits use "deposit")
+    const success = await placeNode(
+      nodeType as "machine" | "deposit",
+      nodeId,
+      x,
+      y
+    );
     if (success) {
-      // We don't necessarily need to reload all data,
-      // but it's safer to ensure we get the right ID from the server
       await loadData();
     }
   }
@@ -282,7 +297,7 @@
     // 3. Filter child nodes for collision (excluding the one being dragged)
     // Use component-level nodes state, not the event's nodes array
     const otherNodes = nodes.filter(
-      (n) => n.type !== "zone" && n.id !== node.id,
+      (n) => n.type !== "zone" && n.id !== node.id
     ) as FactoryNode[];
 
     // 4. Boundary Validation
@@ -327,7 +342,7 @@
         node.type as "machine" | "deposit" | "company" | "storage",
         node.id,
         roundedX,
-        roundedY,
+        roundedY
       );
 
       if (!success) {
@@ -369,7 +384,7 @@
       targetNode.type as "machine" | "company" | "deposit",
       (sourceNode.data.itemId as string) ||
         (sourceNode.data.resourceId as string) ||
-        "",
+        ""
     );
 
     if (success) {
@@ -461,6 +476,40 @@
               {#if group.count > 1}
                 <span class="item-count">×{group.count}</span>
               {/if}
+            </div>
+          {/each}
+        </div>
+      </div>
+    {/if}
+
+    {#if unplacedDeposits.length > 0}
+      <div class="unplaced-section deposit-section">
+        <h3>Gisements à placer</h3>
+        <div class="unplaced-list">
+          {#each unplacedDeposits as deposit}
+            {@const resourceItem = getItem(deposit.ressource_id)}
+            <div
+              class="unplaced-item deposit-item"
+              draggable="true"
+              role="button"
+              tabindex="0"
+              ondragstart={(e) => onDragStartDeposit(e, deposit.id)}
+            >
+              <div class="item-icon deposit-icon">
+                <GameIcon
+                  icon={resourceItem?.icon || "⛏️"}
+                  size={24}
+                  alt={resourceItem?.name || "Gisement"}
+                />
+              </div>
+              <div class="item-info">
+                <span class="item-name">{resourceItem?.name || "Gisement"}</span
+                >
+                <span class="item-id"
+                  >Qté: {deposit.quantity.toLocaleString()}</span
+                >
+              </div>
+              <span class="item-count size-badge">Niv.{deposit.size}</span>
             </div>
           {/each}
         </div>

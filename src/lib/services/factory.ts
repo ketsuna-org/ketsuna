@@ -159,13 +159,21 @@ export async function loadFactory(companyId: string): Promise<{
       });
     }
 
-    // Load deposits
+    // Load deposits that are placed
     const deposits = await pb.collection("deposits").getFullList({
       filter: `company = "${companyId}"`,
     });
 
     for (const deposit of deposits) {
       const location = deposit.location;
+      
+      // Skip deposits without valid location (they show in "Gisements à placer")
+      if (!location || typeof location !== 'object' || 
+          (location.lng === undefined && location.lat === undefined) ||
+          Object.keys(location).length === 0) {
+        continue;
+      }
+
       const staticItem = getItem(deposit.ressource_id);
 
       nodes.push({
@@ -216,6 +224,32 @@ export async function loadUnplacedMachines(companyId: string): Promise<unknown[]
     return machines;
   } catch (error) {
     console.error('Failed to load unplaced machines:', error);
+    return [];
+  }
+}
+
+// Load unplaced deposits (discovered but not placed on canvas)
+export async function loadUnplacedDeposits(companyId: string): Promise<unknown[]> {
+  try {
+    // Get all deposits for the company
+    const allDeposits = await pb.collection("deposits").getFullList({
+      filter: `company = "${companyId}" && quantity > 0`,
+    });
+    
+    // Filter those with no location (null, empty, or invalid)
+    const unplaced = allDeposits.filter(deposit => {
+      const loc = deposit.location;
+      // No location, or location is empty object
+      if (!loc) return true;
+      if (typeof loc === 'object' && Object.keys(loc).length === 0) return true;
+      // Location has no coordinates
+      if (loc.lng === undefined && loc.lat === undefined) return true;
+      return false;
+    });
+
+    return unplaced;
+  } catch (error) {
+    console.error('Failed to load unplaced deposits:', error);
     return [];
   }
 }

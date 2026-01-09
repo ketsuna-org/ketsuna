@@ -43,6 +43,13 @@
       color: "from-blue-600 to-indigo-800",
       description: "Explorez les autres sociétés",
     },
+    {
+      label: "Statistiques",
+      href: "/factory/statistics",
+      icon: "📊",
+      color: "from-emerald-500 to-teal-600",
+      description: "Production & Consommation",
+    },
   ];
 
   function navigateTo(href: string) {

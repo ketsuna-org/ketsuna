@@ -24,22 +24,34 @@ export async function unlockTechnology(companyId: string, technology: Technology
 }
 
 /**
- * Liste toutes les technologies et marque celles déjà possédées
+ * Liste toutes les technologies et marque celles déjà possédées ou en cours
  */
 export async function fetchTechTree(companyId: string) {
-    // Get owned techs from PocketBase
-    const ownedTechs = await pb.collection("company_techs").getFullList<CompanyTech>({
+    // Get owned/pending techs from PocketBase
+    const ownedTechs = await pb.collection("company_techs").getFullList<CompanyTech & { status?: string; completed_at?: string }>({
         filter: `company="${companyId}"`,
         requestKey: null,
     });
 
-    const ownedIds = new Set(ownedTechs.map(ot => ot.technology_id));
+    // Create a map for quick lookup
+    const techStatusMap = new Map<string, { status: string; completed_at: string | null }>();
+    ownedTechs.forEach(ot => {
+        techStatusMap.set(ot.technology_id, {
+            status: ot.status || "completed",
+            completed_at: ot.completed_at || null
+        });
+    });
 
     // Get all techs from static data
     const allTechs = getAllTechnologies();
 
-    return allTechs.map(tech => ({
-        ...tech,
-        isOwned: ownedIds.has(tech.id)
-    }));
+    return allTechs.map(tech => {
+        const techInfo = techStatusMap.get(tech.id);
+        return {
+            ...tech,
+            isOwned: techInfo?.status === "completed",
+            isPending: techInfo?.status === "pending",
+            completedAt: techInfo?.completed_at || null
+        };
+    });
 }

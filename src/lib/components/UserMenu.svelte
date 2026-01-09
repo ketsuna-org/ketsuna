@@ -2,7 +2,7 @@
   import { goto } from "$app/navigation";
   import { fly, fade } from "svelte/transition";
   import { quintOut } from "svelte/easing";
-  import pb from "$lib/pocketbase";
+  import pb, { type User } from "$lib/pocketbase";
   import { currentUser } from "$lib/stores";
   import ProfileModal from "./ProfileModal.svelte";
 
@@ -76,14 +76,18 @@
         transition:fly={{ y: -10, duration: 300, easing: quintOut }}
       >
         <!-- User Info Header -->
-        <div class="px-4 py-3 bg-gradient-to-r from-indigo-600 to-purple-600">
+        <div class="px-4 py-3 bg-linear-to-r from-indigo-600 to-purple-600">
           <div class="flex items-center gap-3">
             <div
               class="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center font-bold text-white text-lg border-2 border-white/30"
             >
               {#if user.avatar}
                 <img
-                  src={user.avatar}
+                  src={pb.files.getURL(
+                    pb.authStore.record as User,
+                    pb.authStore.record?.avatar,
+                    { thumb: "100x100" },
+                  )}
                   alt={user.username}
                   class="w-full h-full rounded-full object-cover"
                 />

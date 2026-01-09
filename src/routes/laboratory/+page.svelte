@@ -11,12 +11,32 @@
 
   import { notifications } from "$lib/notifications";
 
-  let technologies: Array<Technology & { isOwned: boolean }> = $state([]);
+  type TechWithStatus = Technology & {
+    isOwned: boolean;
+    isPending?: boolean;
+    completedAt?: string | null;
+    unlock_time?: number;
+    required_items?: Array<{ item_id: string; quantity: number }>;
+  };
+
+  let technologies: Array<TechWithStatus> = $state([]);
+  let inventory: Array<{ item_id: string; quantity: number }> = $state([]);
 
   let dashboardData: DashboardData | null = $state(null);
   let loading = $state(true);
   let error = $state("");
   let filterLevel = $state(0);
+  let filterCategory = $state<string | null>(null);
+
+  const categoryLabels: Record<
+    string,
+    { name: string; icon: string; color: string }
+  > = {
+    general: { name: "Général", icon: "⚙️", color: "bg-slate-500" },
+    resource: { name: "Ressources", icon: "⛏️", color: "bg-amber-500" },
+    industry: { name: "Industrie", icon: "🏭", color: "bg-indigo-500" },
+    tech: { name: "High-Tech", icon: "💻", color: "bg-purple-500" },
+  };
 
   $effect(() => {
     if ($activeCompany) {
@@ -32,10 +52,44 @@
       if (!userId) throw new Error("Non connecté");
       if (!$activeCompany?.id) throw new Error("Pas d'entreprise active");
 
-      [technologies, dashboardData] = await Promise.all([
-        fetchTechTree($activeCompany.id),
-        fetchDashboardData(userId),
-      ]);
+      // Fetch all data in parallel (including machines)
+      const [techData, dashData, invRecords, machineRecords] =
+        await Promise.all([
+          fetchTechTree($activeCompany.id),
+          fetchDashboardData(userId),
+          pb.collection("inventory").getFullList({
+            filter: `company = "${$activeCompany.id}"`,
+          }),
+          pb.collection("machines").getFullList({
+            filter: `company = "${$activeCompany.id}"`,
+          }),
+        ]);
+
+      technologies = techData;
+      dashboardData = dashData;
+
+      // Combine inventory items with machine counts
+      const invItems = invRecords.map((r: any) => ({
+        item_id: r.item_id,
+        quantity: r.quantity,
+      }));
+
+      // Count machines by machine_id
+      const machineCountMap = new Map<string, number>();
+      machineRecords.forEach((m: any) => {
+        const machineId = m.machine_id;
+        machineCountMap.set(
+          machineId,
+          (machineCountMap.get(machineId) || 0) + 1
+        );
+      });
+
+      // Add machine counts as inventory items
+      machineCountMap.forEach((count, machineId) => {
+        invItems.push({ item_id: machineId, quantity: count });
+      });
+
+      inventory = invItems;
     } catch (err: any) {
       error = err.message;
       notifications.error(error);
@@ -44,17 +98,18 @@
     }
   }
 
-  // Filtrer les technologies par niveau requis
+  // Filtrer les technologies par niveau et catégorie
   const filteredTechs = $derived(
     technologies.filter((t) => {
       const levelMatch = !filterLevel || t.required_level <= filterLevel;
-      return levelMatch;
+      const categoryMatch = !filterCategory || t.category === filterCategory;
+      return levelMatch && categoryMatch;
     })
   );
 
   // Grouper les technologies par niveau
   const techsByLevel = $derived.by(() => {
-    const grouped = new Map<number, (Technology & { isOwned: boolean })[]>();
+    const grouped = new Map<number, TechWithStatus[]>();
     filteredTechs.forEach((tech) => {
       const level = tech.required_level || 1;
       if (!grouped.has(level)) {
@@ -145,6 +200,31 @@
         </p>
       </div>
     {:else}
+      <!-- Category Filter Tabs -->
+      <div class="flex flex-wrap gap-2 mb-6">
+        <button
+          onclick={() => (filterCategory = null)}
+          class="px-4 py-2 rounded-xl font-bold text-sm transition-all
+                 {!filterCategory
+            ? 'bg-white text-slate-900 shadow-lg'
+            : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'}"
+        >
+          Toutes
+        </button>
+        {#each Object.entries(categoryLabels) as [key, cat]}
+          <button
+            onclick={() => (filterCategory = key)}
+            class="px-4 py-2 rounded-xl font-bold text-sm transition-all flex items-center gap-2
+                   {filterCategory === key
+              ? cat.color + ' text-white shadow-lg'
+              : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'}"
+          >
+            <span>{cat.icon}</span>
+            <span>{cat.name}</span>
+          </button>
+        {/each}
+      </div>
+
       <!-- Stats Section -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <!-- Balance Card -->
@@ -277,6 +357,9 @@
                   companyId={$activeCompany?.id || ""}
                   availableBalance={dashboardData?.financials.cash || 0}
                   isOwned={tech.isOwned}
+                  isPending={tech.isPending || false}
+                  completedAt={tech.completedAt || null}
+                  {inventory}
                   onUnlock={handleTechUnlock}
                 />
               {/each}

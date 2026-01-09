@@ -101,7 +101,7 @@
   >
     <!-- Background Effects -->
     <div
-      class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-indigo-900/20 rounded-full blur-[120px] pointer-events-none"
+      class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-200 h-200 bg-indigo-900/20 rounded-full blur-[120px] pointer-events-none"
     ></div>
     <div class="absolute inset-0 bg-[url('/grid.svg')] opacity-[0.03]"></div>
 
@@ -120,7 +120,7 @@
         class="text-5xl sm:text-7xl md:text-8xl font-black mb-8 tracking-tight leading-none text-white"
       >
         Le Grand <span
-          class="bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent"
+          class="bg-linear-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent"
           >Équilibre</span
         >
       </h1>
@@ -181,12 +181,12 @@
           >
             <!-- Gradient Overlay -->
             <div
-              class={`absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity duration-500 bg-gradient-to-br ${pillar.color}`}
+              class={`absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity duration-500 bg-linear-to-br ${pillar.color}`}
             ></div>
 
             <div class="relative z-10">
               <div
-                class={`w-14 h-14 rounded-2xl flex items-center justify-center text-3xl mb-6 bg-gradient-to-br ${pillar.color} shadow-lg`}
+                class={`w-14 h-14 rounded-2xl flex items-center justify-center text-3xl mb-6 bg-linear-to-br ${pillar.color} shadow-lg`}
               >
                 {pillar.icon}
               </div>
@@ -222,7 +222,7 @@
     <!-- Dark Background -->
     <div class="absolute inset-0 bg-slate-950">
       <div
-        class="absolute inset-0 bg-gradient-to-tr from-rose-900/10 via-slate-950 to-indigo-900/10"
+        class="absolute inset-0 bg-linear-to-tr from-rose-900/10 via-slate-950 to-indigo-900/10"
       ></div>
     </div>
 
@@ -267,7 +267,7 @@
           <!-- Visual representation of chaos/entropy could go here -->
           <div class="relative w-full aspect-square max-w-md mx-auto">
             <div
-              class="absolute inset-0 bg-gradient-to-br from-indigo-500 to-rose-600 rounded-full blur-[100px] opacity-20 animate-pulse"
+              class="absolute inset-0 bg-linear-to-br from-indigo-500 to-rose-600 rounded-full blur-[100px] opacity-20 animate-pulse"
             ></div>
             <div
               class="relative h-full bg-slate-900/50 border border-slate-700/50 backdrop-blur-xl rounded-2xl p-8 flex flex-col justify-center items-center text-center"
