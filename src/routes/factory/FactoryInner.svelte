@@ -520,34 +520,31 @@
 
     <div class="stats-section">
       <h3>Actions</h3>
-      <div class="grid grid-cols-2 gap-2">
+      <div class="action-grid">
         <button
-          class="bg-indigo-600 hover:bg-indigo-500 text-white py-2 px-3 rounded-xl font-bold transition-all shadow-lg hover:shadow-indigo-500/25 flex flex-col items-center gap-1 text-xs"
+          class="action-btn exploration"
           onclick={() => (showExploration = true)}
         >
-          <span class="text-lg">🧭</span>
-          <span>Exploration</span>
+          <span class="btn-icon">🧭</span>
+          <span class="btn-label">Exploration</span>
+        </button>
+        <button class="action-btn market" onclick={() => (showMarket = true)}>
+          <span class="btn-icon">💰</span>
+          <span class="btn-label">Marché</span>
         </button>
         <button
-          class="bg-emerald-600 hover:bg-emerald-500 text-white py-2 px-3 rounded-xl font-bold transition-all shadow-lg hover:shadow-emerald-500/25 flex flex-col items-center gap-1 text-xs"
-          onclick={() => (showMarket = true)}
-        >
-          <span class="text-lg">🛒</span>
-          <span>Marché</span>
-        </button>
-        <button
-          class="bg-amber-600 hover:bg-amber-500 text-white py-2 px-3 rounded-xl font-bold transition-all shadow-lg hover:shadow-amber-500/25 flex flex-col items-center gap-1 text-xs col-span-2"
+          class="action-btn workshop full-width"
           onclick={() => (showWorkshop = true)}
         >
-          <span class="text-lg">🔨</span>
-          <span>Atelier</span>
+          <span class="btn-icon">⚒️</span>
+          <span class="btn-label">Atelier</span>
         </button>
         <button
-          class="bg-cyan-600 hover:bg-cyan-500 text-white py-2 px-3 rounded-xl font-bold transition-all shadow-lg hover:shadow-cyan-500/25 flex flex-col items-center gap-1 text-xs col-span-2"
+          class="action-btn inventory full-width"
           onclick={() => (showInventory = true)}
         >
-          <span class="text-lg">📦</span>
-          <span>Inventaire & Stock</span>
+          <span class="btn-icon">📦</span>
+          <span class="btn-label">Inventaire & Stock</span>
         </button>
       </div>
     </div>
@@ -924,5 +921,87 @@
   :global(.svelte-flow__controls-button:hover) {
     background: #334155 !important;
     fill: #f1f5f9 !important;
+  }
+
+  /* Action Button Styles */
+  .action-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .action-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 14px 12px;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-weight: 600;
+    font-size: 12px;
+  }
+
+  .action-btn.full-width {
+    grid-column: span 2;
+  }
+
+  .action-btn .btn-icon {
+    font-size: 24px;
+    line-height: 1;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+  }
+
+  .action-btn .btn-label {
+    color: white;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+  }
+
+  .action-btn:hover {
+    transform: translateY(-2px);
+  }
+
+  .action-btn:active {
+    transform: translateY(0);
+  }
+
+  /* Exploration Button */
+  .action-btn.exploration {
+    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+  }
+  .action-btn.exploration:hover {
+    box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5);
+  }
+
+  /* Market Button */
+  .action-btn.market {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  }
+  .action-btn.market:hover {
+    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.5);
+  }
+
+  /* Workshop Button */
+  .action-btn.workshop {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+  }
+  .action-btn.workshop:hover {
+    box-shadow: 0 6px 20px rgba(245, 158, 11, 0.5);
+  }
+
+  /* Inventory Button */
+  .action-btn.inventory {
+    background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+    box-shadow: 0 4px 12px rgba(6, 182, 212, 0.3);
+  }
+  .action-btn.inventory:hover {
+    box-shadow: 0 6px 20px rgba(6, 182, 212, 0.5);
   }
 </style>

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
+  import { page } from "$app/stores";
   import { onMount } from "svelte";
   import { fade } from "svelte/transition";
   import { fetchTechTree } from "$lib/services/tech";
@@ -7,9 +8,11 @@
   import { activeCompany } from "$lib/stores";
   import pb from "$lib/pocketbase";
   import type { Technology } from "$lib/pocketbase";
-  import TechCard from "$lib/components/TechCard.svelte";
-
   import { notifications } from "$lib/notifications";
+
+  import CategoryCard from "$lib/components/laboratory/CategoryCard.svelte";
+  import TierNavigation from "$lib/components/laboratory/TierNavigation.svelte";
+  import TierPanel from "$lib/components/laboratory/TierPanel.svelte";
 
   type TechWithStatus = Technology & {
     isOwned: boolean;
@@ -21,22 +24,77 @@
 
   let technologies: Array<TechWithStatus> = $state([]);
   let inventory: Array<{ item_id: string; quantity: number }> = $state([]);
-
   let dashboardData: DashboardData | null = $state(null);
   let loading = $state(true);
   let error = $state("");
-  let filterLevel = $state(0);
-  let filterCategory = $state<string | null>(null);
 
-  const categoryLabels: Record<
-    string,
-    { name: string; icon: string; color: string }
-  > = {
-    general: { name: "Général", icon: "⚙️", color: "bg-slate-500" },
-    resource: { name: "Ressources", icon: "⛏️", color: "bg-amber-500" },
-    industry: { name: "Industrie", icon: "🏭", color: "bg-indigo-500" },
-    tech: { name: "High-Tech", icon: "💻", color: "bg-purple-500" },
+  // Category definitions with icons
+  const categoryDefs: Record<string, { name: string; icon: string }> = {
+    general: { name: "GÉNÉRAL", icon: "⚙️" },
+    resource: { name: "RESSOURCE", icon: "⛏️" },
+    industry: { name: "INDUSTRIE", icon: "🏭" },
+    tech: { name: "TECHNOLOGIE", icon: "💻" },
   };
+
+  // Current view state from URL
+  let currentCategory = $derived($page.url.searchParams.get("category"));
+  let currentTier = $derived(
+    parseInt($page.url.searchParams.get("tier") || "1")
+  );
+
+  // Categories with counts
+  let categories = $derived.by(() => {
+    const cats = Object.entries(categoryDefs).map(([id, def]) => {
+      const techsInCat = technologies.filter((t) => t.category === id);
+      return {
+        id,
+        name: def.name,
+        icon: def.icon,
+        total: techsInCat.length,
+        unlocked: techsInCat.filter((t) => t.isOwned).length,
+      };
+    });
+    return cats.filter((c) => c.total > 0);
+  });
+
+  // Technologies for current category
+  let categoryTechs = $derived(
+    technologies.filter((t) => t.category === currentCategory)
+  );
+
+  // Tiers for current category
+  let tiers = $derived.by(() => {
+    if (!currentCategory) return [];
+    const levels = [
+      ...new Set(categoryTechs.map((t) => t.required_level || 1)),
+    ].sort((a, b) => a - b);
+    return levels.map((level) => {
+      const techsAtLevel = categoryTechs.filter(
+        (t) => (t.required_level || 1) === level
+      );
+      const allOwned = techsAtLevel.every((t) => t.isOwned);
+      const someOwned = techsAtLevel.some((t) => t.isOwned);
+      return {
+        level,
+        isUnlocked: someOwned || (dashboardData?.company.level || 1) >= level,
+        isComplete: allOwned,
+        isCurrent: level === currentTier,
+      };
+    });
+  });
+
+  // Technologies for current tier
+  let tierTechs = $derived(
+    categoryTechs.filter((t) => (t.required_level || 1) === currentTier)
+  );
+
+  // Current category data
+  let currentCategoryData = $derived(
+    categories.find((c) => c.id === currentCategory)
+  );
+
+  // Research in progress
+  let pendingResearch = $derived(technologies.find((t) => t.isPending));
 
   $effect(() => {
     if ($activeCompany) {
@@ -52,7 +110,6 @@
       if (!userId) throw new Error("Non connecté");
       if (!$activeCompany?.id) throw new Error("Pas d'entreprise active");
 
-      // Fetch all data in parallel (including machines)
       const [techData, dashData, invRecords, machineRecords] =
         await Promise.all([
           fetchTechTree($activeCompany.id),
@@ -68,13 +125,11 @@
       technologies = techData;
       dashboardData = dashData;
 
-      // Combine inventory items with machine counts
       const invItems = invRecords.map((r: any) => ({
         item_id: r.item_id,
         quantity: r.quantity,
       }));
 
-      // Count machines by machine_id
       const machineCountMap = new Map<string, number>();
       machineRecords.forEach((m: any) => {
         const machineId = m.machine_id;
@@ -84,7 +139,6 @@
         );
       });
 
-      // Add machine counts as inventory items
       machineCountMap.forEach((count, machineId) => {
         invItems.push({ item_id: machineId, quantity: count });
       });
@@ -98,27 +152,22 @@
     }
   }
 
-  // Filtrer les technologies par niveau et catégorie
-  const filteredTechs = $derived(
-    technologies.filter((t) => {
-      const levelMatch = !filterLevel || t.required_level <= filterLevel;
-      const categoryMatch = !filterCategory || t.category === filterCategory;
-      return levelMatch && categoryMatch;
-    })
-  );
+  function handleCategoryClick(categoryId: string) {
+    const firstTier =
+      technologies
+        .filter((t) => t.category === categoryId)
+        .map((t) => t.required_level || 1)
+        .sort((a, b) => a - b)[0] || 1;
+    goto(`/laboratory?category=${categoryId}&tier=${firstTier}`);
+  }
 
-  // Grouper les technologies par niveau
-  const techsByLevel = $derived.by(() => {
-    const grouped = new Map<number, TechWithStatus[]>();
-    filteredTechs.forEach((tech) => {
-      const level = tech.required_level || 1;
-      if (!grouped.has(level)) {
-        grouped.set(level, []);
-      }
-      grouped.get(level)!.push(tech);
-    });
-    return Array.from(grouped.entries()).sort((a, b) => a[0] - b[0]);
-  });
+  function handleTierSelect(tier: number) {
+    goto(`/laboratory?category=${currentCategory}&tier=${tier}`);
+  }
+
+  function handleBack() {
+    goto("/laboratory");
+  }
 
   function handleTechUnlock() {
     loadData();
@@ -129,301 +178,290 @@
   <title>Laboratoire | Ketsuna: Iron Symphony</title>
 </svelte:head>
 
-<div class="min-h-screen bg-slate-950 text-slate-200 p-6">
-  <div class="max-w-7xl mx-auto space-y-8">
-    <!-- Header -->
-    <header
-      class="flex flex-col md:flex-row md:items-center justify-between gap-4"
-    >
-      <div class="flex items-center gap-4">
-        <div>
-          <h1
-            class="text-3xl md:text-4xl font-black text-white tracking-tight flex items-center gap-3"
-          >
-            <span class="p-2 bg-indigo-500/10 rounded-xl text-indigo-400">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="32"
-                height="32"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                ><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path
-                  d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"
-                ></path></svg
-              >
-            </span>
-            Laboratoire
-          </h1>
-          <p class="text-slate-400 mt-2 text-sm ml-1">
-            Débloquez de nouvelles technologies pour faire progresser votre
-            entreprise.
-          </p>
-        </div>
-      </div>
-    </header>
-
-    {#if error}
-      <div
-        transition:fade={{ duration: 200 }}
-        class="p-4 bg-red-500/10 border border-red-600/30 rounded-xl flex items-center gap-3"
-      >
-        <span class="text-2xl">❌</span>
-        <p class="text-sm text-red-300 font-medium">{error}</p>
-      </div>
+<div class="laboratory-page">
+  <!-- Header -->
+  <header class="page-header">
+    {#if currentCategory}
+      <button type="button" class="back-btn" onclick={handleBack}>
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M19 12H5M12 19l-7-7 7-7" />
+        </svg>
+      </button>
     {/if}
-
-    {#if loading}
-      <div class="flex flex-col items-center justify-center py-20">
-        <div class="relative w-16 h-16">
-          <div
-            class="absolute top-0 left-0 w-full h-full border-4 border-slate-700 rounded-full"
-          ></div>
-          <div
-            class="absolute top-0 left-0 w-full h-full border-4 border-indigo-500 rounded-full animate-spin border-t-transparent"
-          ></div>
-        </div>
-        <p class="mt-6 text-slate-400 font-medium animate-pulse">
-          Chargement des données...
-        </p>
-      </div>
-    {:else if technologies.length === 0}
-      <div
-        class="text-center py-20 bg-slate-900/30 rounded-3xl border border-slate-800 border-dashed"
-      >
-        <span class="text-4xl block mb-4">🧪</span>
-        <p class="text-slate-400 font-medium">
-          Aucune technologie disponible pour le moment.
-        </p>
-      </div>
-    {:else}
-      <!-- Category Filter Tabs -->
-      <div class="flex flex-wrap gap-2 mb-6">
-        <button
-          onclick={() => (filterCategory = null)}
-          class="px-4 py-2 rounded-xl font-bold text-sm transition-all
-                 {!filterCategory
-            ? 'bg-white text-slate-900 shadow-lg'
-            : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'}"
-        >
-          Toutes
-        </button>
-        {#each Object.entries(categoryLabels) as [key, cat]}
-          <button
-            onclick={() => (filterCategory = key)}
-            class="px-4 py-2 rounded-xl font-bold text-sm transition-all flex items-center gap-2
-                   {filterCategory === key
-              ? cat.color + ' text-white shadow-lg'
-              : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'}"
-          >
-            <span>{cat.icon}</span>
-            <span>{cat.name}</span>
-          </button>
-        {/each}
-      </div>
-
-      <!-- Stats Section -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <!-- Balance Card -->
-        <div
-          class="bg-slate-900/50 border border-slate-700/50 rounded-2xl p-6 backdrop-blur-sm relative overflow-hidden"
-        >
-          <div
-            class="absolute -right-4 -top-4 w-24 h-24 bg-indigo-500/5 rounded-full blur-2xl"
-          ></div>
-          <div class="relative z-10">
-            <p
-              class="text-xs text-slate-400 font-bold uppercase tracking-wider mb-2"
-            >
-              Solde disponible
-            </p>
-            <p class="text-3xl font-black text-white">
-              {new Intl.NumberFormat("fr-FR", {
-                style: "currency",
-                currency: "EUR",
-                maximumFractionDigits: 0,
-              }).format(dashboardData?.financials.cash || 0)}
-            </p>
-            <p class="text-xs text-indigo-400/80 mt-1 font-medium">
-              Pour débloquer les technologies
-            </p>
-          </div>
-        </div>
-
-        <div
-          class="bg-slate-900/50 border border-slate-700/50 rounded-2xl p-6 backdrop-blur-sm relative overflow-hidden"
-        >
-          <div
-            class="absolute -right-4 -top-4 w-24 h-24 bg-emerald-500/5 rounded-full blur-2xl"
-          ></div>
-          <div class="relative z-10">
-            <p
-              class="text-xs text-slate-400 font-bold uppercase tracking-wider mb-2"
-            >
-              Technologies débloquées
-            </p>
-            <div class="flex items-end gap-2">
-              <span class="text-3xl font-black text-white">
-                {technologies.filter((t) => t.isOwned).length}
-              </span>
-              <span class="text-sm text-slate-500 font-medium mb-1"
-                >/ {technologies.length}</span
-              >
-            </div>
-            <div
-              class="w-full bg-slate-800 h-1.5 rounded-full mt-3 overflow-hidden"
-            >
-              <div
-                class="bg-emerald-500 h-full rounded-full"
-                style="width: {(technologies.filter((t) => t.isOwned).length /
-                  technologies.length) *
-                  100}%"
-              ></div>
-            </div>
-          </div>
-        </div>
-
-        <div
-          class="bg-slate-900/50 border border-slate-700/50 rounded-2xl p-6 backdrop-blur-sm relative overflow-hidden"
-        >
-          <div
-            class="absolute -right-4 -top-4 w-24 h-24 bg-amber-500/5 rounded-full blur-2xl"
-          ></div>
-          <div class="relative z-10">
-            {#if technologies
-              .map((t) => t.required_level)
-              .sort((a, b) => a - b)
-              .find((l) => l > (dashboardData?.company.level || 1))}
-              {@const nextLevel = technologies
-                .map((t) => t.required_level)
-                .sort((a, b) => a - b)
-                .find((l) => l > (dashboardData?.company.level || 1))}
-              <p
-                class="text-xs text-slate-400 font-bold uppercase tracking-wider mb-2"
-              >
-                Prochain Palier
-              </p>
-              <p class="text-3xl font-black text-white">
-                Niveau {nextLevel}
-              </p>
-              <p class="text-xs text-amber-500/80 mt-1 font-medium">
-                Débloque de nouvelles technologies
-              </p>
-            {:else}
-              <p
-                class="text-xs text-slate-400 font-bold uppercase tracking-wider mb-2"
-              >
-                Arbre Technologique
-              </p>
-              <p class="text-3xl font-black text-emerald-400">Complet</p>
-              <p class="text-xs text-slate-500 mt-1 font-medium">
-                Niveau {Math.max(
-                  ...technologies.map((t) => t.required_level || 0)
-                )} atteint
-              </p>
-            {/if}
-          </div>
-        </div>
-      </div>
-
-      <!-- Tech Tree by Level -->
-      <div class="space-y-10">
-        {#each techsByLevel as [level, techs] (level)}
-          <section class="relative">
-            <div class="flex items-center gap-4 mb-6">
-              <div
-                class="w-10 h-10 rounded-full bg-slate-800 border-2 border-slate-700 flex items-center justify-center font-black text-slate-300 shadow-lg z-10 relative"
-              >
-                {level}
-              </div>
-              <h2
-                class="text-xl font-bold text-white flex-1 flex items-center gap-2"
-              >
-                <span class="text-slate-400 font-normal">Palier</span> Niveau {level}
-                <div class="h-px bg-slate-800 flex-1 ml-4"></div>
-              </h2>
-            </div>
-
-            <div
-              class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pl-5 md:pl-0 border-l-2 border-slate-800 md:border-l-0 ml-5 md:ml-0 pb-4 md:pb-0"
-            >
-              {#each techs as tech (tech.id)}
-                <TechCard
-                  technology={tech}
-                  companyLevel={dashboardData?.company.level || 1}
-                  companyId={$activeCompany?.id || ""}
-                  availableBalance={dashboardData?.financials.cash || 0}
-                  isOwned={tech.isOwned}
-                  isPending={tech.isPending || false}
-                  completedAt={tech.completedAt || null}
-                  {inventory}
-                  onUnlock={handleTechUnlock}
-                />
-              {/each}
-            </div>
-          </section>
-        {/each}
-      </div>
-
-      <!-- Technology Progress Section -->
-      {#if dashboardData}
-        <section
-          class="bg-slate-900/50 border border-slate-800 rounded-2xl p-8 backdrop-blur-sm"
-        >
-          <h3 class="text-lg font-bold text-white mb-6 flex items-center gap-2">
-            <span class="text-indigo-400">🎯</span> Objectifs recommandés
-          </h3>
-          <div class="space-y-3">
-            {#each technologies.slice(0, 3) as tech}
-              {#if !tech.isOwned}
-                <div
-                  class="flex items-center justify-between p-4 bg-slate-950/50 rounded-xl border border-slate-800 hover:border-slate-700 transition-colors group"
-                >
-                  <div class="flex items-center gap-4">
-                    <div
-                      class="w-10 h-10 rounded-lg bg-slate-800 flex items-center justify-center text-lg text-slate-400 group-hover:text-white transition-colors"
-                    >
-                      🔭
-                    </div>
-                    <div>
-                      <p class="font-bold text-white text-sm">
-                        {tech.name}
-                      </p>
-                      <div class="flex gap-3 text-xs text-slate-400 mt-1">
-                        <span class="flex items-center gap-1"
-                          >📈 Niv {tech.required_level}</span
-                        >
-                      </div>
-                    </div>
-                  </div>
-                  <div class="text-right">
-                    {#if dashboardData.company.level >= tech.required_level}
-                      <span
-                        class="text-[10px] font-bold bg-emerald-500/10 text-emerald-400 px-2 py-1 rounded border border-emerald-500/20 uppercase tracking-wide"
-                        >Disponible</span
-                      >
-                    {:else}
-                      <span
-                        class="text-[10px] font-bold bg-amber-500/10 text-amber-400 px-2 py-1 rounded border border-amber-500/20 uppercase tracking-wide"
-                        >Verrouillé</span
-                      >
-                    {/if}
-                  </div>
-                </div>
-              {/if}
-            {/each}
-          </div>
-        </section>
+    <h1 class="breadcrumb">
+      <span class="company-name">{$activeCompany?.name || "ENTREPRISE"}</span>
+      <span class="separator">›</span>
+      {#if currentCategory && currentCategoryData}
+        <span>RECHERCHE {currentCategoryData.name}</span>
+      {:else}
+        <span>RECHERCHE & DÉVELOPPEMENT</span>
       {/if}
-    {/if}
-  </div>
+    </h1>
+  </header>
+
+  {#if error}
+    <div transition:fade={{ duration: 200 }} class="error-banner">
+      <span>❌</span>
+      <p>{error}</p>
+    </div>
+  {/if}
+
+  {#if loading}
+    <div class="loading-container">
+      <div class="spinner-ring"></div>
+      <p>Chargement des données...</p>
+    </div>
+  {:else if !currentCategory}
+    <!-- Overview Mode: Category Cards -->
+    <div class="categories-grid">
+      {#each categories as category (category.id)}
+        <CategoryCard
+          {category}
+          onclick={() => handleCategoryClick(category.id)}
+        />
+      {/each}
+    </div>
+
+    <!-- Bottom Section -->
+    <div class="bottom-section">
+      <!-- Research Status -->
+      <div class="panel research-status">
+        <h3 class="panel-subtitle">AUCUNE RECHERCHE EN COURS</h3>
+        {#if pendingResearch}
+          <div class="research-info">
+            <span class="research-name">{pendingResearch.name}</span>
+            <span class="research-badge">En cours</span>
+          </div>
+        {:else}
+          <div class="waiting-badge">En attente</div>
+        {/if}
+      </div>
+
+      <!-- Help Section -->
+      <div class="panel help-section">
+        <h3 class="panel-subtitle">BESOIN D'AIDE ?</h3>
+        <p class="help-text">
+          La recherche et développement vise à élever le niveau de ton
+          entreprise dans chaque domaine, débloquant ainsi de nouveaux outils
+          pour optimiser ta production. En investissant dans la recherche, tu
+          renforces la compétitivité de ton entreprise et ouvre la voie à des
+          technologies avancées...
+        </p>
+      </div>
+    </div>
+  {:else}
+    <!-- Category Detail Mode -->
+    <TierNavigation {tiers} {currentTier} onTierSelect={handleTierSelect} />
+
+    <TierPanel
+      technologies={tierTechs}
+      companyLevel={dashboardData?.company.level || 1}
+      companyId={$activeCompany?.id || ""}
+      availableBalance={dashboardData?.financials.cash || 0}
+      {inventory}
+      onUnlock={handleTechUnlock}
+    />
+  {/if}
 </div>
 
 <style>
   :global(body) {
-    background-color: rgb(15, 23, 42);
+    background-color: #0a0a14;
+  }
+
+  .laboratory-page {
+    min-height: 100vh;
+    background: linear-gradient(180deg, #0f0f1a 0%, #0a0a14 100%);
+    color: #e0e0f0;
+    font-family: "Segoe UI", system-ui, sans-serif;
+  }
+
+  /* Header */
+  .page-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.5rem;
+    background: #0f0f1a;
+    border-bottom: 2px solid #2d2d44;
+  }
+
+  .back-btn {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 2px solid #3d3d5c;
+    color: #8888aa;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .back-btn:hover {
+    border-color: #00ff88;
+    color: #00ff88;
+  }
+
+  .breadcrumb {
+    font-size: 0.875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-family: "Courier New", monospace;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .company-name {
+    color: #6666aa;
+  }
+
+  .separator {
+    color: #3d3d5c;
+  }
+
+  /* Error */
+  .error-banner {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem 1.5rem;
+    background: rgba(255, 68, 136, 0.1);
+    border-bottom: 2px solid #ff4488;
+    color: #ff4488;
+  }
+
+  /* Loading */
+  .loading-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 4rem;
+    gap: 1rem;
+  }
+
+  .spinner-ring {
+    width: 48px;
+    height: 48px;
+    border: 3px solid #2d2d44;
+    border-top-color: #00ff88;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .loading-container p {
+    color: #6666aa;
+    font-family: monospace;
+  }
+
+  /* Categories Grid */
+  .categories-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 1rem;
+    padding: 1.5rem;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  @media (min-width: 768px) {
+    .categories-grid {
+      grid-template-columns: repeat(4, 1fr);
+    }
+  }
+
+  /* Bottom Section */
+  .bottom-section {
+    display: grid;
+    grid-template-columns: 1fr 1.5fr;
+    gap: 1rem;
+    padding: 1.5rem;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  @media (max-width: 768px) {
+    .bottom-section {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .panel {
+    background: #0a0a14;
+    border: 2px solid #2d2d44;
+    padding: 1.25rem;
+  }
+
+  .panel-subtitle {
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: #ffffff;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 1rem;
+    font-family: "Courier New", monospace;
+  }
+
+  .research-status {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .waiting-badge {
+    margin-top: auto;
+    padding: 0.75rem 1.5rem;
+    background: #1a1a2e;
+    border: 2px solid #3d3d5c;
+    text-align: center;
+    color: #6666aa;
+    font-weight: 600;
+    font-size: 0.875rem;
+  }
+
+  .research-info {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: auto;
+    padding: 0.75rem 1rem;
+    background: #1a1a2e;
+    border: 2px solid #00ff88;
+  }
+
+  .research-name {
+    color: #00ff88;
+    font-weight: 600;
+  }
+
+  .research-badge {
+    background: #00ff88;
+    color: #0a0a14;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  .help-text {
+    color: #8888aa;
+    font-size: 0.875rem;
+    line-height: 1.6;
   }
 </style>
