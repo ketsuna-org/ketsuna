@@ -10,6 +10,7 @@
   import ExplorationModal from "$lib/components/ExplorationModal.svelte";
   import MarketView from "$lib/components/MarketView.svelte";
   import InventoryView from "$lib/components/InventoryView.svelte";
+  import WorkshopView from "$lib/components/WorkshopView.svelte";
   import Modal from "$lib/components/Modal.svelte";
   import { getItem } from "$lib/data/game-static";
   import {
@@ -58,6 +59,7 @@
   let showExploration = $state(false);
   let showMarket = $state(false);
   let showInventory = $state(false);
+  let showWorkshop = $state(false);
   let loading = $state(true);
 
   // Zone ID constant
@@ -534,6 +536,13 @@
           <span>Marché</span>
         </button>
         <button
+          class="bg-amber-600 hover:bg-amber-500 text-white py-2 px-3 rounded-xl font-bold transition-all shadow-lg hover:shadow-amber-500/25 flex flex-col items-center gap-1 text-xs col-span-2"
+          onclick={() => (showWorkshop = true)}
+        >
+          <span class="text-lg">🔨</span>
+          <span>Atelier</span>
+        </button>
+        <button
           class="bg-cyan-600 hover:bg-cyan-500 text-white py-2 px-3 rounded-xl font-bold transition-all shadow-lg hover:shadow-cyan-500/25 flex flex-col items-center gap-1 text-xs col-span-2"
           onclick={() => (showInventory = true)}
         >
@@ -622,6 +631,15 @@
     onClose={() => (showMarket = false)}
   >
     <MarketView />
+  </Modal>
+{/if}
+
+{#if showWorkshop}
+  <Modal
+    title="<span class='text-2xl'>🔨</span> Atelier de Fabrication"
+    onClose={() => (showWorkshop = false)}
+  >
+    <WorkshopView />
   </Modal>
 {/if}
 

@@ -58,7 +58,9 @@ export interface Recipe {
   inputs_items: string[];
   input_quantity: number;
   ingredients?: RecipeIngredient[];
+  inputs?: RecipeIngredient[];
   icon?: string;
+  manual_craftable?: boolean;
 }
 
 export interface RecipeIngredient {
