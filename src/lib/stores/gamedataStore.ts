@@ -154,6 +154,15 @@ function createGameDataStore() {
 
 export const gamedataStore = createGameDataStore();
 
+// Export helper functions for direct usage (game-static compatibility)
+export const getItem = gamedataStore.getItem;
+export const getRecipe = gamedataStore.getRecipe;
+export const getTechnology = gamedataStore.getTechnology;
+
+export const getItemName = (id: string) => gamedataStore.getItem(id)?.name || id;
+export const getRecipeName = (id: string) => gamedataStore.getRecipe(id)?.name || id;
+export const getTechnologyName = (id: string) => gamedataStore.getTechnology(id)?.name || id;
+
 // Auto-fetch on first import (lazy load)
 if (typeof window !== 'undefined') {
   gamedataStore.fetch().catch((err) => {
