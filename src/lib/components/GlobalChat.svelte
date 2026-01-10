@@ -85,6 +85,33 @@
       scrollToBottom();
     }
   }
+
+  function formatTime(dateString: string): string {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    const timeStr = date.toLocaleTimeString("fr-FR", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
+    if (diffDays === 0) {
+      return timeStr;
+    } else if (diffDays === 1) {
+      return `Hier ${timeStr}`;
+    } else if (diffDays < 7) {
+      const dayName = date.toLocaleDateString("fr-FR", { weekday: "short" });
+      return `${dayName} ${timeStr}`;
+    } else {
+      return (
+        date.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" }) +
+        " " +
+        timeStr
+      );
+    }
+  }
 </script>
 
 <div class="global-chat">
@@ -131,6 +158,7 @@
             <div class="bubble">
               {#if !isMe}<div class="sender-name">{username}</div>{/if}
               <div class="text">{msg.message}</div>
+              <div class="timestamp">{formatTime(msg.created)}</div>
             </div>
           </div>
         {/each}
@@ -331,6 +359,17 @@
     color: #94a3b8;
     margin-bottom: 2px;
     margin-left: 2px;
+  }
+
+  .timestamp {
+    font-size: 0.6rem;
+    color: rgba(148, 163, 184, 0.6);
+    margin-top: 4px;
+    text-align: right;
+  }
+
+  .me .timestamp {
+    color: rgba(255, 255, 255, 0.5);
   }
 
   .input-area {
