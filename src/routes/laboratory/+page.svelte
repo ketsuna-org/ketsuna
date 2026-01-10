@@ -1,7 +1,7 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import { page } from "$app/stores";
-  import { onMount } from "svelte";
+  import { onDestroy } from "svelte";
   import { fade } from "svelte/transition";
   import { fetchTechTree } from "$lib/services/tech";
   import { fetchDashboardData, type DashboardData } from "$lib/dashboard";
@@ -95,6 +95,53 @@
 
   // Research in progress
   let pendingResearch = $derived(technologies.find((t) => t.isPending));
+  let timeLeft = $state("");
+  let timerInterval: any;
+
+  $effect(() => {
+    if (pendingResearch?.completedAt) {
+      startTimer();
+    } else {
+      stopTimer();
+      timeLeft = "";
+    }
+  });
+
+  function startTimer() {
+    stopTimer();
+    updateTime();
+    timerInterval = setInterval(updateTime, 1000);
+  }
+
+  function stopTimer() {
+    if (timerInterval) clearInterval(timerInterval);
+    timerInterval = null;
+  }
+
+  function updateTime() {
+    if (!pendingResearch?.completedAt) return;
+
+    const end = new Date(pendingResearch.completedAt).getTime();
+    const now = new Date().getTime();
+    const diff = end - now;
+
+    if (diff <= 0) {
+      timeLeft = "Finalisation...";
+      stopTimer();
+      // Optionally trigger reload if it hangs too long
+      if (diff < -5000 && !loading) loadData();
+      return;
+    }
+
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+    timeLeft = `${minutes}m ${seconds.toString().padStart(2, "0")}s`;
+  }
+
+  onDestroy(() => {
+    stopTimer();
+  });
 
   $effect(() => {
     if ($activeCompany) {
@@ -258,7 +305,13 @@
                   <div class="progress-bar">
                     <div class="progress-fill animate-pulse"></div>
                   </div>
-                  <span class="progress-label">Analyse en cours...</span>
+                  <span class="progress-label">
+                    {#if timeLeft}
+                      Temps restant : {timeLeft}
+                    {:else}
+                      Traitement en cours...
+                    {/if}
+                  </span>
                 </div>
               </div>
               <span class="research-badge">EN COURS</span>
