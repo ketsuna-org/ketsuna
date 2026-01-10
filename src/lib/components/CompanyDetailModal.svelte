@@ -1,5 +1,6 @@
 <script lang="ts">
   import { fade, scale } from "svelte/transition";
+  import { goto } from "$app/navigation";
   import type { Company } from "$lib/pocketbase";
 
   /**
@@ -18,6 +19,10 @@
       currency: "USD",
       maximumFractionDigits: 0,
     }).format(amount);
+  }
+
+  function visitFactory() {
+    goto(`/factory?visit=${company.id}`);
   }
 </script>
 
@@ -131,9 +136,10 @@
 
       <div class="mt-6 flex gap-3">
         <button
+          on:click={visitFactory}
           class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3 rounded-xl transition-all shadow-lg hover:shadow-indigo-500/25"
         >
-          Visiter (Bientôt)
+          👁️ Visiter l'usine
         </button>
       </div>
     </div>

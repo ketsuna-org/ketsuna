@@ -8,18 +8,26 @@
       name: string;
       icon: string;
       placed: boolean;
+      // Extended data from loadFactory
+      balance?: number;
+      level?: number;
     },
     "company"
   >;
 
-  let { data }: NodeProps<CompanyNode> = $props();
-  let company = $derived($activeCompany);
+  let { data, id }: NodeProps<CompanyNode> = $props();
+
+  // Check if this is the user's own company (for upgrade button)
+  let isOwnCompany = $derived($activeCompany?.id === id);
+  let company = $derived(isOwnCompany ? $activeCompany : null);
 
   let isUpgrading = $state(false);
-  let upgradeCost = $derived(
-    company ? Math.floor(1000 * Math.pow(company.level || 1, 1.5)) : 0
-  );
-  let canUpgrade = $derived(company && (company.balance || 0) >= upgradeCost);
+  let displayLevel = $derived(data.level || company?.level || 1);
+  let displayBalance = $derived(data.balance ?? company?.balance ?? 0);
+  let displayName = $derived(data.name || company?.name || "SIÈGE SOCIAL");
+
+  let upgradeCost = $derived(Math.floor(1000 * Math.pow(displayLevel, 1.5)));
+  let canUpgrade = $derived(isOwnCompany && displayBalance >= upgradeCost);
 
   async function handleUpgrade(event: MouseEvent) {
     if (event) {
@@ -81,7 +89,7 @@
 
           <!-- Company name plate -->
           <div class="name-plate">
-            <div class="name">{company?.name || "SIÈGE SOCIAL"}</div>
+            <div class="name">{displayName}</div>
             <div class="name-underline"></div>
           </div>
 
@@ -90,49 +98,50 @@
             <div class="stat-display balance-display">
               <div class="stat-label">CAPITAL</div>
               <div class="stat-value">
-                {company?.balance?.toLocaleString() || 0} $
+                {displayBalance.toLocaleString()} $
               </div>
               <div class="stat-indicator"></div>
             </div>
 
             <div class="stat-display level-display">
               <div class="stat-label">NIVEAU</div>
-              <div class="stat-value">{company?.level || 1}</div>
+              <div class="stat-value">{displayLevel}</div>
               <div class="level-bars">
                 {#each Array(5).fill(0) as _, i}
-                  <div
-                    class="level-bar"
-                    class:active={i < (company?.level || 1)}
-                  ></div>
+                  <div class="level-bar" class:active={i < displayLevel}></div>
                 {/each}
               </div>
             </div>
           </div>
 
-          <!-- Industrial upgrade button -->
-          <button
-            class="upgrade-btn nodrag"
-            class:disabled={!canUpgrade}
-            class:upgrading={isUpgrading}
-            onclick={handleUpgrade}
-            disabled={!canUpgrade || isUpgrading}
-            title="Cliquer pour améliorer"
-          >
-            <div class="btn-plate">
-              <div class="btn-rivets">
-                <span class="btn-rivet"></span>
-                <span class="btn-rivet"></span>
+          <!-- Industrial upgrade button (only for own company) -->
+          {#if isOwnCompany}
+            <button
+              class="upgrade-btn nodrag"
+              class:disabled={!canUpgrade}
+              class:upgrading={isUpgrading}
+              onclick={handleUpgrade}
+              disabled={!canUpgrade || isUpgrading}
+              title="Cliquer pour améliorer"
+            >
+              <div class="btn-plate">
+                <div class="btn-rivets">
+                  <span class="btn-rivet"></span>
+                  <span class="btn-rivet"></span>
+                </div>
+                <div class="btn-content">
+                  {#if isUpgrading}
+                    <div class="loading-gear">⚙</div>
+                  {:else}
+                    <span class="btn-icon">⬆</span>
+                    <span class="btn-text"
+                      >{upgradeCost.toLocaleString()} $</span
+                    >
+                  {/if}
+                </div>
               </div>
-              <div class="btn-content">
-                {#if isUpgrading}
-                  <div class="loading-gear">⚙</div>
-                {:else}
-                  <span class="btn-icon">⬆</span>
-                  <span class="btn-text">{upgradeCost.toLocaleString()} $</span>
-                {/if}
-              </div>
-            </div>
-          </button>
+            </button>
+          {/if}
         </div>
       </div>
 
@@ -144,7 +153,7 @@
     <div class="chimney">
       <div class="chimney-body"></div>
       <div class="chimney-top"></div>
-      {#if company && (company.level || 1) > 0}
+      {#if isOwnCompany && displayLevel > 0}
         <div class="smoke"></div>
       {/if}
     </div>

@@ -129,6 +129,8 @@ export async function loadFactory(companyId: string): Promise<{
         name: company.name,
         icon: "🏢",
         placed: true,
+        balance: company.balance,
+        level: company.level,
       },
     });
 

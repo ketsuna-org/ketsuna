@@ -42,7 +42,10 @@
   } from "@xyflow/svelte";
   import { logAnalyticsEvent } from "$lib/firebase";
 
-  let { company } = $props<{ company: any }>();
+  let { company, readOnly = false } = $props<{
+    company: any;
+    readOnly?: boolean;
+  }>();
 
   // Custom node types
   const nodeTypes = {
@@ -285,8 +288,15 @@
   }
 
   // Effect to watch for company changes
+  let lastCompanyId: string | null = null;
   $effect(() => {
-    if (company?.id) {
+    const currentId = company?.id;
+    if (currentId && currentId !== lastCompanyId) {
+      console.log(
+        `[FACTORY] Company changed from ${lastCompanyId} to ${currentId}`
+      );
+      lastCompanyId = currentId;
+      hasInitiallyLoaded = false; // Reset so we fit view on new company
       loadData();
     }
   });
@@ -305,10 +315,7 @@
   });
 
   onMount(() => {
-    // Initial load
-    if (company?.id) {
-      loadData();
-    }
+    // Initial load moved to effect above
   });
 
   // Handle DnD Start for machines
@@ -709,237 +716,242 @@
     <p>Chargement de l'usine...</p>
   </div>
 {:else}
-  <!-- Mobile Menu Toggle -->
-  <button
-    class="md:hidden fixed top-4 left-4 z-50 bg-[#1e293b] text-white p-3 rounded-xl border border-[#334155] shadow-lg"
-    onclick={() => (showMobileSidebar = !showMobileSidebar)}
-  >
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2"
-      stroke-linecap="round"
-      stroke-linejoin="round"
+  <!-- Mobile Menu Toggle (hidden in readOnly mode) -->
+  {#if !readOnly}
+    <button
+      class="md:hidden fixed top-4 left-4 z-50 bg-[#1e293b] text-white p-3 rounded-xl border border-[#334155] shadow-lg"
+      onclick={() => (showMobileSidebar = !showMobileSidebar)}
     >
-      {#if showMobileSidebar}
-        <path d="M18 6 6 18" /><path d="m6 6 18 12" />
-      {:else}
-        <line x1="4" x2="20" y1="12" y2="12" /><line
-          x1="4"
-          x2="20"
-          y1="6"
-          y2="6"
-        /><line x1="4" x2="20" y1="18" y2="18" />
-      {/if}
-    </svg>
-  </button>
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="24"
+        height="24"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        {#if showMobileSidebar}
+          <path d="M18 6 6 18" /><path d="m6 6 18 12" />
+        {:else}
+          <line x1="4" x2="20" y1="12" y2="12" /><line
+            x1="4"
+            x2="20"
+            y1="6"
+            y2="6"
+          /><line x1="4" x2="20" y1="18" y2="18" />
+        {/if}
+      </svg>
+    </button>
+  {/if}
 
-  <!-- Toolbar -->
-  <!-- Responsive classes: hidden on mobile unless toggled, fixed inset for mobile drawer -->
-  <!-- Moved CSS properties to Tailwind to fix specificity issues -->
-  <div
-    class="
+  <!-- Toolbar (hidden in readOnly mode) -->
+  {#if !readOnly}
+    <!-- Responsive classes: hidden on mobile unless toggled, fixed inset for mobile drawer -->
+    <!-- Moved CSS properties to Tailwind to fix specificity issues -->
+    <div
+      class="
     toolbar
     {showMobileSidebar ? 'flex fixed inset-0 w-full h-full z-50' : 'hidden'}
     md:flex md:static md:w-[300px] md:h-auto flex-col gap-8 p-6
   "
-  >
-    <div class="toolbar-header">
-      <h2>🏭 Usine</h2>
-      <span class="bounds-info"
-        >{canvasBounds.width} × {canvasBounds.height}</span
-      >
-      <!-- Close button for mobile only -->
-      <button
-        class="md:hidden text-slate-400"
-        onclick={() => (showMobileSidebar = false)}
-      >
-        <span class="sr-only">Fermer</span>
-        ✕
-      </button>
-    </div>
+    >
+      <div class="toolbar-header">
+        <h2>🏭 Usine</h2>
+        <span class="bounds-info"
+          >{canvasBounds.width} × {canvasBounds.height}</span
+        >
+        <!-- Close button for mobile only -->
+        <button
+          class="md:hidden text-slate-400"
+          onclick={() => (showMobileSidebar = false)}
+        >
+          <span class="sr-only">Fermer</span>
+          ✕
+        </button>
+      </div>
 
-    {#if groupedUnplacedMachines.length > 0}
-      <div class="unplaced-section">
-        <h3>Machines à placer</h3>
-        <div class="unplaced-list">
-          {#each groupedUnplacedMachines as group}
-            {@const item = getItem(group.machine_id)}
-            <!-- svelte-ignore a11y_click_events_have_key_events -->
-            <!-- svelte-ignore a11y_interactive_supports_focus -->
-            <div
-              class="unplaced-item"
-              draggable="true"
-              role="button"
-              ondragstart={(e) => onDragStart(e, group.ids[0])}
-              onclick={() =>
-                handlePlacementSelect(
-                  "machine",
-                  group.ids[0],
-                  group.machine_id,
-                  item?.icon || "⚙️"
-                )}
+      {#if groupedUnplacedMachines.length > 0}
+        <div class="unplaced-section">
+          <h3>Machines à placer</h3>
+          <div class="unplaced-list">
+            {#each groupedUnplacedMachines as group}
+              {@const item = getItem(group.machine_id)}
+              <!-- svelte-ignore a11y_click_events_have_key_events -->
+              <!-- svelte-ignore a11y_interactive_supports_focus -->
+              <div
+                class="unplaced-item"
+                draggable="true"
+                role="button"
+                ondragstart={(e) => onDragStart(e, group.ids[0])}
+                onclick={() =>
+                  handlePlacementSelect(
+                    "machine",
+                    group.ids[0],
+                    group.machine_id,
+                    item?.icon || "⚙️"
+                  )}
+              >
+                <div class="item-icon">
+                  <GameIcon
+                    icon={item?.icon || "⚙️"}
+                    size={24}
+                    alt={item?.name || "Machine"}
+                  />
+                </div>
+                <div class="item-info">
+                  <span class="item-name">{item?.name || "Machine"}</span>
+                  <span class="item-id">{group.machine_id}</span>
+                </div>
+                {#if group.count > 1}
+                  <span class="item-count">×{group.count}</span>
+                {/if}
+              </div>
+            {/each}
+          </div>
+        </div>
+      {/if}
+
+      {#if unplacedDeposits.length > 0}
+        <div class="unplaced-section deposit-section">
+          <h3>Gisements à placer</h3>
+          <div class="unplaced-list">
+            {#each unplacedDeposits as deposit}
+              {@const resourceItem = getItem(deposit.ressource_id)}
+              <!-- svelte-ignore a11y_click_events_have_key_events -->
+              <!-- svelte-ignore a11y_interactive_supports_focus -->
+              <div
+                class="unplaced-item deposit-item"
+                draggable="true"
+                role="button"
+                ondragstart={(e) => onDragStartDeposit(e, deposit.id)}
+                onclick={() =>
+                  handlePlacementSelect(
+                    "deposit",
+                    deposit.id,
+                    "",
+                    resourceItem?.icon || "⛏️"
+                  )}
+              >
+                <div class="item-icon deposit-icon">
+                  <GameIcon
+                    icon={resourceItem?.icon || "⛏️"}
+                    size={24}
+                    alt={resourceItem?.name || "Gisement"}
+                  />
+                </div>
+                <div class="item-info">
+                  <span class="item-name"
+                    >{resourceItem?.name || "Gisement"}</span
+                  >
+                  <span class="item-id"
+                    >Qté: {deposit.quantity.toLocaleString()}</span
+                  >
+                </div>
+                <span class="item-count size-badge">Niv.{deposit.size}</span>
+              </div>
+            {/each}
+          </div>
+        </div>
+      {/if}
+
+      <div class="stats-section">
+        <h3>Actions</h3>
+        <div class="action-grid">
+          <button
+            class="action-btn exploration"
+            onclick={() => {
+              showExploration = true;
+              showMobileSidebar = false;
+            }}
+          >
+            <span class="btn-icon">🧭</span>
+            <span class="btn-label">Exploration</span>
+          </button>
+          <button
+            class="action-btn market"
+            onclick={() => {
+              showMarket = true;
+              showMobileSidebar = false;
+            }}
+          >
+            <span class="btn-icon">💰</span>
+            <span class="btn-label">Marché</span>
+          </button>
+          <button
+            class="action-btn workshop full-width"
+            onclick={() => {
+              showWorkshop = true;
+              showMobileSidebar = false;
+            }}
+          >
+            <span class="btn-icon">⚒️</span>
+            <span class="btn-label">Atelier</span>
+          </button>
+          <button
+            class="action-btn inventory full-width"
+            onclick={() => {
+              showInventory = true;
+              showMobileSidebar = false;
+            }}
+          >
+            <span class="btn-icon">📦</span>
+            <span class="btn-label">Inventaire & Stock</span>
+          </button>
+          <!-- Mobile Connection Mode Toggle -->
+          <button
+            class="action-btn full-width {isConnectionMode
+              ? 'bg-amber-600 border-amber-500'
+              : 'bg-[#1e293b] border-[#334155]'}"
+            onclick={toggleConnectionMode}
+            style={isConnectionMode
+              ? "background: linear-gradient(135deg, #d97706 0%, #b45309 100%); box-shadow: 0 4px 0 #78350f;"
+              : ""}
+          >
+            <span class="btn-icon">🔗</span>
+            <span class="btn-label"
+              >{isConnectionMode
+                ? "Mode Liaison Activé"
+                : "Mode Liaison (Mobile)"}</span
             >
-              <div class="item-icon">
-                <GameIcon
-                  icon={item?.icon || "⚙️"}
-                  size={24}
-                  alt={item?.name || "Machine"}
-                />
-              </div>
-              <div class="item-info">
-                <span class="item-name">{item?.name || "Machine"}</span>
-                <span class="item-id">{group.machine_id}</span>
-              </div>
-              {#if group.count > 1}
-                <span class="item-count">×{group.count}</span>
-              {/if}
-            </div>
-          {/each}
+          </button>
+          <!-- Graphics Quality Toggle -->
+          <button
+            class="action-btn full-width"
+            onclick={toggleEdgeQuality}
+            style={lowQualityEdges
+              ? "background: linear-gradient(135deg, #374151 0%, #1f2937 100%);"
+              : "background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%); box-shadow: 0 4px 0 #4c1d95;"}
+          >
+            <span class="btn-icon">{lowQualityEdges ? "⚡" : "✨"}</span>
+            <span class="btn-label"
+              >{lowQualityEdges
+                ? "Graphismes: Rapide"
+                : "Graphismes: Haute Qualité"}</span
+            >
+          </button>
         </div>
       </div>
-    {/if}
 
-    {#if unplacedDeposits.length > 0}
-      <div class="unplaced-section deposit-section">
-        <h3>Gisements à placer</h3>
-        <div class="unplaced-list">
-          {#each unplacedDeposits as deposit}
-            {@const resourceItem = getItem(deposit.ressource_id)}
-            <!-- svelte-ignore a11y_click_events_have_key_events -->
-            <!-- svelte-ignore a11y_interactive_supports_focus -->
-            <div
-              class="unplaced-item deposit-item"
-              draggable="true"
-              role="button"
-              ondragstart={(e) => onDragStartDeposit(e, deposit.id)}
-              onclick={() =>
-                handlePlacementSelect(
-                  "deposit",
-                  deposit.id,
-                  "",
-                  resourceItem?.icon || "⛏️"
-                )}
-            >
-              <div class="item-icon deposit-icon">
-                <GameIcon
-                  icon={resourceItem?.icon || "⛏️"}
-                  size={24}
-                  alt={resourceItem?.name || "Gisement"}
-                />
-              </div>
-              <div class="item-info">
-                <span class="item-name">{resourceItem?.name || "Gisement"}</span
-                >
-                <span class="item-id"
-                  >Qté: {deposit.quantity.toLocaleString()}</span
-                >
-              </div>
-              <span class="item-count size-badge">Niv.{deposit.size}</span>
-            </div>
-          {/each}
+      <div class="stats-section">
+        <h3>Statistiques</h3>
+        <div class="stat-row">
+          <span>Machines</span>
+          <span>{nodes.filter((n) => n.type === "machine").length}</span>
+        </div>
+        <div class="stat-row">
+          <span>Gisements</span>
+          <span>{nodes.filter((n) => n.type === "deposit").length}</span>
+        </div>
+        <div class="stat-row">
+          <span>Connexions</span>
+          <span>{edges.length}</span>
         </div>
       </div>
-    {/if}
-
-    <div class="stats-section">
-      <h3>Actions</h3>
-      <div class="action-grid">
-        <button
-          class="action-btn exploration"
-          onclick={() => {
-            showExploration = true;
-            showMobileSidebar = false;
-          }}
-        >
-          <span class="btn-icon">🧭</span>
-          <span class="btn-label">Exploration</span>
-        </button>
-        <button
-          class="action-btn market"
-          onclick={() => {
-            showMarket = true;
-            showMobileSidebar = false;
-          }}
-        >
-          <span class="btn-icon">💰</span>
-          <span class="btn-label">Marché</span>
-        </button>
-        <button
-          class="action-btn workshop full-width"
-          onclick={() => {
-            showWorkshop = true;
-            showMobileSidebar = false;
-          }}
-        >
-          <span class="btn-icon">⚒️</span>
-          <span class="btn-label">Atelier</span>
-        </button>
-        <button
-          class="action-btn inventory full-width"
-          onclick={() => {
-            showInventory = true;
-            showMobileSidebar = false;
-          }}
-        >
-          <span class="btn-icon">📦</span>
-          <span class="btn-label">Inventaire & Stock</span>
-        </button>
-        <!-- Mobile Connection Mode Toggle -->
-        <button
-          class="action-btn full-width {isConnectionMode
-            ? 'bg-amber-600 border-amber-500'
-            : 'bg-[#1e293b] border-[#334155]'}"
-          onclick={toggleConnectionMode}
-          style={isConnectionMode
-            ? "background: linear-gradient(135deg, #d97706 0%, #b45309 100%); box-shadow: 0 4px 0 #78350f;"
-            : ""}
-        >
-          <span class="btn-icon">🔗</span>
-          <span class="btn-label"
-            >{isConnectionMode
-              ? "Mode Liaison Activé"
-              : "Mode Liaison (Mobile)"}</span
-          >
-        </button>
-        <!-- Graphics Quality Toggle -->
-        <button
-          class="action-btn full-width"
-          onclick={toggleEdgeQuality}
-          style={lowQualityEdges
-            ? "background: linear-gradient(135deg, #374151 0%, #1f2937 100%);"
-            : "background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%); box-shadow: 0 4px 0 #4c1d95;"}
-        >
-          <span class="btn-icon">{lowQualityEdges ? "⚡" : "✨"}</span>
-          <span class="btn-label"
-            >{lowQualityEdges
-              ? "Graphismes: Rapide"
-              : "Graphismes: Haute Qualité"}</span
-          >
-        </button>
-      </div>
     </div>
-
-    <div class="stats-section">
-      <h3>Statistiques</h3>
-      <div class="stat-row">
-        <span>Machines</span>
-        <span>{nodes.filter((n) => n.type === "machine").length}</span>
-      </div>
-      <div class="stat-row">
-        <span>Gisements</span>
-        <span>{nodes.filter((n) => n.type === "deposit").length}</span>
-      </div>
-      <div class="stat-row">
-        <span>Connexions</span>
-        <span>{edges.length}</span>
-      </div>
-    </div>
-  </div>
+  {/if}
 
   <!-- Canvas -->
   <div
@@ -960,11 +972,16 @@
       proOptions={{
         hideAttribution: true,
       }}
+      minZoom={0.1}
+      maxZoom={2}
       onconnect={onConnect}
       ondelete={onDelete}
-      onnodedrag={onNodeDrag}
-      onnodedragstop={onNodeDragStop}
+      onnodedrag={readOnly ? undefined : onNodeDrag}
+      onnodedragstop={readOnly ? undefined : onNodeDragStop}
       onnodeclick={handleNodeClick}
+      nodesDraggable={!readOnly}
+      nodesConnectable={!readOnly}
+      elementsSelectable={!readOnly}
     >
       <Background bgColor="#334155" gap={20} />
       <Controls />

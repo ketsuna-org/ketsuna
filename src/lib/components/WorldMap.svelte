@@ -289,43 +289,23 @@
       const size = nodeRadius * camera.z;
       const dominationSize = node.dominationRadius * camera.z;
 
-      // Optional: Visualize Domination Zone (very faint)
-      const colors = getCompanyColor(company);
-      ctx.beginPath();
-      ctx.arc(screenX, screenY, dominationSize, 0, Math.PI * 2);
-      ctx.fillStyle = colors.glow;
-      ctx.globalAlpha = 0.05; // Very faint
-      ctx.fill();
-      ctx.lineWidth = 1;
-      ctx.strokeStyle = colors.glow;
-      ctx.globalAlpha = 0.1;
-      ctx.stroke();
-      ctx.globalAlpha = 1;
-
       if (
-        screenX + size < 0 ||
-        screenX - size > canvas.width ||
-        screenY + size < 0 ||
-        screenY - size > canvas.height
+        screenX + dominationSize < 0 ||
+        screenX - dominationSize > canvas.width ||
+        screenY + dominationSize < 0 ||
+        screenY - dominationSize > canvas.height
       ) {
         continue;
       }
 
-      // Draw connection lines to neighbors handled in separate loop or here?
-      // Physics handles positioning, so we can just draw lines to nearby nodes again.
-      // We will do it in a separate pass or just let physics do its thing.
-      // Re-using the line logic from before but iterating nodes list:
-
-      // ... (Line drawing logic can stay similar but iterating nodes)
-
-      // Draw Node
+      // Draw Node with Mini-Factory view
       drawNode(ctx, screenX, screenY, size, dominationSize, company, time);
 
       // Store for hit testing
       renderNodes.push({
         x: screenX,
         y: screenY,
-        radius: size,
+        radius: dominationSize, // Use larger radius for easier clicking
         company,
       });
     }
@@ -476,107 +456,145 @@
     time: number
   ) {
     const colors = getCompanyColor(company);
-
-    // Draw machines scattered in the Domination Zone (behind the main node)
     const machineCount = company.machine_count || 0;
-    if (machineCount > 0 && dominationR > r) {
-      const machineR = 8 * camera.z;
-      // Cap at 15 to save performance
-      const visibleMachines = Math.min(machineCount, 15);
+    const empCount = company.employee_count || 0;
 
-      // Initialize RNG with company ID seed so positions are stable frame-to-frame
-      // We sum char codes of ID
+    // === MINI-FACTORY VIEW ===
+    // Draw installation grid around the company node
+    if (machineCount > 0) {
+      // Simulate breakdown: 40% extractors, 40% processors, 20% storage
+      const extractorCount = Math.ceil(machineCount * 0.4);
+      const processorCount = Math.ceil(machineCount * 0.4);
+      const storageCount = Math.max(
+        1,
+        machineCount - extractorCount - processorCount
+      );
+
+      // Installation icons with colors
+      const installations = [
+        ...Array(Math.min(extractorCount, 8)).fill({
+          icon: "⛏️",
+          color: "#3b82f6",
+        }), // Blue - Extractors
+        ...Array(Math.min(processorCount, 8)).fill({
+          icon: "🔥",
+          color: "#f59e0b",
+        }), // Orange - Processors
+        ...Array(Math.min(storageCount, 4)).fill({
+          icon: "📦",
+          color: "#10b981",
+        }), // Green - Storage
+      ];
+
+      // Draw installations in a circular pattern
+      const maxVisible = Math.min(installations.length, 12);
+      const installSize = Math.max(12, 20 * camera.z);
+      const installRadius = r + installSize + 10 * camera.z;
+
+      // Initialize RNG with company ID for stable positions
       let seed = 0;
       for (let i = 0; i < company.id.length; i++)
         seed += company.id.charCodeAt(i);
       const rand = mulberry32(seed);
 
-      for (let i = 0; i < visibleMachines; i++) {
-        // Random Distance: between node radius and domination limit
-        // We push them out a bit (r * 1.2) so they aren't hidden
-        const minD = r * 1.2;
-        const maxD = dominationR * 0.9;
+      for (let i = 0; i < maxVisible; i++) {
+        const inst = installations[i];
+        const angle = (i / maxVisible) * Math.PI * 2 - Math.PI / 2;
 
-        // Use seeded random
-        const dScale = rand();
-        const dist = minD + (maxD - minD) * dScale;
+        // Slight variation in distance
+        const distVar = 1 + (rand() - 0.5) * 0.2;
+        const ix = x + Math.cos(angle) * installRadius * distVar;
+        const iy = y + Math.sin(angle) * installRadius * distVar;
 
-        // Random Angle
-        const angle = rand() * Math.PI * 2;
-
-        // Animation: Orbit speed depends on distance (Kepler-ish: closer = faster)
-        // Slower orbit overall
-        const speed = 0.05 / (dScale + 0.1);
-        const currentAngle = angle + time * 0.001 * speed;
-
-        const mx = x + Math.cos(currentAngle) * dist;
-        const my = y + Math.sin(currentAngle) * dist;
-
-        ctx.beginPath();
-        ctx.arc(mx, my, machineR, 0, Math.PI * 2);
-        // Using company colors for machines too, but darker
+        // Draw installation background (small rounded square)
+        const squareSize = installSize * 0.9;
         ctx.fillStyle = "#0f172a";
+        ctx.strokeStyle = inst.color;
+        ctx.lineWidth = 2 * camera.z;
+
+        // Rounded rectangle
+        const cornerRadius = 4 * camera.z;
+        ctx.beginPath();
+        ctx.roundRect(
+          ix - squareSize / 2,
+          iy - squareSize / 2,
+          squareSize,
+          squareSize,
+          cornerRadius
+        );
         ctx.fill();
-        ctx.strokeStyle = colors.stroke; // Use company theme color
-        ctx.lineWidth = 1 * camera.z;
         ctx.stroke();
 
-        ctx.fillStyle = colors.glow; // Use glow color for icon
-        ctx.font = `${machineR * 1.2}px sans-serif`;
+        // Draw icon
+        ctx.font = `${installSize * 0.6}px sans-serif`;
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        // Rotate gear: rotate canvas context or just draw
-        ctx.fillText("⚙️", mx, my);
+        ctx.fillText(inst.icon, ix, iy);
       }
+
+      // Draw connection lines from installations to center
+      ctx.strokeStyle = colors.stroke;
+      ctx.lineWidth = 1 * camera.z;
+      ctx.globalAlpha = 0.3;
+      for (let i = 0; i < maxVisible; i++) {
+        const angle = (i / maxVisible) * Math.PI * 2 - Math.PI / 2;
+        const ix = x + Math.cos(angle) * installRadius;
+        const iy = y + Math.sin(angle) * installRadius;
+
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(ix, iy);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
     }
 
+    // === MAIN NODE (Company HQ) ===
     // Glow Effect
-    ctx.shadowBlur = r * 0.5; // Glow radius
+    ctx.shadowBlur = r * 0.5;
     ctx.shadowColor = colors.glow;
 
     // Circle Bg
     ctx.beginPath();
     ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fillStyle = colors.fill; // Dynamic fill
+    ctx.fillStyle = colors.fill;
     ctx.fill();
 
     // Border
-    ctx.shadowBlur = 0; // Reset shadow for clean border
-    ctx.lineWidth = (2 + Math.log10((company.balance || 1) + 1)) * camera.z; // Thicker border for richer companies
+    ctx.shadowBlur = 0;
+    ctx.lineWidth = (2 + Math.log10((company.balance || 1) + 1)) * camera.z;
     ctx.strokeStyle = colors.stroke;
     ctx.stroke();
 
-    // Icon/Text
+    // HQ Icon
     ctx.fillStyle = "#fff";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-
-    // Factory emoji or custom icon
     ctx.font = `${r * 0.5}px sans-serif`;
-    ctx.fillText("🏭", x, y - r * 0.15);
+    ctx.fillText("🏛️", x, y - r * 0.1);
 
-    // Employee count below the factory icon
-    const empCount = company.employee_count || 0;
-    ctx.font = `bold ${10 * camera.z}px sans-serif`;
-    ctx.fillStyle = colors.glow; // Use theme color
-    ctx.fillText(`👥 ${empCount}`, x, y + r * 0.35);
+    // Stats Row (employees + machines)
+    const statsY = y + r * 0.35;
+    ctx.font = `bold ${9 * camera.z}px sans-serif`;
+    ctx.fillStyle = colors.glow;
+    ctx.fillText(`👥${empCount}  ⚙️${machineCount}`, x, statsY);
 
-    // Name - with slight shadow for readability
+    // Company Name
     ctx.shadowColor = "black";
     ctx.shadowBlur = 4;
-    ctx.fillStyle = "#f8fafc"; // slate-50
-    ctx.font = `bold ${12 * camera.z}px sans-serif`;
-    ctx.fillText(company.name.slice(0, 12), x, y + r + 15 * camera.z);
+    ctx.fillStyle = "#f8fafc";
+    ctx.font = `bold ${11 * camera.z}px sans-serif`;
+    ctx.fillText(company.name.slice(0, 14), x, y + r + 14 * camera.z);
     ctx.shadowBlur = 0;
 
     // Level Badge (top right)
-    const badgeR = r * 0.28;
+    const badgeR = r * 0.26;
     const badgeX = x + r * 0.72;
     const badgeY = y - r * 0.72;
 
     ctx.beginPath();
     ctx.arc(badgeX, badgeY, badgeR, 0, Math.PI * 2);
-    ctx.fillStyle = colors.stroke; // Use trim color for badge
+    ctx.fillStyle = colors.stroke;
     ctx.fill();
 
     ctx.fillStyle = "#000";
@@ -585,8 +603,28 @@
     ctx.textBaseline = "middle";
     ctx.fillText(company.level.toString(), badgeX, badgeY);
 
-    // Machine count badge (bottom left)
-    // ... existing machine count badge code if wanted ...
+    // Wealth indicator (small bar under name)
+    const barWidth = r * 1.2;
+    const barHeight = 3 * camera.z;
+    const barY = y + r + 22 * camera.z;
+    const balance = company.balance || 0;
+    const wealthPercent = Math.min(1, Math.log10(balance + 1) / 10); // 0-1 scale
+
+    ctx.fillStyle = "#1e293b";
+    ctx.fillRect(x - barWidth / 2, barY, barWidth, barHeight);
+
+    // Gradient fill based on wealth
+    const wealthGrad = ctx.createLinearGradient(
+      x - barWidth / 2,
+      0,
+      x + barWidth / 2,
+      0
+    );
+    wealthGrad.addColorStop(0, "#10b981");
+    wealthGrad.addColorStop(0.5, "#f59e0b");
+    wealthGrad.addColorStop(1, "#ef4444");
+    ctx.fillStyle = wealthGrad;
+    ctx.fillRect(x - barWidth / 2, barY, barWidth * wealthPercent, barHeight);
   }
 
   // --- Interaction Handlers ---

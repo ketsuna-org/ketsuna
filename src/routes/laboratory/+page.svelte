@@ -93,24 +93,24 @@
     categories.find((c) => c.id === currentCategory)
   );
 
-  // Research in progress
-  let pendingResearch = $derived(technologies.find((t) => t.isPending));
-  let timeLeft = $state("");
+  // Research in progress (can be multiple)
+  let pendingResearches = $derived(technologies.filter((t) => t.isPending));
+  let timesLeft = $state<Map<string, string>>(new Map());
   let timerInterval: any;
 
   $effect(() => {
-    if (pendingResearch?.completedAt) {
+    if (pendingResearches.length > 0) {
       startTimer();
     } else {
       stopTimer();
-      timeLeft = "";
+      timesLeft = new Map();
     }
   });
 
   function startTimer() {
     stopTimer();
-    updateTime();
-    timerInterval = setInterval(updateTime, 1000);
+    updateTimes();
+    timerInterval = setInterval(updateTimes, 1000);
   }
 
   function stopTimer() {
@@ -118,25 +118,38 @@
     timerInterval = null;
   }
 
-  function updateTime() {
-    if (!pendingResearch?.completedAt) return;
+  function updateTimes() {
+    const newTimes = new Map<string, string>();
+    let needsReload = false;
 
-    const end = new Date(pendingResearch.completedAt).getTime();
-    const now = new Date().getTime();
-    const diff = end - now;
+    for (const research of pendingResearches) {
+      if (!research.completedAt) continue;
 
-    if (diff <= 0) {
-      timeLeft = "Finalisation...";
-      stopTimer();
-      // Optionally trigger reload if it hangs too long
-      if (diff < -5000 && !loading) loadData();
-      return;
+      const end = new Date(research.completedAt).getTime();
+      const now = new Date().getTime();
+      const diff = end - now;
+
+      if (diff <= 0) {
+        newTimes.set(research.id, "Finalisation...");
+        if (diff < -5000) needsReload = true;
+      } else {
+        const hours = Math.floor(diff / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+        if (hours > 0) {
+          newTimes.set(research.id, `${hours}h ${minutes}m`);
+        } else {
+          newTimes.set(
+            research.id,
+            `${minutes}m ${seconds.toString().padStart(2, "0")}s`
+          );
+        }
+      }
     }
 
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-
-    timeLeft = `${minutes}m ${seconds.toString().padStart(2, "0")}s`;
+    timesLeft = newTimes;
+    if (needsReload && !loading) loadData();
   }
 
   onDestroy(() => {
@@ -283,38 +296,45 @@
         <div class="panel-glow"></div>
         <div class="panel-inner">
           <div class="panel-header">
-            <div class="status-indicator" class:active={pendingResearch}>
+            <div
+              class="status-indicator"
+              class:active={pendingResearches.length > 0}
+            >
               <span class="pulse-ring"></span>
               <span class="pulse-dot"></span>
             </div>
             <h3 class="panel-title">
-              {#if pendingResearch}
-                RECHERCHE EN COURS
+              {#if pendingResearches.length > 0}
+                RECHERCHES EN COURS ({pendingResearches.length})
               {:else}
                 AUCUNE RECHERCHE
               {/if}
             </h3>
           </div>
 
-          {#if pendingResearch}
-            <div class="research-active">
-              <div class="research-icon">🔬</div>
-              <div class="research-details">
-                <span class="research-name">{pendingResearch.name}</span>
-                <div class="research-progress">
-                  <div class="progress-bar">
-                    <div class="progress-fill animate-pulse"></div>
+          {#if pendingResearches.length > 0}
+            <div class="research-list">
+              {#each pendingResearches as research (research.id)}
+                <div class="research-active">
+                  <div class="research-icon">🔬</div>
+                  <div class="research-details">
+                    <span class="research-name">{research.name}</span>
+                    <div class="research-progress">
+                      <div class="progress-bar">
+                        <div class="progress-fill animate-pulse"></div>
+                      </div>
+                      <span class="progress-label">
+                        {#if timesLeft.get(research.id)}
+                          Temps restant : {timesLeft.get(research.id)}
+                        {:else}
+                          Traitement en cours...
+                        {/if}
+                      </span>
+                    </div>
                   </div>
-                  <span class="progress-label">
-                    {#if timeLeft}
-                      Temps restant : {timeLeft}
-                    {:else}
-                      Traitement en cours...
-                    {/if}
-                  </span>
+                  <span class="research-badge">EN COURS</span>
                 </div>
-              </div>
-              <span class="research-badge">EN COURS</span>
+              {/each}
             </div>
           {:else}
             <div class="research-idle">
@@ -609,6 +629,15 @@
   .research-status-panel:hover {
     border-color: rgba(99, 102, 241, 0.45);
     box-shadow: 0 8px 32px rgba(99, 102, 241, 0.15);
+  }
+
+  /* Research List Container */
+  .research-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    max-height: 300px;
+    overflow-y: auto;
   }
 
   /* Research Active State */
