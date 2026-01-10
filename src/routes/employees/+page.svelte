@@ -35,9 +35,24 @@
   // Collapsible state (collapsed by default)
   let isListExpanded = $state(false);
 
-  // Filter states
   let searchQuery = $state("");
   let selectedFilters = $state<Record<string, string>>({});
+
+  // Bulk Dismissal State
+  let showBulkDismissalModal = $state(false);
+  let bulkDismissalStat = $state<string>("mining");
+  let bulkDismissalOperator = $state<"<" | ">" | "<=" | ">=">("<");
+  let bulkDismissalThreshold = $state(2);
+  let bulkDismissalPreview = $state<Employee[]>([]);
+  let bulkDismissalLoading = $state(false);
+
+  const statOptions = [
+    { value: "mining", label: "Mining (0-10)" },
+    { value: "maintenance", label: "Maintenance (0-10)" },
+    { value: "exploration_luck", label: "Exploration Luck (0-10)" },
+    { value: "energy", label: "Énergie (0-100)" },
+    { value: "salary", label: "Salaire" },
+  ];
 
   const employeeFilters = [
     {
@@ -164,6 +179,86 @@
       notifications.success("Contrat résilié avec succès.");
     } catch (e: any) {
       notifications.error("Erreur lors du licenciement: " + e.message);
+    }
+  }
+
+  // Bulk Dismissal Functions
+  function openBulkDismissalModal() {
+    showBulkDismissalModal = true;
+    bulkDismissalPreview = [];
+  }
+
+  function closeBulkDismissalModal() {
+    showBulkDismissalModal = false;
+    bulkDismissalPreview = [];
+    bulkDismissalStat = "mining";
+    bulkDismissalOperator = "<";
+    bulkDismissalThreshold = 2;
+  }
+
+  async function previewBulkDismissal() {
+    if (!$activeCompany) return;
+    bulkDismissalLoading = true;
+
+    try {
+      // Build filter for the selected criteria
+      const opMap: Record<string, string> = {
+        "<": "<",
+        ">": ">",
+        "<=": "<=",
+        ">=": ">=",
+      };
+      const filter = `employer = "${$activeCompany.id}" && ${bulkDismissalStat} ${opMap[bulkDismissalOperator]} ${bulkDismissalThreshold}`;
+
+      const result = await pb.collection("employees").getFullList<Employee>({
+        filter,
+        sort: bulkDismissalStat,
+        requestKey: null,
+      });
+
+      bulkDismissalPreview = result;
+    } catch (e: any) {
+      notifications.error("Erreur lors de la prévisualisation: " + e.message);
+    } finally {
+      bulkDismissalLoading = false;
+    }
+  }
+
+  async function confirmBulkDismissal() {
+    if (!$activeCompany || bulkDismissalPreview.length === 0) return;
+    bulkDismissalLoading = true;
+
+    try {
+      let deleted = 0;
+      for (const emp of bulkDismissalPreview) {
+        await pb.collection("employees").delete(emp.id);
+        deleted++;
+      }
+
+      logAnalyticsEvent("employee_bulk_fire", {
+        stat: bulkDismissalStat,
+        operator: bulkDismissalOperator,
+        threshold: bulkDismissalThreshold,
+        count: deleted,
+      });
+
+      // Refresh company data
+      const updated = await pb
+        .collection("companies")
+        .getOne<Company>($activeCompany.id);
+      activeCompany.set(updated);
+
+      notifications.success(`${deleted} employé(s) licencié(s) avec succès.`);
+      closeBulkDismissalModal();
+
+      // Reload employees list
+      currentPage = 1;
+      hasMore = true;
+      await loadEmployees(1, false);
+    } catch (e: any) {
+      notifications.error("Erreur lors du licenciement: " + e.message);
+    } finally {
+      bulkDismissalLoading = false;
     }
   }
 
@@ -336,6 +431,15 @@
             <span>Recruter {hireQuantity}</span>
           {/if}
         </button>
+
+        <!-- Bulk Dismissal Button -->
+        <button
+          onclick={openBulkDismissalModal}
+          class="bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 text-red-400 font-bold py-2 px-4 rounded-xl transition-all flex items-center gap-2"
+        >
+          <span>🗑️</span>
+          <span class="hidden sm:inline">Licenciement en masse</span>
+        </button>
       </div>
     </div>
 
@@ -499,4 +603,132 @@
     onConfirm={confirmFire}
     onCancel={cancelFire}
   />
+{/if}
+
+<!-- Bulk Dismissal Modal -->
+{#if showBulkDismissalModal}
+  <div
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+    transition:fade
+  >
+    <div
+      class="bg-slate-900 border border-slate-700 rounded-2xl max-w-lg w-full max-h-[90vh] overflow-hidden shadow-2xl"
+      transition:slide
+    >
+      <!-- Header -->
+      <div class="p-6 border-b border-slate-700">
+        <h2 class="text-xl font-bold text-white flex items-center gap-3">
+          <span class="text-2xl">🗑️</span>
+          Licenciement en masse
+        </h2>
+        <p class="text-sm text-slate-400 mt-1">
+          Sélectionnez les critères pour identifier les employés à licencier.
+        </p>
+      </div>
+
+      <!-- Content -->
+      <div class="p-6 space-y-4">
+        <!-- Criteria Selectors -->
+        <div class="grid grid-cols-3 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-400 mb-1 uppercase"
+              >Statistique</label
+            >
+            <select
+              bind:value={bulkDismissalStat}
+              class="w-full bg-slate-800 border border-slate-600 text-white rounded-lg p-2 text-sm"
+            >
+              {#each statOptions as opt}
+                <option value={opt.value}>{opt.label}</option>
+              {/each}
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-400 mb-1 uppercase"
+              >Opérateur</label
+            >
+            <select
+              bind:value={bulkDismissalOperator}
+              class="w-full bg-slate-800 border border-slate-600 text-white rounded-lg p-2 text-sm"
+            >
+              <option value="<">Inférieur (&lt;)</option>
+              <option value="<=">Inférieur ou égal (≤)</option>
+              <option value=">">Supérieur (&gt;)</option>
+              <option value=">=">Supérieur ou égal (≥)</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-400 mb-1 uppercase"
+              >Seuil</label
+            >
+            <input
+              type="number"
+              bind:value={bulkDismissalThreshold}
+              class="w-full bg-slate-800 border border-slate-600 text-white rounded-lg p-2 text-sm"
+              min="0"
+            />
+          </div>
+        </div>
+
+        <!-- Preview Button -->
+        <button
+          onclick={previewBulkDismissal}
+          disabled={bulkDismissalLoading}
+          class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 rounded-lg transition-all"
+        >
+          {bulkDismissalLoading
+            ? "Recherche..."
+            : "🔍 Prévisualiser les employés concernés"}
+        </button>
+
+        <!-- Preview Results -->
+        {#if bulkDismissalPreview.length > 0}
+          <div class="bg-red-900/20 border border-red-500/30 rounded-lg p-4">
+            <p class="text-red-400 font-bold mb-2">
+              ⚠️ {bulkDismissalPreview.length} employé(s) seront licencié(s)
+            </p>
+            <div class="max-h-40 overflow-y-auto space-y-1">
+              {#each bulkDismissalPreview as emp}
+                <div
+                  class="flex justify-between text-sm text-slate-300 bg-slate-800/50 px-2 py-1 rounded"
+                >
+                  <span>{emp.name}</span>
+                  <span class="text-slate-500"
+                    >{bulkDismissalStat}: {emp[
+                      bulkDismissalStat as keyof Employee
+                    ]}</span
+                  >
+                </div>
+              {/each}
+            </div>
+          </div>
+        {:else if bulkDismissalPreview.length === 0 && !bulkDismissalLoading}
+          <p class="text-center text-slate-500 text-sm py-4">
+            Aucun employé trouvé correspondant aux critères.
+          </p>
+        {/if}
+      </div>
+
+      <!-- Footer -->
+      <div class="p-6 border-t border-slate-700 flex justify-end gap-3">
+        <button
+          onclick={closeBulkDismissalModal}
+          class="px-6 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-all"
+        >
+          Annuler
+        </button>
+        <button
+          onclick={confirmBulkDismissal}
+          disabled={bulkDismissalPreview.length === 0 || bulkDismissalLoading}
+          class="px-6 py-2 bg-red-600 hover:bg-red-500 disabled:bg-slate-700 disabled:text-slate-500 text-white font-bold rounded-lg transition-all"
+        >
+          {bulkDismissalLoading
+            ? "Suppression..."
+            : `🗑️ Licencier ${bulkDismissalPreview.length} employé(s)`}
+        </button>
+      </div>
+    </div>
+  </div>
 {/if}
