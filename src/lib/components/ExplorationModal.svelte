@@ -34,7 +34,7 @@
     try {
       // Fetch idle Explorers (no deposit, no exploration) and filter by employer
       const result = await pb.collection("employees").getFullList<Employee>({
-        filter: `employer = "${$activeCompany.id}" && poste = "Explorateur" && deposit = "" && exploration = ""`,
+        filter: `employer = "${$activeCompany.id}" && deposit = "" && exploration = "" && exploration_luck > 0`,
         sort: "-exploration_luck",
       });
       availableEmployees = result;
