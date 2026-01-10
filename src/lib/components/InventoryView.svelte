@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { onDestroy, onMount } from "svelte";
   import { activeCompany } from "$lib/stores";
   import pb from "$lib/pocketbase";
   import type { InventoryItem, Company } from "$lib/pocketbase";
@@ -18,7 +17,6 @@
   let inventory = $state<InventoryItem[]>([]);
   let loading = $state(true);
   let loadingMore = $state(false);
-  let unsubscribe: () => void;
   let currentPage = $state(1);
   let hasMore = $state(true);
   let totalItems = $state(0);
@@ -157,54 +155,6 @@
     loadInventory(1, false);
   }
 
-  async function subscribeToInventory() {
-    if (unsubscribe) unsubscribe();
-
-    try {
-      unsubscribe = await pb
-        .collection("inventory")
-        .subscribe("*", async (e) => {
-          const { action, record } = e;
-
-          if (record.company !== $activeCompany?.id) return;
-
-          if (action === "create" || action === "update") {
-            try {
-              const updatedRecord = await pb
-                .collection("inventory")
-                .getOne<InventoryItem>(record.id, { expand: "linked_storage" });
-
-              const index = inventory.findIndex((i) => i.id === record.id);
-              if (index > -1) {
-                inventory[index] = updatedRecord;
-              } else {
-                if (action === "create") {
-                  loadInventory(1, false);
-                } else {
-                  inventory.push(updatedRecord);
-                }
-              }
-
-              if (!sellQuantities[record.id]) {
-                sellQuantities = { ...sellQuantities, [record.id]: 1 };
-              }
-            } catch (fetchErr) {
-              console.error(
-                "[REALTIME] Failed to fetch updated record:",
-                fetchErr
-              );
-            }
-          } else if (action === "delete") {
-            inventory = inventory.filter((i) => i.id !== record.id);
-            const { [record.id]: _, ...rest } = sellQuantities;
-            sellQuantities = rest;
-          }
-        });
-    } catch (err) {
-      console.error("Failed to subscribe to inventory", err);
-    }
-  }
-
   function getSellQuantity(invId: string): number {
     return sellQuantities[invId] || 1;
   }
@@ -255,17 +205,12 @@
     }).format(val);
   }
 
-  onDestroy(() => {
-    if (unsubscribe) unsubscribe();
-  });
-
+  // Load inventory when company changes
   $effect(() => {
     if ($activeCompany) {
       currentPage = 1;
       hasMore = true;
-      loadInventory(1, false).then(() => {
-        subscribeToInventory();
-      });
+      loadInventory(1, false);
     }
   });
 
@@ -305,24 +250,24 @@
   });
 </script>
 
-<div class="space-y-8">
+<div class="h-full overflow-y-auto pr-2 custom-scrollbar space-y-8">
   {#if loading}
     <div
       class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
     >
       {#each Array(8) as _}
         <div
-          class="h-80 bg-slate-900/50 rounded-2xl animate-pulse border border-slate-800"
+          class="h-80 bg-[#1e293b] rounded-xl animate-pulse border border-[#334155]"
         ></div>
       {/each}
     </div>
   {:else if inventory.length === 0 && !searchQuery && Object.keys(selectedFilters).filter((k) => selectedFilters[k]).length === 0}
     <div
-      class="flex flex-col items-center justify-center py-20 bg-slate-900/30 rounded-3xl border border-slate-800 border-dashed backdrop-blur-sm"
+      class="flex flex-col items-center justify-center py-20 bg-[#1e293b]/50 rounded-xl border-2 border-dashed border-[#334155]"
       in:fade
     >
       <div
-        class="w-20 h-20 bg-slate-800/50 rounded-full flex items-center justify-center mb-6 text-slate-600"
+        class="w-20 h-20 bg-[#0f172a] rounded-full flex items-center justify-center mb-6 text-slate-600 border border-[#334155]"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -339,14 +284,18 @@
           /><path d="m3.3 7 8.7 5 8.7-5" /><path d="M12 22.08V12" /></svg
         >
       </div>
-      <h3 class="text-2xl font-black text-white mb-2">Entrepôt Vide</h3>
+      <h3
+        class="text-2xl font-black text-slate-200 mb-2 uppercase tracking-wide"
+      >
+        Entrepôt Vide
+      </h3>
       <p class="text-slate-500 max-w-md text-center mb-8">
-        Vos entrepôts sont vides. Produisez des ressources dans l'usine ou
-        achetez-en au marché pour commencer.
+        Vos entrepôts sont vides. Produisez des ressources ou achetez-en pour
+        commencer.
       </p>
       <button
         onclick={() => goto("/factory")}
-        class="px-8 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl shadow-xl shadow-indigo-600/20 transition-all hover:scale-105 active:scale-95"
+        class="px-8 py-3 bg-gradient-to-br from-indigo-600 to-indigo-700 text-white font-bold rounded-lg shadow-[0_4px_0_#312e81] hover:shadow-[0_2px_0_#312e81] hover:translate-y-[2px] active:translate-y-[4px] active:shadow-none transition-all uppercase tracking-widest text-xs border border-indigo-500/50"
       >
         Aller à l'usine
       </button>
@@ -362,19 +311,25 @@
     />
 
     <!-- Results count -->
-    <div class="text-sm text-slate-500 font-medium px-1">
-      Affichage de <span class="text-white font-bold">{inventory.length}</span>
-      item(s) sur {totalItems}
+    <div
+      class="text-xs text-slate-500 font-bold uppercase tracking-widest px-1 py-2 border-b border-[#334155]/50 flex justify-between items-center"
+    >
+      <span>Contenu de l'entrepôt</span>
+      <span>{inventory.length} / {totalItems}</span>
     </div>
 
     {#if inventory.length === 0}
       <div
-        class="text-center py-12 bg-slate-900/30 rounded-2xl border border-slate-800"
+        class="text-center py-12 bg-[#1e293b]/50 rounded-xl border border-[#334155]"
       >
-        <span class="text-3xl block mb-3">🔍</span>
-        <p class="text-lg font-bold text-white mb-1">Aucun résultat</p>
-        <p class="text-sm text-slate-400">
-          Aucun item ne correspond à vos critères de recherche.
+        <span class="text-3xl block mb-3 opacity-50">🔍</span>
+        <p
+          class="text-lg font-bold text-slate-300 mb-1 uppercase tracking-wide"
+        >
+          Aucun résultat
+        </p>
+        <p class="text-xs text-slate-500">
+          Aucun item ne correspond à vos critères.
         </p>
       </div>
     {:else}
@@ -383,18 +338,15 @@
           <div class="space-y-6">
             <!-- Group Header -->
             <div
-              class="flex items-center gap-4 pb-3 border-b border-slate-800/50 relative overflow-hidden group/header"
+              class="flex items-center gap-4 pb-3 border-b border-[#334155] relative overflow-hidden group/header"
             >
               <div
-                class="absolute bottom-0 left-0 w-32 h-px bg-linear-to-r from-indigo-500 to-transparent"
+                class="absolute bottom-0 left-0 w-32 h-px bg-gradient-to-r from-indigo-500 to-transparent"
               ></div>
 
               <div
-                class="w-12 h-12 rounded-2xl bg-slate-900/80 flex items-center justify-center border border-slate-800 shadow-xl shadow-black/20 group-hover/header:border-indigo-500/30 group-hover/header:shadow-indigo-500/10 transition-all duration-500 relative overflow-hidden"
+                class="w-12 h-12 rounded-lg bg-[#0f172a] flex items-center justify-center border border-[#334155] group-hover/header:border-indigo-500/50 transition-all duration-300 relative overflow-hidden shadow-inner"
               >
-                <div
-                  class="absolute inset-0 bg-linear-to-br from-indigo-500/10 to-transparent opacity-0 group-hover/header:opacity-100 transition-opacity"
-                ></div>
                 <div class="relative z-10 text-indigo-400">
                   {#if group.isGeneral}
                     <svg
@@ -437,19 +389,20 @@
 
               <div>
                 <h2
-                  class="text-2xl font-bold text-white tracking-tight flex items-center gap-3"
+                  class="text-xl font-bold text-slate-200 tracking-wide flex items-center gap-3 uppercase"
                 >
                   {group.name}
                   {#if !group.isGeneral}
                     <span
-                      class="px-2 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-[10px] font-bold text-indigo-400 uppercase tracking-widest"
+                      class="px-2 py-0.5 rounded bg-indigo-950/30 border border-indigo-900/50 text-[10px] font-bold text-indigo-400 uppercase tracking-widest"
                       >Stockage</span
                     >
                   {/if}
                 </h2>
-                <p class="text-slate-400 text-sm font-medium">
-                  {group.items.length} item{group.items.length > 1 ? "s" : ""} dans
-                  cette section
+                <p
+                  class="text-slate-500 text-xs font-medium uppercase tracking-wider"
+                >
+                  {group.items.length} item{group.items.length > 1 ? "s" : ""}
                 </p>
               </div>
             </div>
@@ -471,201 +424,184 @@
                         : "cyan"}
 
                   <div
-                    class="group relative bg-slate-900/40 hover:bg-slate-900/60 border border-slate-800 hover:border-{typeColor}-500/30 rounded-3xl p-1 transition-all duration-300 hover:shadow-2xl hover:shadow-{typeColor}-500/10 hover:-translate-y-1 backdrop-blur-md"
+                    class="group relative bg-[#1e293b] border border-[#334155] rounded-xl hover:border-{typeColor}-500/50 p-5 transition-all duration-300 hover:shadow-[0_0_20px_rgba(var(--{typeColor}-500),0.1)] flex flex-col overflow-hidden"
                   >
-                    <!-- Glossy overlay -->
+                    <!-- Top accent -->
                     <div
-                      class="absolute inset-0 rounded-3xl bg-linear-to-b from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
+                      class="absolute top-0 left-0 w-full h-1 bg-{typeColor}-500/0 group-hover:bg-{typeColor}-500/100 transition-colors duration-300"
                     ></div>
 
+                    <!-- Header -->
                     <div
-                      class="relative h-full flex flex-col p-5 rounded-[20px] overflow-hidden"
+                      class="flex justify-between items-start mb-5 relative z-10"
                     >
-                      <!-- Background Glow Blob -->
-                      <div
-                        class="absolute -right-12 -top-12 w-48 h-48 bg-{typeColor}-500/10 rounded-full blur-3xl group-hover:bg-{typeColor}-500/20 transition-all duration-500"
-                      ></div>
-
-                      <!-- Header: Icon & Qty -->
-                      <div
-                        class="flex justify-between items-start mb-6 relative z-10"
-                      >
-                        <div class="relative">
-                          <div
-                            class="w-14 h-14 rounded-2xl bg-slate-950/80 border border-slate-800 group-hover:border-{typeColor}-500/40 flex items-center justify-center p-2 shadow-lg transition-colors duration-300"
-                          >
-                            <!-- Item Icon Component or Fallback SVG -->
-                            {#if item.icon && item.icon.startsWith("/")}
-                              <img
-                                src={item.icon}
-                                alt={item.name}
-                                class="w-full h-full object-contain"
-                              />
-                            {:else}
-                              <span class="text-2xl">
-                                {#if item.type === "Machine"}🏭{:else if item.type === "Ressource Brute"}🪨{:else}📦{/if}
-                              </span>
-                            {/if}
-                          </div>
-                          <!-- Rarity/Type Dot -->
-                          <div
-                            class="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-slate-900 flex items-center justify-center"
-                          >
-                            <div
-                              class="w-2.5 h-2.5 rounded-full bg-{typeColor}-500 shadow-[0_0_8px_rgba(var(--{typeColor}-500),0.8)] animate-pulse"
-                            ></div>
-                          </div>
-                        </div>
-
-                        <div class="text-right">
-                          <div
-                            class="text-3xl font-black text-white tracking-tight tabular-nums drop-shadow-lg"
-                          >
-                            {Math.floor(invItem.quantity)}
-                          </div>
-                          <div
-                            class="text-[10px] font-bold uppercase tracking-wider text-{typeColor}-400/80"
-                          >
-                            En Stock
-                          </div>
-                        </div>
-                      </div>
-
-                      <!-- Content -->
-                      <div class="relative z-10 mb-6 flex-1">
-                        <h3
-                          class="text-lg font-bold text-slate-200 group-hover:text-white transition-colors line-clamp-1"
-                          title={item.name}
+                      <div class="relative">
+                        <div
+                          class="w-14 h-14 rounded-lg bg-[#0f172a] border border-[#334155] group-hover:border-{typeColor}-500/40 flex items-center justify-center p-2 shadow-inner transition-colors duration-300"
                         >
-                          {item.name}
-                        </h3>
-                        <div class="flex items-center gap-2 mt-1">
-                          <span
-                            class="text-xs font-semibold px-2 py-0.5 rounded bg-slate-800/80 text-slate-400 border border-slate-700/50 group-hover:border-{typeColor}-500/20 transition-colors"
-                          >
-                            {item.type}
-                          </span>
+                          {#if item.icon && item.icon.startsWith("/")}
+                            <img
+                              src={item.icon}
+                              alt={item.name}
+                              class="w-full h-full object-contain"
+                            />
+                          {:else}
+                            <span class="text-2xl">
+                              {#if item.type === "Machine"}🏭{:else if item.type === "Ressource Brute"}🪨{:else}📦{/if}
+                            </span>
+                          {/if}
                         </div>
                       </div>
 
-                      <!-- Footer / Actions -->
-                      <div
-                        class="relative z-10 mt-auto pt-4 border-t border-slate-800/50 group-hover:border-{typeColor}-500/10 transition-colors space-y-3"
+                      <div class="text-right">
+                        <div
+                          class="text-2xl font-black text-white tracking-tight tabular-nums drop-shadow-sm font-mono"
+                        >
+                          {Math.floor(invItem.quantity)}
+                        </div>
+                        <div
+                          class="text-[9px] font-bold uppercase tracking-widest text-slate-500 group-hover:text-{typeColor}-400 transition-colors"
+                        >
+                          En Stock
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Content -->
+                    <div class="relative z-10 mb-4 flex-1">
+                      <h3
+                        class="text-base font-bold text-slate-200 group-hover:text-white transition-colors line-clamp-1 uppercase tracking-tight"
+                        title={item.name}
                       >
-                        <!-- Price Info -->
-                        <div class="flex justify-between items-center text-xs">
-                          <span class="text-slate-500 font-medium"
-                            >Valeur unitaire</span
-                          >
-                          <span class="text-slate-300 font-mono font-bold"
-                            >{formatCurrency(resalePrice)}</span
-                          >
-                        </div>
+                        {item.name}
+                      </h3>
+                      <div class="flex items-center gap-2 mt-2">
+                        <span
+                          class="text-[10px] font-bold px-2 py-0.5 rounded bg-[#0f172a] text-slate-400 border border-[#334155] uppercase tracking-wider"
+                        >
+                          {item.type}
+                        </span>
+                      </div>
+                    </div>
 
-                        <!-- Interactive Controls (Always visible for better UX, or reveal on hover) -->
-                        <div class="flex flex-col gap-2">
-                          <!-- Qty Input -->
-                          <div
-                            class="flex items-center bg-slate-950/50 rounded-lg p-1 border border-slate-800 group-hover:border-slate-700 transition-colors"
-                          >
-                            <button
-                              onclick={() =>
-                                setSellQuantity(
-                                  invItem.id,
-                                  getSellQuantity(invItem.id) - 1,
-                                  invItem.quantity
-                                )}
-                              disabled={getSellQuantity(invItem.id) <= 1}
-                              class="w-6 h-6 flex items-center justify-center rounded bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white disabled:opacity-30 transition-colors"
-                              >-</button
-                            >
-                            <input
-                              type="number"
-                              value={getSellQuantity(invItem.id)}
-                              oninput={(e) =>
-                                setSellQuantity(
-                                  invItem.id,
-                                  parseInt(e.currentTarget.value) || 1,
-                                  invItem.quantity
-                                )}
-                              class="flex-1 bg-transparent text-center font-mono text-sm font-bold text-white focus:outline-none min-w-0"
-                            />
-                            <button
-                              onclick={() =>
-                                setSellQuantity(
-                                  invItem.id,
-                                  getSellQuantity(invItem.id) + 1,
-                                  invItem.quantity
-                                )}
-                              disabled={getSellQuantity(invItem.id) >=
-                                invItem.quantity}
-                              class="w-6 h-6 flex items-center justify-center rounded bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white disabled:opacity-30 transition-colors"
-                              >+</button
-                            >
-                          </div>
+                    <!-- Footer / Actions -->
+                    <div
+                      class="relative z-10 mt-auto pt-4 border-t border-[#334155]/50 space-y-3"
+                    >
+                      <!-- Price Info -->
+                      <div class="flex justify-between items-center text-xs">
+                        <span
+                          class="text-slate-500 font-bold uppercase tracking-wider"
+                          >Valeur unit.</span
+                        >
+                        <span class="text-slate-300 font-mono font-bold"
+                          >{formatCurrency(resalePrice)}</span
+                        >
+                      </div>
 
-                          <!-- Buttons -->
-                          <div class="grid grid-cols-[auto_1fr] gap-2">
-                            <button
-                              onclick={() => handleDeposit(invItem)}
-                              disabled={depositingIds[invItem.id] ||
-                                sellingIds[invItem.id]}
-                              class="h-9 w-9 flex items-center justify-center rounded-lg bg-slate-800/50 hover:bg-indigo-500 hover:shadow-lg hover:shadow-indigo-500/30 text-slate-400 hover:text-white border border-slate-700 hover:border-indigo-400 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed group/deposit"
-                              title="Déposer dans la réserve"
-                            >
-                              {#if depositingIds[invItem.id]}
-                                <div
-                                  class="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"
-                                ></div>
-                              {:else}
-                                <svg
-                                  xmlns="http://www.w3.org/2000/svg"
-                                  width="16"
-                                  height="16"
-                                  viewBox="0 0 24 24"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  stroke-width="2"
-                                  stroke-linecap="round"
-                                  stroke-linejoin="round"
-                                  ><rect
-                                    x="3"
-                                    y="11"
-                                    width="18"
-                                    height="11"
-                                    rx="2"
-                                    ry="2"
-                                  /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg
-                                >
-                              {/if}
-                            </button>
-
-                            <button
-                              onclick={() => handleSell(invItem)}
-                              disabled={sellingIds[invItem.id] ||
-                                getSellQuantity(invItem.id) <= 0}
-                              class="h-9 flex items-center justify-center gap-2 rounded-lg bg-emerald-500/10 hover:bg-emerald-500 text-emerald-500 hover:text-white border border-emerald-500/20 hover:border-emerald-400 font-bold text-xs uppercase tracking-wide transition-all duration-300 shadow-sm hover:shadow-lg hover:shadow-emerald-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              {#if sellingIds[invItem.id]}
-                                <div
-                                  class="w-3 h-3 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin"
-                                ></div>
-                              {:else}
-                                Vendre
-                              {/if}
-                            </button>
-                          </div>
-                        </div>
-
-                        <!-- "Sell All" Link -->
-                        <div class="text-center">
+                      <!-- Controls -->
+                      <div class="space-y-2">
+                        <!-- Qty Input -->
+                        <div
+                          class="flex items-center bg-[#0f172a] rounded-lg p-1 border border-[#334155]"
+                        >
                           <button
-                            onclick={() => openSellAllConfirmation(invItem)}
-                            class="text-[9px] font-bold text-slate-600 hover:text-white transition-colors uppercase tracking-widest hover:underline decoration-white/30"
+                            onclick={() =>
+                              setSellQuantity(
+                                invItem.id,
+                                getSellQuantity(invItem.id) - 1,
+                                invItem.quantity
+                              )}
+                            disabled={getSellQuantity(invItem.id) <= 1}
+                            class="w-7 h-7 flex items-center justify-center rounded bg-[#1e293b] hover:bg-[#334155] text-slate-400 hover:text-white disabled:opacity-30 transition-colors"
+                            >-</button
                           >
-                            Tout Vendre
+                          <input
+                            type="number"
+                            value={getSellQuantity(invItem.id)}
+                            oninput={(e) =>
+                              setSellQuantity(
+                                invItem.id,
+                                parseInt(e.currentTarget.value) || 1,
+                                invItem.quantity
+                              )}
+                            class="flex-1 bg-transparent text-center font-mono text-sm font-bold text-white focus:outline-none min-w-0"
+                          />
+                          <button
+                            onclick={() =>
+                              setSellQuantity(
+                                invItem.id,
+                                getSellQuantity(invItem.id) + 1,
+                                invItem.quantity
+                              )}
+                            disabled={getSellQuantity(invItem.id) >=
+                              invItem.quantity}
+                            class="w-7 h-7 flex items-center justify-center rounded bg-[#1e293b] hover:bg-[#334155] text-slate-400 hover:text-white disabled:opacity-30 transition-colors"
+                            >+</button
+                          >
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="grid grid-cols-[auto_1fr] gap-2">
+                          <button
+                            onclick={() => handleDeposit(invItem)}
+                            disabled={depositingIds[invItem.id] ||
+                              sellingIds[invItem.id]}
+                            class="h-9 w-9 flex items-center justify-center rounded-lg bg-[#1e293b] hover:bg-slate-700 text-slate-400 hover:text-white border border-[#334155] transition-colors disabled:opacity-50"
+                            title="Déposer dans la réserve"
+                          >
+                            {#if depositingIds[invItem.id]}
+                              <div
+                                class="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"
+                              ></div>
+                            {:else}
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="16"
+                                height="16"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                ><rect
+                                  x="3"
+                                  y="11"
+                                  width="18"
+                                  height="11"
+                                  rx="2"
+                                  ry="2"
+                                /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg
+                              >
+                            {/if}
+                          </button>
+
+                          <button
+                            onclick={() => handleSell(invItem)}
+                            disabled={sellingIds[invItem.id] ||
+                              getSellQuantity(invItem.id) <= 0}
+                            class="h-9 w-full flex items-center justify-center gap-2 rounded-lg bg-emerald-950/30 hover:bg-emerald-600 text-emerald-400 hover:text-white border border-emerald-900/50 hover:border-emerald-500 font-bold text-[10px] uppercase tracking-widest transition-all shadow-sm hover:shadow-lg hover:shadow-emerald-900/20 disabled:opacity-50"
+                          >
+                            {#if sellingIds[invItem.id]}
+                              <div
+                                class="w-3 h-3 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin"
+                              ></div>
+                            {:else}
+                              VENDRE
+                            {/if}
                           </button>
                         </div>
+                      </div>
+
+                      <!-- Sell All Link -->
+                      <div class="text-center pt-1">
+                        <button
+                          onclick={() => openSellAllConfirmation(invItem)}
+                          class="text-[9px] font-bold text-slate-600 hover:text-slate-400 transition-colors uppercase tracking-widest hover:underline decoration-slate-500/30"
+                        >
+                          Tout Vendre
+                        </button>
                       </div>
                     </div>
                   </div>

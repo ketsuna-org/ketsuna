@@ -224,131 +224,233 @@
     </div>
   </NodeToolbar>
 
-  <Handle type="target" position={Position.Left} />
+  <Handle type="target" position={Position.Left} class="handle target" />
 
-  <div class="node-content" class:has-image={data.icon?.startsWith("/")}>
-    {#if data.icon?.startsWith("/")}
-      <div class="image-wrapper">
-        <GameIcon icon={data.icon} size={140} alt={data.name} />
-      </div>
-    {:else}
-      <div class="icon-wrapper">
-        <GameIcon icon={data.icon} size={32} alt={data.name} />
-      </div>
-      <span class="name">{data.name}</span>
-    {/if}
-  </div>
+  <!-- Industrial Structure -->
+  <div class="structure-container">
+    <div class="platform"></div>
+    <div class="block-body">
+      <!-- Faces -->
+      <div class="face-left"></div>
+      <div class="face-right"></div>
+      <div class="face-top"></div>
 
-  <!-- Production Progress Bar -->
-  {#if machineRecord?.production_started_at && productionProgress > 0}
-    <div class="progress-container">
-      <div class="progress-bar">
-        <div class="progress-fill" style="width: {productionProgress}%"></div>
+      <!-- Front Content -->
+      <div class="face-front">
+        <div class="face-header">
+          <div class="status-light" class:active={productionProgress > 0}></div>
+          <div class="rivet-row">
+            <div class="rivet"></div>
+            <div class="rivet"></div>
+          </div>
+        </div>
+
+        <div class="content-wrapper">
+          <div class="icon-frame">
+            {#if data.icon?.startsWith("/")}
+              <GameIcon icon={data.icon} size={64} alt={data.name} />
+            {:else}
+              <GameIcon icon={data.icon} size={32} alt={data.name} />
+            {/if}
+          </div>
+          <span class="name">{data.name}</span>
+        </div>
+
+        <!-- Production Progress Bar -->
+        {#if machineRecord?.production_started_at && productionProgress > 0}
+          <div class="operation-bar">
+            <div class="op-fill" style="width: {productionProgress}%"></div>
+          </div>
+        {/if}
       </div>
     </div>
-  {/if}
+  </div>
 
-  <Handle type="source" position={Position.Right} />
+  <Handle type="source" position={Position.Right} class="handle source" />
 </div>
 
 <style>
   .machine-node {
-    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-    border: 2px solid #3b82f6;
-    border-radius: 12px;
-    padding: 0; /* Full bleed for images */
-    width: 140px;
-    height: 140px; /* Square aspect ratio */
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    color: #e2e8f0;
-    box-shadow: 0 4px 20px rgba(59, 130, 246, 0.3);
-    transition: all 0.2s ease;
     position: relative;
-    overflow: visible; /* Allow toolbar to be seen if strictly inside, but NodeToolbar is portal usually */
+    width: 200px;
+    height: 240px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.4));
   }
 
-  /* .machine-node.selected {
-    border-color: #f43f5e;
-    box-shadow: 0 0 0 2px rgba(244, 63, 94, 0.5), 0 8px 30px rgba(244, 63, 94, 0.2);
-  } */
-
-  .machine-node:hover {
-    border-color: #60a5fa;
-    box-shadow: 0 6px 24px rgba(59, 130, 246, 0.4);
-    transform: translateY(-2px);
+  .structure-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
   }
 
-  .node-content {
+  /* Platform */
+  .platform {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 180px;
+    height: 16px;
+    background: #1a1b1f;
+    border: 2px solid #2a2b2f;
+    border-radius: 4px;
+  }
+
+  /* Block Body */
+  .block-body {
+    position: absolute;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 160px;
+    height: 180px;
+  }
+
+  /* Faces */
+  .face-left {
+    position: absolute;
+    top: 10px;
+    left: -12px;
+    width: 14px;
+    height: 180px;
+    background: #1e3a8a; /* Dark blue */
+    border: 1px solid #172554;
+    transform: skewY(-10deg);
+  }
+
+  .face-right {
+    position: absolute;
+    top: 10px;
+    right: -12px;
+    width: 14px;
+    height: 180px;
+    background: #172554;
+    border: 1px solid #0f172a;
+    transform: skewY(10deg);
+  }
+
+  .face-top {
+    position: absolute;
+    top: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 160px;
+    height: 16px;
+    background: #60a5fa;
+    border: 2px solid #3b82f6;
+    z-index: 2;
+    border-radius: 2px;
+  }
+
+  .face-front {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+    border: 2px solid #334155;
+    border-radius: 4px;
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    padding: 12px;
+    gap: 8px;
+    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
+  }
+
+  /* Details */
+  .face-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+  }
+
+  .status-light {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #334155;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5);
+  }
+  .status-light.active {
+    background: #3b82f6;
+    box-shadow: 0 0 8px #3b82f6;
+  }
+
+  .rivet-row {
+    display: flex;
+    gap: 4px;
+  }
+
+  .rivet {
+    width: 4px;
+    height: 4px;
+    background: #475569;
+    border-radius: 50%;
+    box-shadow: inset 0 1px 1px rgba(0, 0, 0, 1);
+  }
+
+  .content-wrapper {
+    flex: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    width: 100%;
-    height: 100%;
-    overflow: hidden; /* Keep content clipped to rounded corners */
+    gap: 12px;
   }
 
-  /* Style for standard emoji icons */
-  .icon-wrapper {
-    width: 40px;
-    height: 40px;
+  .icon-frame {
+    width: 64px;
+    height: 64px;
+    background: radial-gradient(circle, #334155, #1e293b);
+    border: 2px solid #475569;
+    border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(59, 130, 246, 0.1);
-    border-radius: 8px;
-    margin: 0 auto 6px auto; /* Center with margin */
-  }
-
-  /* Center content when no image */
-  .node-content:not(.has-image) {
-    padding: 12px;
-  }
-
-  /* Style for full-size image icons */
-  .image-wrapper {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    overflow: hidden;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
   }
 
   .name {
     font-size: 11px;
-    font-weight: 600;
+    font-weight: 700;
+    color: #cbd5e1;
+    text-transform: uppercase;
     text-align: center;
-    max-width: 120px;
+    max-width: 140px;
+    line-height: 1.2;
+  }
+
+  .operation-bar {
+    margin-top: auto;
+    width: 100%;
+    height: 4px;
+    background: #334155;
     overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    z-index: 2;
-  }
-
-  .progress-container {
-    position: absolute;
-    bottom: 4px;
-    left: 4px;
-    right: 4px;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    z-index: 3;
-  }
-
-  .progress-bar {
-    flex: 1;
-    height: 3px;
-    background: rgba(30, 41, 59, 0.8);
     border-radius: 2px;
-    overflow: hidden;
   }
 
-  .progress-fill {
+  .op-fill {
     height: 100%;
-    background: linear-gradient(90deg, #3b82f6, #60a5fa);
-    transition: width 0.1s linear;
+    background: #fbbf24;
+    box-shadow: 0 0 4px #fbbf24;
+  }
+
+  :global(.handle) {
+    background: #3b82f6;
+    border: 2px solid #1e3a8a;
+    width: 10px;
+    height: 10px;
+  }
+
+  :global(.handle.source) {
+    right: -15px !important;
+  }
+
+  :global(.handle.target) {
+    left: -15px !important;
   }
 </style>

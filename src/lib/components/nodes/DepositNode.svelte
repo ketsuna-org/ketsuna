@@ -41,7 +41,7 @@
   });
 
   const quantityPercent = $derived(
-    currentQuantity ? Math.min(100, (currentQuantity / 10000) * 100) : 0,
+    currentQuantity ? Math.min(100, (currentQuantity / 10000) * 100) : 0
   );
 
   $effect(() => {
@@ -177,7 +177,7 @@
       const result = calculateMiningProgress(
         depositRecord,
         assignedEmployees,
-        new Date(depositRecord.last_harvest_at),
+        new Date(depositRecord.last_harvest_at)
       );
 
       miningProgress = result.progressPercent;
@@ -241,117 +241,264 @@
     </div>
   </NodeToolbar>
 
-  <div class="node-content">
-    <span class="icon">{data.icon}</span>
-    <span class="name">{data.name}</span>
-    {#if currentQuantity !== undefined}
-      <div class="quantity-bar">
-        <div class="quantity-fill" style="width: {quantityPercent}%"></div>
-      </div>
-      <span class="quantity-text">{currentQuantity?.toLocaleString()}</span>
-    {/if}
-  </div>
+  <!-- Industrial Structure -->
+  <div class="structure-container">
+    <!-- Base Platform -->
+    <div class="platform"></div>
 
-  <!-- Mining Progress Bar -->
-  {#if depositRecord?.last_harvest_at && miningProgress > 0}
-    <div class="progress-container">
-      <div class="progress-bar">
-        <div class="progress-fill" style="width: {miningProgress}%"></div>
+    <!-- Main Block -->
+    <div class="block-body">
+      <!-- Faces -->
+      <div class="face-left"></div>
+      <div class="face-right"></div>
+      <div class="face-top"></div>
+
+      <!-- Front Content -->
+      <div class="face-front">
+        <div class="face-header">
+          <div class="status-light" class:active={miningProgress > 0}></div>
+          <div class="rivet-row">
+            <div class="rivet"></div>
+            <div class="rivet"></div>
+          </div>
+        </div>
+
+        <div class="content-wrapper">
+          <div class="icon-display">
+            <span class="icon">{data.icon}</span>
+          </div>
+
+          <div class="info-panel">
+            <span class="name">{data.name}</span>
+            {#if currentQuantity !== undefined}
+              <div class="gauge-container">
+                <div class="gauge-fill" style="width: {quantityPercent}%"></div>
+              </div>
+              <span class="qty-text">{currentQuantity?.toLocaleString()}</span>
+            {/if}
+          </div>
+        </div>
+
+        <!-- Progress Bar (Mining) -->
+        {#if depositRecord?.last_harvest_at && miningProgress > 0}
+          <div class="operation-bar">
+            <div class="op-fill" style="width: {miningProgress}%"></div>
+          </div>
+        {/if}
       </div>
     </div>
-  {/if}
+  </div>
 
-  <Handle type="source" position={Position.Right} />
+  <Handle type="source" position={Position.Right} class="handle" />
 </div>
 
 <style>
   .deposit-node {
-    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    position: relative;
+    width: 200px;
+    height: 240px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.4));
+  }
+
+  .structure-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* Platform */
+  .platform {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 180px;
+    height: 16px;
+    background: #1a1b1f;
+    border: 2px solid #2a2b2f;
+    border-radius: 4px;
+  }
+
+  /* Block Body */
+  .block-body {
+    position: absolute;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 160px;
+    height: 180px;
+  }
+
+  /* Faces */
+  .face-left {
+    position: absolute;
+    top: 10px;
+    left: -12px;
+    width: 14px;
+    height: 180px;
+    background: #064e3b; /* Dark emerald */
+    border: 1px solid #022c22;
+    transform: skewY(-10deg);
+  }
+
+  .face-right {
+    position: absolute;
+    top: 10px;
+    right: -12px;
+    width: 14px;
+    height: 180px;
+    background: #022c22;
+    border: 1px solid #011c16;
+    transform: skewY(10deg);
+  }
+
+  .face-top {
+    position: absolute;
+    top: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 160px;
+    height: 16px;
+    background: #34d399;
     border: 2px solid #10b981;
-    border-radius: 12px;
-    padding: 12px 16px;
-    width: 140px;
-    min-height: 120px;
+    z-index: 2;
+    border-radius: 2px;
+  }
+
+  .face-front {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, #1f2937 0%, #111827 100%);
+    border: 2px solid #374151;
+    border-radius: 4px;
+    z-index: 3;
     display: flex;
     flex-direction: column;
-    justify-content: center;
-    color: #e2e8f0;
-    box-shadow: 0 4px 20px rgba(16, 185, 129, 0.3);
-    transition: all 0.2s ease;
-    position: relative;
-    overflow: visible;
+    padding: 12px;
+    gap: 8px;
+    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
   }
 
-  /* .deposit-node.selected {
-    border-color: #34d399;
-    box-shadow: 0 0 0 2px rgba(52, 211, 153, 0.5), 0 8px 30px rgba(52, 211, 153, 0.2);
-  } */
-
-  .deposit-node:hover {
-    border-color: #34d399;
-    box-shadow: 0 6px 24px rgba(16, 185, 129, 0.4);
-    transform: translateY(-2px);
+  /* Details */
+  .face-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
   }
 
-  .node-content {
+  .status-light {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #374151;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5);
+  }
+  .status-light.active {
+    background: #10b981;
+    box-shadow: 0 0 8px #10b981;
+  }
+
+  .rivet-row {
+    display: flex;
+    gap: 4px;
+  }
+
+  .rivet {
+    width: 4px;
+    height: 4px;
+    background: #4b5563;
+    border-radius: 50%;
+    box-shadow: inset 0 1px 1px rgba(0, 0, 0, 1);
+  }
+
+  .content-wrapper {
+    flex: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
+  }
+
+  .icon-display {
+    width: 48px;
+    height: 48px;
+    background: radial-gradient(circle, #374151, #1f2937);
+    border: 2px solid #4b5563;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
   }
 
   .icon {
     font-size: 24px;
+    filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.5));
+  }
+
+  .info-panel {
+    width: 100%;
+    background: #111827;
+    border: 1px solid #374151;
+    border-radius: 4px;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
   }
 
   .name {
-    font-size: 11px;
-    font-weight: 600;
-    text-align: center;
-    max-width: 100px;
+    font-size: 10px;
+    font-weight: 700;
+    color: #9ca3af;
+    text-transform: uppercase;
   }
 
-  .quantity-bar {
-    width: 80px;
+  .qty-text {
+    font-family: monospace;
+    font-size: 12px;
+    color: #10b981;
+    font-weight: 700;
+  }
+
+  .gauge-container {
+    width: 100%;
     height: 4px;
-    background: #334155;
+    background: #1f2937;
     border-radius: 2px;
     overflow: hidden;
   }
 
-  .quantity-fill {
+  .gauge-fill {
     height: 100%;
-    background: linear-gradient(90deg, #10b981, #34d399);
-    transition: width 0.3s ease;
+    background: #10b981;
+    box-shadow: 0 0 4px rgba(16, 185, 129, 0.5);
   }
 
-  .quantity-text {
-    font-size: 9px;
-    color: #94a3b8;
-  }
-
-  .progress-container {
-    position: absolute;
-    bottom: 4px;
-    left: 4px;
-    right: 4px;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    z-index: 3;
-  }
-
-  .progress-bar {
-    flex: 1;
+  .operation-bar {
+    margin-top: auto;
+    width: 100%;
     height: 3px;
-    background: rgba(30, 41, 59, 0.8);
-    border-radius: 2px;
+    background: #374151;
     overflow: hidden;
   }
 
-  .progress-fill {
+  .op-fill {
     height: 100%;
-    background: linear-gradient(90deg, #10b981, #34d399);
-    transition: width 0.1s linear;
+    background: #fbbf24;
+    box-shadow: 0 0 4px #fbbf24;
+  }
+
+  :global(.handle) {
+    background: #10b981;
+    border: 2px solid #064e3b;
+    width: 10px;
+    height: 10px;
+    right: -15px !important;
   }
 </style>

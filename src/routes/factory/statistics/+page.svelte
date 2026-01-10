@@ -52,9 +52,12 @@
     error = "";
 
     try {
-      const response = await pb.send(`/api/company/statistics?period=${period}`, {
-        method: "GET",
-      });
+      const response = await pb.send(
+        `/api/company/statistics?period=${period}`,
+        {
+          method: "GET",
+        }
+      );
 
       if (response.success) {
         productionData = response.production || [];
@@ -179,10 +182,20 @@
   <title>Statistiques | Ketsuna</title>
 </svelte:head>
 
-<div class="min-h-screen bg-slate-950 text-slate-100">
+<div
+  class="min-h-screen bg-[#020617] text-slate-100 font-sans relative overflow-x-hidden"
+>
+  <!-- Global background pattern -->
+  <div
+    class="absolute inset-0 bg-[url('/grid.svg')] opacity-5 pointer-events-none fixed"
+  ></div>
+  <div
+    class="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-500/10 rounded-full blur-[128px] pointer-events-none fixed"
+  ></div>
+
   <!-- Header -->
   <header
-    class="sticky top-0 z-40 backdrop-blur-xl bg-slate-900/80 border-b border-slate-800"
+    class="sticky top-0 z-40 backdrop-blur-xl bg-[#020617]/80 border-b border-[#334155]"
   >
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
       <div class="flex items-center justify-between">
@@ -190,11 +203,15 @@
           <NavigationHub />
           <div>
             <h1
-              class="text-2xl font-bold bg-linear-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent"
+              class="text-2xl font-black bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent uppercase tracking-tight"
             >
               📊 Statistiques
             </h1>
-            <p class="text-sm text-slate-400">Production & Consommation</p>
+            <p
+              class="text-xs font-bold text-slate-500 uppercase tracking-widest"
+            >
+              Production & Consommation
+            </p>
           </div>
         </div>
         <UserMenu />
@@ -202,76 +219,149 @@
     </div>
   </header>
 
-  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10">
     <!-- Period Selector -->
-    <div class="mb-8">
+    <div class="mb-8 flex flex-col sm:flex-row sm:items-center gap-4">
       <div
-        class="inline-flex rounded-xl bg-slate-900/50 p-1 border border-slate-800"
+        class="inline-flex rounded-lg bg-[#0f172a] p-1 border border-[#334155]"
       >
         {#each ["1m", "10m", "1h", "10h", "24h"] as p}
           <button
             onclick={() => changePeriod(p as typeof period)}
-            class="px-4 py-2 rounded-lg text-sm font-medium transition-all
+            class="px-4 py-2 rounded-md text-xs font-bold uppercase tracking-wider transition-all
                    {period === p
-              ? 'bg-indigo-600 text-white shadow-lg'
-              : 'text-slate-400 hover:text-white hover:bg-slate-800'}"
+              ? 'bg-[#334155] text-white shadow-sm ring-1 ring-white/10'
+              : 'text-slate-400 hover:text-white hover:bg-[#1e293b]'}"
           >
             {p}
           </button>
         {/each}
       </div>
-      <span class="ml-4 text-sm text-slate-500">
-        {loading ? "Chargement..." : "Dernière mise à jour à l'instant"}
+      <span class="text-xs text-slate-500 font-mono flex items-center gap-2">
+        {#if loading}
+          <span class="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></span>
+          Chargement...
+        {:else}
+          <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+          Dernière mise à jour à l'instant
+        {/if}
       </span>
     </div>
 
     {#if error}
       <div
-        class="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400"
+        class="mb-6 p-4 bg-red-950/20 border border-red-900/50 rounded-lg text-red-400 flex items-center gap-3"
       >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          ><circle cx="12" cy="12" r="10"></circle><line
+            x1="12"
+            y1="8"
+            x2="12"
+            y2="12"
+          ></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg
+        >
         {error}
       </div>
     {/if}
 
     <!-- Money Summary -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <!-- Income -->
       <div
-        class="bg-slate-900/50 backdrop-blur-sm border border-slate-800 rounded-2xl p-6"
+        class="relative bg-[#1e293b]/60 backdrop-blur-md border border-[#334155] rounded-xl p-6 overflow-hidden group hover:border-[#334155]/80 transition-all"
       >
-        <div class="flex items-center gap-3 mb-2">
-          <span class="text-2xl">💰</span>
-          <span class="text-sm text-slate-400">Revenus</span>
+        <div class="absolute top-0 left-0 w-1 h-full bg-emerald-500/50"></div>
+        <div
+          class="absolute -right-6 -top-6 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl group-hover:bg-emerald-500/20 transition-all"
+        ></div>
+
+        <div class="flex items-center gap-3 mb-2 relative z-10">
+          <div
+            class="w-8 h-8 rounded-lg bg-emerald-950/30 border border-emerald-900/50 flex items-center justify-center text-emerald-500"
+          >
+            💰
+          </div>
+          <span
+            class="text-xs font-bold text-slate-400 uppercase tracking-widest"
+            >Revenus</span
+          >
         </div>
-        <p class="text-3xl font-bold text-emerald-400">
+        <p
+          class="text-3xl font-black text-emerald-400 font-mono tracking-tight relative z-10"
+        >
           +{moneyData.income.toLocaleString("fr-FR")} €
         </p>
       </div>
+
+      <!-- Expenses -->
       <div
-        class="bg-slate-900/50 backdrop-blur-sm border border-slate-800 rounded-2xl p-6"
+        class="relative bg-[#1e293b]/60 backdrop-blur-md border border-[#334155] rounded-xl p-6 overflow-hidden group hover:border-[#334155]/80 transition-all"
       >
-        <div class="flex items-center gap-3 mb-2">
-          <span class="text-2xl">📤</span>
-          <span class="text-sm text-slate-400">Dépenses</span>
+        <div class="absolute top-0 left-0 w-1 h-full bg-red-500/50"></div>
+        <div
+          class="absolute -right-6 -top-6 w-24 h-24 bg-red-500/10 rounded-full blur-2xl group-hover:bg-red-500/20 transition-all"
+        ></div>
+
+        <div class="flex items-center gap-3 mb-2 relative z-10">
+          <div
+            class="w-8 h-8 rounded-lg bg-red-950/30 border border-red-900/50 flex items-center justify-center text-red-500"
+          >
+            📤
+          </div>
+          <span
+            class="text-xs font-bold text-slate-400 uppercase tracking-widest"
+            >Dépenses</span
+          >
         </div>
-        <p class="text-3xl font-bold text-red-400">
+        <p
+          class="text-3xl font-black text-red-400 font-mono tracking-tight relative z-10"
+        >
           -{moneyData.expenses.toLocaleString("fr-FR")} €
         </p>
       </div>
+
+      <!-- Net -->
       <div
-        class="bg-slate-900/50 backdrop-blur-sm border border-slate-800 rounded-2xl p-6"
+        class="relative bg-[#1e293b]/60 backdrop-blur-md border border-[#334155] rounded-xl p-6 overflow-hidden group hover:border-[#334155]/80 transition-all"
       >
-        <div class="flex items-center gap-3 mb-2">
-          <span class="text-2xl">📈</span>
-          <span class="text-sm text-slate-400">Bénéfice Net</span>
+        <div
+          class="absolute top-0 left-0 w-1 h-full {moneyData.net >= 0
+            ? 'bg-indigo-500/50'
+            : 'bg-orange-500/50'}"
+        ></div>
+        <div
+          class="absolute -right-6 -top-6 w-24 h-24 {moneyData.net >= 0
+            ? 'bg-indigo-500/10'
+            : 'bg-orange-500/10'} rounded-full blur-2xl group-hover:opacity-100 transition-all"
+        ></div>
+
+        <div class="flex items-center gap-3 mb-2 relative z-10">
+          <div
+            class="w-8 h-8 rounded-lg bg-[#0f172a] border border-[#334155] flex items-center justify-center text-slate-300"
+          >
+            📈
+          </div>
+          <span
+            class="text-xs font-bold text-slate-400 uppercase tracking-widest"
+            >Bénéfice Net</span
+          >
         </div>
         <p
-          class="text-3xl font-bold {moneyData.net >= 0
-            ? 'text-emerald-400'
-            : 'text-red-400'}"
+          class="text-3xl font-black {moneyData.net >= 0
+            ? 'text-indigo-400'
+            : 'text-orange-400'} font-mono tracking-tight relative z-10"
         >
-          {moneyData.net >= 0 ? "+" : ""}{moneyData.net.toLocaleString(
-            "fr-FR"
-          )} €
+          {moneyData.net >= 0 ? "+" : ""}{moneyData.net.toLocaleString("fr-FR")}
+          €
         </p>
       </div>
     </div>
@@ -280,38 +370,49 @@
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
       <!-- Production -->
       <div
-        class="bg-slate-900/50 backdrop-blur-sm border border-slate-800 rounded-2xl p-6"
+        class="bg-[#1e293b]/40 backdrop-blur-md border border-[#334155] rounded-xl p-6"
       >
-        <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
-          <span class="text-emerald-400">⚙️</span>
+        <h2
+          class="text-sm font-bold mb-6 flex items-center gap-2 uppercase tracking-widest text-slate-300 border-b border-[#334155] pb-2"
+        >
+          <span class="text-emerald-400 text-lg">⚙️</span>
           Production
         </h2>
         {#if productionData.length === 0}
-          <div class="h-64 flex items-center justify-center text-slate-500">
-            Aucune production enregistrée
+          <div
+            class="h-64 flex flex-col items-center justify-center text-slate-500 gap-2"
+          >
+            <span class="text-2xl opacity-50">💤</span>
+            <span class="text-xs font-medium uppercase tracking-wide"
+              >Aucune activité</span
+            >
           </div>
         {:else}
-          <div class="h-64">
+          <div class="h-64 mb-6">
             <canvas bind:this={productionChartCanvas}></canvas>
           </div>
           <!-- Details table -->
-          <div class="mt-4 overflow-x-auto">
-            <table class="w-full text-sm">
+          <div class="overflow-x-auto">
+            <table class="w-full text-xs">
               <thead>
-                <tr class="text-slate-400 border-b border-slate-700">
-                  <th class="text-left py-2">Item</th>
-                  <th class="text-right py-2">Total</th>
-                  <th class="text-right py-2">Par minute</th>
+                <tr
+                  class="text-slate-500 border-b border-[#334155] font-bold uppercase tracking-wider"
+                >
+                  <th class="text-left py-2 px-2">Item</th>
+                  <th class="text-right py-2 px-2">Total</th>
+                  <th class="text-right py-2 px-2">Taux</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody class="divide-y divide-[#334155]/50">
                 {#each productionData as item}
-                  <tr class="border-b border-slate-800/50">
-                    <td class="py-2">{item.name}</td>
-                    <td class="text-right text-emerald-400"
+                  <tr class="hover:bg-[#334155]/20 transition-colors">
+                    <td class="py-2 px-2 font-medium text-slate-300"
+                      >{item.name}</td
+                    >
+                    <td class="text-right px-2 font-mono text-emerald-400"
                       >{item.quantity.toFixed(1)}</td
                     >
-                    <td class="text-right text-slate-400"
+                    <td class="text-right px-2 font-mono text-slate-400"
                       >{item.rate_per_minute.toFixed(2)}/min</td
                     >
                   </tr>
@@ -324,38 +425,49 @@
 
       <!-- Consumption -->
       <div
-        class="bg-slate-900/50 backdrop-blur-sm border border-slate-800 rounded-2xl p-6"
+        class="bg-[#1e293b]/40 backdrop-blur-md border border-[#334155] rounded-xl p-6"
       >
-        <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
-          <span class="text-red-400">📦</span>
+        <h2
+          class="text-sm font-bold mb-6 flex items-center gap-2 uppercase tracking-widest text-slate-300 border-b border-[#334155] pb-2"
+        >
+          <span class="text-red-400 text-lg">📦</span>
           Consommation
         </h2>
         {#if consumptionData.length === 0}
-          <div class="h-64 flex items-center justify-center text-slate-500">
-            Aucune consommation enregistrée
+          <div
+            class="h-64 flex flex-col items-center justify-center text-slate-500 gap-2"
+          >
+            <span class="text-2xl opacity-50">💤</span>
+            <span class="text-xs font-medium uppercase tracking-wide"
+              >Aucune activité</span
+            >
           </div>
         {:else}
-          <div class="h-64">
+          <div class="h-64 mb-6">
             <canvas bind:this={consumptionChartCanvas}></canvas>
           </div>
           <!-- Details table -->
-          <div class="mt-4 overflow-x-auto">
-            <table class="w-full text-sm">
+          <div class="overflow-x-auto">
+            <table class="w-full text-xs">
               <thead>
-                <tr class="text-slate-400 border-b border-slate-700">
-                  <th class="text-left py-2">Item</th>
-                  <th class="text-right py-2">Total</th>
-                  <th class="text-right py-2">Par minute</th>
+                <tr
+                  class="text-slate-500 border-b border-[#334155] font-bold uppercase tracking-wider"
+                >
+                  <th class="text-left py-2 px-2">Item</th>
+                  <th class="text-right py-2 px-2">Total</th>
+                  <th class="text-right py-2 px-2">Taux</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody class="divide-y divide-[#334155]/50">
                 {#each consumptionData as item}
-                  <tr class="border-b border-slate-800/50">
-                    <td class="py-2">{item.name}</td>
-                    <td class="text-right text-red-400"
+                  <tr class="hover:bg-[#334155]/20 transition-colors">
+                    <td class="py-2 px-2 font-medium text-slate-300"
+                      >{item.name}</td
+                    >
+                    <td class="text-right px-2 font-mono text-red-400"
                       >{item.quantity.toFixed(1)}</td
                     >
-                    <td class="text-right text-slate-400"
+                    <td class="text-right px-2 font-mono text-slate-400"
                       >{item.rate_per_minute.toFixed(2)}/min</td
                     >
                   </tr>

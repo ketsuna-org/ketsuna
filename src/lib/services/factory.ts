@@ -201,10 +201,11 @@ export async function loadFactory(companyId: string): Promise<{
         id: edge.id,
         source: edge.input_id,
         target: edge.output_id,
-        animated: true,
-        type: 'smoothstep',
+        animated: false, // PipeEdge handles its own animation
+        type: 'pipe',
         data: {
           item: edge.item,
+          // We could add resourceColor here based on the item if needed
         },
       });
     }

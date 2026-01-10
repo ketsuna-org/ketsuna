@@ -22,17 +22,29 @@
 
 {#if !company}
   <!-- No company: Show create company form -->
-  <div class="min-h-screen bg-slate-950 flex items-center justify-center p-4">
-    <div class="max-w-md w-full">
+  <div
+    class="min-h-screen bg-[#020617] flex items-center justify-center p-4 relative overflow-hidden"
+  >
+    <!-- Background Industrial touches -->
+    <div
+      class="absolute inset-0 bg-[url('/grid.svg')] opacity-5 pointer-events-none"
+    ></div>
+    <div
+      class="absolute top-0 right-0 w-96 h-96 bg-indigo-500/10 rounded-full blur-[100px] pointer-events-none"
+    ></div>
+
+    <div class="max-w-md w-full relative z-10">
       <div class="text-center mb-8">
-        <span class="text-6xl block mb-4">🏭</span>
-        <h1 class="text-3xl font-black text-white mb-2">
+        <span class="text-6xl block mb-4 drop-shadow-xl">🏭</span>
+        <h1
+          class="text-3xl font-black text-white mb-2 uppercase tracking-tight"
+        >
           Bienvenue sur <span
-            class="bg-linear-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent"
+            class="bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent"
             >Ketsuna</span
           >
         </h1>
-        <p class="text-slate-400">
+        <p class="text-slate-400 font-medium">
           Pour commencer votre aventure industrielle, vous devez d'abord créer
           votre société.
         </p>
@@ -66,7 +78,7 @@
   .factory-container {
     display: flex;
     height: 100vh;
-    background: #0f172a;
+    background: #020617; /* Darker industrial background */
     color: #e2e8f0;
     overflow: hidden;
   }

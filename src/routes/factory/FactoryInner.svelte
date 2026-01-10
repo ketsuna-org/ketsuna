@@ -6,6 +6,7 @@
   import CompanyNode from "$lib/components/nodes/CompanyNode.svelte";
   import ZoneNode from "$lib/components/nodes/ZoneNode.svelte";
   import StorageNode from "$lib/components/nodes/StorageNode.svelte";
+  import { PipeEdge } from "$lib/components/edges";
   import GameIcon from "$lib/components/GameIcon.svelte";
   import ExplorationModal from "$lib/components/ExplorationModal.svelte";
   import MarketView from "$lib/components/MarketView.svelte";
@@ -51,6 +52,11 @@
     storage: StorageNode,
   };
 
+  // Custom edge types
+  const edgeTypes = {
+    pipe: PipeEdge,
+  };
+
   // State
   let nodes = $state<Node[]>([]);
   let edges = $state<Edge[]>([]);
@@ -60,7 +66,79 @@
   let showMarket = $state(false);
   let showInventory = $state(false);
   let showWorkshop = $state(false);
+  let showMobileSidebar = $state(false); // Mobile sidebar toggle
   let loading = $state(true);
+
+  // Placement State
+  interface PlacementSelection {
+    type: "machine" | "deposit";
+    id: string; // The specific item ID (e.g. machine unique ID)
+    machineId?: string; // The generic definition ID (e.g. 'thermal_plant')
+    icon?: string;
+  }
+  let placingSelection = $state<PlacementSelection | null>(null);
+
+  // Derived Selection State
+  let selectedNode = $derived(nodes.find((n) => n.selected === true));
+  let selectedEdge = $derived(edges.find((e) => e.selected === true));
+
+  function handlePlacementSelect(
+    type: "machine" | "deposit",
+    id: string,
+    machineId: string,
+    icon: string
+  ) {
+    placingSelection = { type, id, machineId, icon };
+    showMobileSidebar = false; // Always close sidebar
+  }
+
+  function cancelPlacement() {
+    placingSelection = null;
+  }
+
+  async function confirmPlacement() {
+    if (!placingSelection) return;
+
+    // Calculate center of screen relative to viewport
+    const centerX = window.innerWidth / 2;
+    const centerY = window.innerHeight / 2;
+
+    // Convert to flow position
+    const position = screenToFlowPosition({ x: centerX, y: centerY });
+
+    // Get dimensions based on node type
+    const nodeDim =
+      placingSelection.type === "deposit"
+        ? NODE_DIMENSIONS.deposit
+        : NODE_DIMENSIONS.machine;
+
+    const x = Math.round(position.x - nodeDim.width / 2);
+    const y = Math.round(position.y - nodeDim.height / 2);
+
+    // Bounds check
+    if (
+      x < 0 ||
+      y < 0 ||
+      x > canvasBounds.width - nodeDim.width ||
+      y > canvasBounds.height - nodeDim.height
+    ) {
+      alert("Impossible de placer ici : Hors limites");
+      return;
+    }
+
+    // Place node
+    const success = await placeNode(
+      placingSelection.type,
+      placingSelection.id,
+      x,
+      y
+    );
+
+    if (success) {
+      placingSelection = null;
+      await loadData();
+    }
+  }
 
   // Zone ID constant
   const ZONE_ID = "factory-zone";
@@ -89,7 +167,8 @@
   }
 
   // Get the svelte flow instance (correct hook usage)
-  const { screenToFlowPosition, getNodes, fitView } = useSvelteFlow();
+  const { screenToFlowPosition, getNodes, fitView, deleteElements } =
+    useSvelteFlow();
 
   let canvasBounds = $derived(getCanvasBounds(company?.level || 1));
 
@@ -268,6 +347,8 @@
       y
     );
     if (success) {
+      // Close mobile sidebar on drop if open
+      showMobileSidebar = false;
       await loadData();
     }
   }
@@ -426,6 +507,24 @@
     }
   }
 
+  // Handle context actions
+  async function handleDeleteSelection() {
+    if (selectedNode) {
+      if (!selectedNode.deletable) return;
+      await deleteElements({ nodes: [selectedNode] });
+    } else if (selectedEdge) {
+      await deleteElements({ edges: [selectedEdge] });
+    }
+  }
+
+  function handleOpenNode(node: Node) {
+    // Future implementation: Open specific details/management modal for the node
+    // For now, simpler interaction or just placeholder
+    console.log("Open node", node);
+    // Example: If it's a machine, maybe show a quick status or config modal
+    alert(`Machine: ${node.data.label || "Details"}`);
+  }
+
   function onNodeDrag(_event: {
     targetNode: Node | null;
     nodes: Node[];
@@ -433,6 +532,20 @@
   }) {
     // Let Svelte Flow handle position updates via bind:nodes
     // No manual intervention needed during drag
+  }
+
+  function handleKeyDown(event: KeyboardEvent) {
+    if (event.key === "Escape") {
+      // Force deselect all nodes and edges
+      nodes = nodes.map((n) => ({ ...n, selected: false }));
+      edges = edges.map((e) => ({ ...e, selected: false }));
+      // Also close any open modals or sidebar
+      showExploration = false;
+      showMarket = false;
+      showInventory = false;
+      showWorkshop = false;
+      showMobileSidebar = false;
+    }
   }
 </script>
 
@@ -442,13 +555,58 @@
     <p>Chargement de l'usine...</p>
   </div>
 {:else}
+  <!-- Mobile Menu Toggle -->
+  <button
+    class="md:hidden fixed top-4 left-4 z-50 bg-[#1e293b] text-white p-3 rounded-xl border border-[#334155] shadow-lg"
+    onclick={() => (showMobileSidebar = !showMobileSidebar)}
+  >
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    >
+      {#if showMobileSidebar}
+        <path d="M18 6 6 18" /><path d="m6 6 18 12" />
+      {:else}
+        <line x1="4" x2="20" y1="12" y2="12" /><line
+          x1="4"
+          x2="20"
+          y1="6"
+          y2="6"
+        /><line x1="4" x2="20" y1="18" y2="18" />
+      {/if}
+    </svg>
+  </button>
+
   <!-- Toolbar -->
-  <div class="toolbar">
+  <!-- Responsive classes: hidden on mobile unless toggled, fixed inset for mobile drawer -->
+  <!-- Moved CSS properties to Tailwind to fix specificity issues -->
+  <div
+    class="
+    toolbar
+    {showMobileSidebar ? 'flex fixed inset-0 w-full h-full z-50' : 'hidden'}
+    md:flex md:static md:w-[300px] md:h-auto flex-col gap-8 p-6
+  "
+  >
     <div class="toolbar-header">
       <h2>🏭 Usine</h2>
       <span class="bounds-info"
         >{canvasBounds.width} × {canvasBounds.height}</span
       >
+      <!-- Close button for mobile only -->
+      <button
+        class="md:hidden text-slate-400"
+        onclick={() => (showMobileSidebar = false)}
+      >
+        <span class="sr-only">Fermer</span>
+        ✕
+      </button>
     </div>
 
     {#if groupedUnplacedMachines.length > 0}
@@ -457,12 +615,20 @@
         <div class="unplaced-list">
           {#each groupedUnplacedMachines as group}
             {@const item = getItem(group.machine_id)}
+            <!-- svelte-ignore a11y_click_events_have_key_events -->
+            <!-- svelte-ignore a11y_interactive_supports_focus -->
             <div
               class="unplaced-item"
               draggable="true"
               role="button"
-              tabindex="0"
               ondragstart={(e) => onDragStart(e, group.ids[0])}
+              onclick={() =>
+                handlePlacementSelect(
+                  "machine",
+                  group.ids[0],
+                  group.machine_id,
+                  item?.icon || "⚙️"
+                )}
             >
               <div class="item-icon">
                 <GameIcon
@@ -490,12 +656,20 @@
         <div class="unplaced-list">
           {#each unplacedDeposits as deposit}
             {@const resourceItem = getItem(deposit.ressource_id)}
+            <!-- svelte-ignore a11y_click_events_have_key_events -->
+            <!-- svelte-ignore a11y_interactive_supports_focus -->
             <div
               class="unplaced-item deposit-item"
               draggable="true"
               role="button"
-              tabindex="0"
               ondragstart={(e) => onDragStartDeposit(e, deposit.id)}
+              onclick={() =>
+                handlePlacementSelect(
+                  "deposit",
+                  deposit.id,
+                  "",
+                  resourceItem?.icon || "⛏️"
+                )}
             >
               <div class="item-icon deposit-icon">
                 <GameIcon
@@ -523,25 +697,40 @@
       <div class="action-grid">
         <button
           class="action-btn exploration"
-          onclick={() => (showExploration = true)}
+          onclick={() => {
+            showExploration = true;
+            showMobileSidebar = false;
+          }}
         >
           <span class="btn-icon">🧭</span>
           <span class="btn-label">Exploration</span>
         </button>
-        <button class="action-btn market" onclick={() => (showMarket = true)}>
+        <button
+          class="action-btn market"
+          onclick={() => {
+            showMarket = true;
+            showMobileSidebar = false;
+          }}
+        >
           <span class="btn-icon">💰</span>
           <span class="btn-label">Marché</span>
         </button>
         <button
           class="action-btn workshop full-width"
-          onclick={() => (showWorkshop = true)}
+          onclick={() => {
+            showWorkshop = true;
+            showMobileSidebar = false;
+          }}
         >
           <span class="btn-icon">⚒️</span>
           <span class="btn-label">Atelier</span>
         </button>
         <button
           class="action-btn inventory full-width"
-          onclick={() => (showInventory = true)}
+          onclick={() => {
+            showInventory = true;
+            showMobileSidebar = false;
+          }}
         >
           <span class="btn-icon">📦</span>
           <span class="btn-label">Inventaire & Stock</span>
@@ -578,11 +767,9 @@
       bind:nodes
       bind:edges
       {nodeTypes}
+      {edgeTypes}
       defaultEdgeOptions={{
-        type: "smoothstep",
-        animated: true,
-        markerEnd: { type: "arrowclosed", color: "#3b82f6" },
-        style: "stroke: #3b82f6; stroke-width: 5px;",
+        type: "pipe",
       }}
       proOptions={{
         hideAttribution: true,
@@ -596,7 +783,6 @@
       <Controls />
     </SvelteFlow>
 
-    <!-- Stats overlay -->
     <div class="stats-overlay">
       <div class="glass-pill balance-pill">
         <span class="pill-icon">💰</span>
@@ -616,7 +802,190 @@
       </div>
     </div>
   </div>
+
+  <!-- Tap-to-Place Overlay -->
+  {#if placingSelection}
+    <div
+      class="fixed inset-0 z-50 pointer-events-none flex items-center justify-center"
+    >
+      <!-- Reticle / Ghost Node -->
+      <!-- Fixed center of screen -->
+      <div
+        class="relative w-32 h-32 flex flex-col items-center justify-center pointer-events-none"
+      >
+        <!-- Crosshair lines -->
+        <div
+          class="absolute inset-0 border-2 border-dashed border-white/30 rounded-lg animate-pulse"
+        ></div>
+
+        <!-- Icon -->
+        <div
+          class="text-6xl filter drop-shadow-[0_0_10px_rgba(59,130,246,0.5)]"
+        >
+          {#if placingSelection.icon}<GameIcon
+              icon={placingSelection.icon}
+              size={64}
+              alt="Placement"
+            />
+          {:else}📍{/if}
+        </div>
+
+        <div
+          class="absolute -bottom-8 bg-slate-900/80 px-3 py-1 rounded text-xs text-white uppercase tracking-wider"
+        >
+          Placer ici
+        </div>
+      </div>
+
+      <!-- Controls (Pointer events enabled) -->
+      <div
+        class="fixed bottom-32 left-0 w-full flex items-center justify-center gap-8 pointer-events-auto"
+      >
+        <button
+          onclick={cancelPlacement}
+          class="w-16 h-16 rounded-full bg-red-500 hover:bg-red-600 text-white shadow-lg flex items-center justify-center border-4 border-slate-900 active:scale-95 transition-all"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="32"
+            height="32"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="3"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            ><path d="M18 6 6 18" /><path d="m6 6 18 12" /></svg
+          >
+        </button>
+
+        <button
+          onclick={confirmPlacement}
+          class="w-20 h-20 rounded-full bg-green-500 hover:bg-green-600 text-white shadow-[0_0_20px_rgba(34,197,94,0.4)] flex items-center justify-center border-4 border-slate-900 active:scale-95 transition-all"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="40"
+            height="40"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="3"
+            stroke-linecap="round"
+            stroke-linejoin="round"><path d="M20 6 9 17l-5-5" /></svg
+          >
+        </button>
+      </div>
+
+      <!-- Instruction Toast -->
+      <div
+        class="fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 border border-slate-700 text-white px-6 py-3 rounded-full shadow-xl pointer-events-auto text-center text-sm font-bold animate-bounce-in"
+      >
+        Déplacez la carte pour positionner
+      </div>
+    </div>
+  {/if}
+
+  <!-- Context Action Bar (Mobile/Touch) -->
+  {#if selectedNode || selectedEdge}
+    <div
+      class="fixed bottom-0 left-0 w-full z-40 bg-[#1e293b] border-t border-[#334155] p-4 pr-24 shadow-[0_-4px_20px_rgba(0,0,0,0.5)] flex items-center justify-between animate-slide-up"
+    >
+      <div class="flex items-center gap-3">
+        <div
+          class="w-10 h-10 rounded-lg bg-[#0f172a] border border-[#334155] flex items-center justify-center"
+        >
+          <span class="text-xl">
+            {#if selectedNode?.type === "machine"}⚙️
+            {:else if selectedNode?.type === "deposit"}⛏️
+            {:else if selectedNode?.type === "company"}🏢
+            {:else if selectedNode?.type === "storage"}📦
+            {:else if selectedEdge}🔗
+            {:else}📍{/if}
+          </span>
+        </div>
+        <div>
+          <h3 class="font-bold text-white text-sm uppercase tracking-wider">
+            {#if selectedNode}
+              {selectedNode.data?.label || selectedNode.type}
+            {:else if selectedEdge}
+              Connexion
+            {/if}
+          </h3>
+          <p class="text-xs text-slate-400">
+            {#if selectedNode}
+              {Math.round(selectedNode.position.x)}, {Math.round(
+                selectedNode.position.y
+              )}
+            {:else}
+              Transfert de ressources
+            {/if}
+          </p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        {#if selectedNode && selectedNode.type !== "company" && selectedNode.type !== "deposit" && selectedNode.type !== "zone"}
+          <!-- Delete Button -->
+          <button
+            onclick={handleDeleteSelection}
+            class="p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-500 hover:bg-red-500/20 active:scale-95 transition-all"
+            aria-label="Supprimer"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              ><path d="M3 6h18" /><path
+                d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"
+              /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /><line
+                x1="10"
+                x2="10"
+                y1="11"
+                y2="17"
+              /><line x1="14" x2="14" y1="11" y2="17" /></svg
+            >
+          </button>
+        {/if}
+
+        {#if selectedEdge}
+          <!-- Delete Button for Edge -->
+          <button
+            onclick={handleDeleteSelection}
+            class="p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-500 hover:bg-red-500/20 active:scale-95 transition-all"
+            aria-label="Supprimer"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              ><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><line
+                x1="9"
+                y1="9"
+                x2="15"
+                y2="15"
+              /><line x1="15" y1="9" x2="9" y2="15" /></svg
+            >
+          </button>
+        {/if}
+      </div>
+    </div>
+  {/if}
 {/if}
+
+<svelte:window onkeydown={handleKeyDown} />
 
 {#if showExploration}
   <ExplorationModal onClose={() => (showExploration = false)} />
@@ -681,30 +1050,45 @@
     font-weight: 500;
   }
 
+  /* ... inside <style> ... */
   .toolbar {
-    width: 280px;
+    /* attributes removed and moved to tailwind classes in template */
     background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
-    border-right: 1px solid #334155;
-    padding: 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
+    border-right: 2px solid #334155;
     overflow-y: auto;
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.4);
+    z-index: 20;
+    position: relative;
+  }
+  /* ... rest of style ... */
+
+  /* Metallic separator lines */
+  .toolbar::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: linear-gradient(90deg, #3b82f6, #06b6d4);
   }
 
   .toolbar-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding-bottom: 16px;
-    border-bottom: 1px solid #334155;
+    padding-bottom: 20px;
+    border-bottom: 2px solid #334155;
   }
 
   .toolbar-header h2 {
-    font-size: 18px;
-    font-weight: 700;
-    color: #f1f5f9;
+    font-size: 20px;
+    font-weight: 800;
+    color: #e2e8f0;
     margin: 0;
+    letter-spacing: -0.02em;
+    text-transform: uppercase;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   }
 
   .bounds-info {
@@ -719,11 +1103,23 @@
   .unplaced-section h3,
   .stats-section h3 {
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 800;
     color: #64748b;
     text-transform: uppercase;
-    letter-spacing: 0.1em;
-    margin-bottom: 12px;
+    letter-spacing: 0.15em;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* Add little decorative line to headers */
+  .unplaced-section h3::after,
+  .stats-section h3::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, #334155, transparent);
   }
 
   .unplaced-list {
@@ -732,22 +1128,46 @@
     gap: 8px;
   }
 
+  /* Unplaced Item Card - Industrial Style */
   .unplaced-item {
     display: flex;
     align-items: center;
     gap: 12px;
     padding: 12px;
-    background: #1e293b;
+    background: linear-gradient(135deg, #1e293b 0%, #172033 100%);
     border: 1px solid #334155;
-    border-radius: 12px;
+    border-radius: 8px;
     cursor: grab;
-    transition: all 0.2s;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+  }
+
+  .unplaced-item::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+    background: #334155;
+    transition: background 0.2s;
   }
 
   .unplaced-item:hover {
-    background: #334155;
-    border-color: #6366f1;
-    transform: translateY(-2px);
+    background: #252f45;
+    transform: translateY(-2px) translateX(2px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+    border-color: #475569;
+  }
+
+  .unplaced-item:hover::before {
+    background: #3b82f6;
+  }
+
+  .unplaced-item.deposit-item:hover::before {
+    background: #10b981;
   }
 
   .unplaced-item:active {
@@ -755,26 +1175,29 @@
   }
 
   .item-icon {
-    font-size: 24px;
-    width: 40px;
-    height: 40px;
+    width: 36px;
+    height: 36px;
     display: flex;
     align-items: center;
     justify-content: center;
     background: #0f172a;
-    border-radius: 8px;
+    border-radius: 6px;
+    border: 1px solid #28354c;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
   }
 
   .item-info {
     display: flex;
     flex-direction: column;
     gap: 2px;
+    flex: 1;
   }
 
   .item-name {
-    font-weight: 600;
+    font-weight: 700;
     font-size: 13px;
-    color: #f1f5f9;
+    color: #e2e8f0;
+    letter-spacing: 0.01em;
   }
 
   .item-id {
@@ -784,14 +1207,22 @@
   }
 
   .item-count {
-    margin-left: auto;
-    padding: 4px 10px;
-    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-    color: #fff;
-    font-size: 12px;
+    padding: 4px 8px;
+    background: #334155;
+    color: #e2e8f0;
+    font-size: 11px;
     font-weight: 700;
-    border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+    border-radius: 4px;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+    border: 1px solid #475569;
+    min-width: 24px;
+    text-align: center;
+  }
+
+  .size-badge {
+    background: #0f392b; /* Dark emerald */
+    color: #34d399;
+    border-color: #059669;
   }
 
   .stats-section {
@@ -800,69 +1231,105 @@
     gap: 8px;
   }
 
+  /* Stats Rows */
   .stat-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 8px 12px;
+    padding: 10px 14px;
     background: #1e293b;
-    border-radius: 8px;
+    border: 1px solid #334155;
+    border-radius: 6px;
     font-size: 13px;
+    transition: border-color 0.2s;
+  }
+
+  .stat-row:hover {
+    border-color: #475569;
   }
 
   .stat-row span:first-child {
     color: #94a3b8;
+    font-weight: 500;
   }
 
   .stat-row span:last-child {
     font-weight: 700;
-    color: #f1f5f9;
+    color: #e2e8f0;
+    font-family: monospace;
   }
 
   .canvas-wrapper {
     flex: 1;
     position: relative;
     height: 100%;
+    background: #020617; /* Very dark background for canvas container */
   }
 
+  /* Top Right Stats Pills */
   .stats-overlay {
     position: absolute;
-    top: 16px;
-    left: 16px;
+    top: 96px; /* Moved down to avoid UserMenu/Notifications overlap */
+    right: 24px;
+    left: auto;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 12px;
     z-index: 10;
+    align-items: flex-end;
+  }
+
+  @media (max-width: 768px) {
+    .stats-overlay {
+      top: 80px;
+      right: 16px;
+      gap: 8px;
+    }
+
+    .glass-pill {
+      min-width: auto;
+      padding: 8px 12px;
+      font-size: 13px;
+    }
   }
 
   .glass-pill {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 8px 16px;
-    background: rgba(15, 23, 42, 0.8);
+    gap: 10px;
+    padding: 10px 20px;
+    background: rgba(15, 23, 42, 0.9);
     backdrop-filter: blur(12px);
-    border: 1px solid rgba(99, 102, 241, 0.2);
-    border-radius: 20px;
-    font-size: 14px;
-    font-weight: 600;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    border: 1px solid #334155;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 700;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    min-width: 140px;
+    justify-content: flex-end;
+  }
+
+  .glass-pill:hover {
+    border-color: #475569;
+    transform: translateY(-1px);
   }
 
   .pill-icon {
-    font-size: 16px;
+    font-size: 18px;
   }
 
   .pill-value {
     color: #f1f5f9;
+    font-family: monospace;
+    letter-spacing: 0.05em;
   }
 
   .balance-pill {
-    border-color: rgba(16, 185, 129, 0.3);
+    border-left: 4px solid #10b981;
   }
 
   .energy-pill {
-    border-color: rgba(245, 158, 11, 0.3);
+    border-left: 4px solid #f59e0b;
   }
 
   .text-red-400 {
@@ -884,20 +1351,7 @@
     transition: stroke 0.3s;
   }
 
-  :global(.svelte-flow__edge.animated .svelte-flow__edge-path) {
-    stroke: #3b82f6;
-    stroke-dasharray: 5;
-    animation: dashdraw 0.5s linear infinite;
-  }
-
-  @keyframes dashdraw {
-    from {
-      stroke-dashoffset: 10;
-    }
-    to {
-      stroke-dashoffset: 0;
-    }
-  }
+  /* Pipe edges handle their own animation */
 
   :global(.svelte-flow__minimap) {
     background-color: #0f172a !important;
@@ -935,73 +1389,103 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 6px;
-    padding: 14px 12px;
-    border: none;
+    gap: 8px;
+    padding: 16px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 12px;
     cursor: pointer;
     transition: all 0.2s ease;
-    font-weight: 600;
-    font-size: 12px;
+    font-weight: 700;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Glossy shine effect */
+  .action-btn::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 50%;
+    background: linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.1),
+      transparent
+    );
+    pointer-events: none;
   }
 
   .action-btn.full-width {
     grid-column: span 2;
+    flex-direction: row;
+    padding: 12px;
+  }
+
+  .action-btn.full-width .btn-icon {
+    font-size: 20px;
   }
 
   .action-btn .btn-icon {
     font-size: 24px;
-    line-height: 1;
-    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4));
   }
 
   .action-btn .btn-label {
     color: white;
-    font-weight: 600;
-    letter-spacing: 0.01em;
+    z-index: 2;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
   }
 
   .action-btn:hover {
     transform: translateY(-2px);
+    filter: brightness(1.1);
   }
 
   .action-btn:active {
     transform: translateY(0);
+    filter: brightness(0.95);
   }
 
-  /* Exploration Button */
+  /* Button Variants - Deep, rich industrial colors */
   .action-btn.exploration {
-    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
-    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
-  }
-  .action-btn.exploration:hover {
-    box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5);
+    background: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%);
+    box-shadow:
+      0 4px 0 #312e81,
+      0 8px 16px rgba(0, 0, 0, 0.4);
   }
 
-  /* Market Button */
   .action-btn.market {
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-  }
-  .action-btn.market:hover {
-    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.5);
+    background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    box-shadow:
+      0 4px 0 #064e3b,
+      0 8px 16px rgba(0, 0, 0, 0.4);
   }
 
-  /* Workshop Button */
   .action-btn.workshop {
-    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
-  }
-  .action-btn.workshop:hover {
-    box-shadow: 0 6px 20px rgba(245, 158, 11, 0.5);
+    background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+    box-shadow:
+      0 4px 0 #78350f,
+      0 8px 16px rgba(0, 0, 0, 0.4);
   }
 
-  /* Inventory Button */
   .action-btn.inventory {
-    background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
-    box-shadow: 0 4px 12px rgba(6, 182, 212, 0.3);
+    background: linear-gradient(135deg, #0891b2 0%, #0e7490 100%);
+    box-shadow:
+      0 4px 0 #155e75,
+      0 8px 16px rgba(0, 0, 0, 0.4);
   }
+
+  /* Hover light effect for buttons */
+  .action-btn.exploration:hover,
+  .action-btn.market:hover,
+  .action-btn.workshop:hover,
   .action-btn.inventory:hover {
-    box-shadow: 0 6px 20px rgba(6, 182, 212, 0.5);
+    box-shadow:
+      0 6px 0 rgba(0, 0, 0, 0.2),
+      0 12px 20px rgba(0, 0, 0, 0.4);
   }
 </style>

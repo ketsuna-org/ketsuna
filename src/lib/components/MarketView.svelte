@@ -156,18 +156,23 @@
   }
 </script>
 
-<div class="space-y-8">
+<div class="h-full overflow-y-auto pr-2 custom-scrollbar space-y-8">
   {#if dashboardData}
     <div
-      class="bg-slate-900/80 border border-slate-800 p-4 rounded-2xl flex items-center gap-4 backdrop-blur-sm shadow-lg mb-6"
+      class="bg-gradient-to-r from-[#1e293b] to-[#0f172a] border-l-4 border-l-emerald-500 border-y border-r border-[#334155] p-5 rounded-lg flex items-center gap-5 shadow-lg relative overflow-hidden"
     >
+      <!-- Background pattern -->
       <div
-        class="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500"
+        class="absolute inset-0 bg-[url('/grid.svg')] opacity-5 pointer-events-none"
+      ></div>
+
+      <div
+        class="w-14 h-14 rounded-lg bg-[#0f172a] border border-[#334155] flex items-center justify-center text-emerald-400 shadow-inner z-10"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
-          width="24"
-          height="24"
+          width="28"
+          height="28"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -179,13 +184,15 @@
           ></path></svg
         >
       </div>
-      <div>
+      <div class="z-10">
         <p
-          class="text-[10px] text-slate-500 uppercase font-bold tracking-wider"
+          class="text-[10px] text-slate-400 uppercase font-bold tracking-widest mb-1"
         >
           Solde Disponible
         </p>
-        <p class="text-2xl font-mono font-black text-white tracking-tight">
+        <p
+          class="text-3xl font-mono font-bold text-white tracking-tight drop-shadow-md"
+        >
           {formatCurrency(dashboardData.financials.cash)}
         </p>
       </div>
@@ -195,7 +202,7 @@
   {#if error}
     <div
       transition:fade
-      class="bg-red-500/10 border border-red-500/20 p-4 rounded-2xl text-red-400 text-sm flex items-center gap-3"
+      class="bg-red-500/10 border border-red-500/20 p-4 rounded-lg text-red-400 text-sm flex items-center gap-3 shadow-[0_0_15px_rgba(239,68,68,0.1)]"
     >
       <svg
         xmlns="http://www.w3.org/2000/svg"
@@ -226,54 +233,59 @@
     onFilterChange={handleFilterChange}
   />
 
-  <div class="text-sm text-slate-500 font-medium px-1">
-    Affichage de <span class="text-white font-bold">{items.length}</span>
-    item(s) sur {totalItems}
+  <div
+    class="text-xs text-slate-500 font-bold uppercase tracking-widest px-1 py-2 border-b border-[#334155]/50 flex justify-between items-center"
+  >
+    <span>Résultats du marché</span>
+    <span>{items.length} / {totalItems}</span>
   </div>
 
   {#if loading}
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {#each Array(8) as _}
         <div
-          class="h-80 bg-slate-900/50 rounded-3xl animate-pulse border border-slate-800"
+          class="h-96 bg-[#1e293b] rounded-xl animate-pulse border border-[#334155]"
         ></div>
       {/each}
     </div>
   {:else if items.length === 0}
     <div
-      class="text-center py-12 bg-slate-900/30 rounded-2xl border border-slate-800"
+      class="flex flex-col items-center justify-center py-20 bg-[#1e293b]/50 rounded-xl border-2 border-dashed border-[#334155]"
     >
-      <span class="text-3xl block mb-3">🔍</span>
-      <p class="text-lg font-bold text-white mb-1">Aucun résultat</p>
-      <p class="text-sm text-slate-400">
-        Aucun item ne correspond à vos critères de recherche.
+      <span class="text-4xl block mb-4 opacity-50">🔍</span>
+      <p class="text-lg font-bold text-slate-300 mb-1 uppercase tracking-wide">
+        Aucun résultat
+      </p>
+      <p class="text-xs text-slate-500">
+        Vos critères ne correspondent à aucun article.
       </p>
     </div>
   {:else}
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-4">
       {#each items as item (item.id)}
         <div
-          class="group bg-slate-900/50 border border-slate-800 rounded-2xl p-6 transition-all hover:border-indigo-500/30 hover:bg-slate-900/80 hover:shadow-xl hover:shadow-indigo-500/10 flex flex-col justify-between relative overflow-hidden"
+          class="group bg-[#1e293b] border border-[#334155] rounded-xl p-5 transition-all duration-300 hover:border-[#6366f1] hover:shadow-[0_0_25px_rgba(99,102,241,0.15)] flex flex-col justify-between relative overflow-hidden"
         >
-          <!-- Decorative gradient blob -->
+          <!-- Decorative accent bar -->
           <div
-            class="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-indigo-500/10 transition-colors pointer-events-none"
+            class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-600 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity"
           ></div>
 
-          <div class="relative z-10">
-            <div class="flex justify-between items-start mb-4">
+          <div class="relative z-10 flex flex-col h-full">
+            <!-- Header Section -->
+            <div class="flex justify-between items-start mb-5">
               <div
-                class="p-3 rounded-2xl bg-slate-950 border border-slate-800 text-slate-400 group-hover:text-indigo-400 group-hover:border-indigo-500/30 transition-all scale-100 group-hover:scale-105"
+                class="p-3.5 rounded-lg bg-[#0f172a] border border-[#334155] text-slate-400 group-hover:text-indigo-400 group-hover:border-indigo-500/30 transition-all shadow-inner"
               >
                 {#if item.type === "Machine"}
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
-                    width="24"
-                    height="24"
+                    width="28"
+                    height="28"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
-                    stroke-width="2"
+                    stroke-width="1.5"
                     stroke-linecap="round"
                     stroke-linejoin="round"
                     ><path
@@ -283,12 +295,12 @@
                 {:else if item.type === "Ressource Brute"}
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
-                    width="24"
-                    height="24"
+                    width="28"
+                    height="28"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
-                    stroke-width="2"
+                    stroke-width="1.5"
                     stroke-linecap="round"
                     stroke-linejoin="round"
                     ><path
@@ -300,12 +312,12 @@
                 {:else}
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
-                    width="24"
-                    height="24"
+                    width="28"
+                    height="28"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
-                    stroke-width="2"
+                    stroke-width="1.5"
                     stroke-linecap="round"
                     stroke-linejoin="round"
                     ><rect x="2" y="7" width="20" height="14" rx="2" ry="2"
@@ -314,245 +326,217 @@
                   >
                 {/if}
               </div>
-              <div class="flex flex-col items-end gap-1">
+              <div class="flex flex-col items-end gap-1.5">
                 <span
-                  class="text-[10px] font-bold uppercase tracking-wider bg-slate-950 border border-slate-800 px-2 py-1 rounded-lg text-slate-500"
+                  class="text-[10px] font-bold uppercase tracking-wider bg-[#0f172a] border border-[#334155] px-2 py-1 rounded text-slate-400"
                 >
                   {item.type}
                 </span>
                 {#if item.minable}
                   <span
-                    class="text-[10px] font-bold px-2 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400"
+                    class="text-[10px] font-bold px-2 py-1 rounded bg-emerald-950/30 border border-emerald-900/50 text-emerald-400 flex items-center gap-1"
                   >
-                    ♾️ Illimité
+                    <span>♾️</span> ILLIMITÉ
                   </span>
                 {/if}
               </div>
             </div>
+
             <h3
-              class="text-lg font-bold text-white mb-2 leading-tight min-h-12"
+              class="text-base font-bold text-slate-100 mb-3 leading-tight min-h-[3rem] uppercase tracking-wide"
             >
               {item.name}
             </h3>
-            <div class="text-xs text-slate-500 leading-relaxed min-h-16">
+
+            <!-- Details Section -->
+            <div
+              class="text-xs text-slate-400 leading-relaxed bg-[#0f172a]/50 p-3 rounded-lg border border-[#334155]/50 flex-1 mb-4"
+            >
               {#if item.type === "Machine"}
                 {@const recipe = item.use_recipe
                   ? getRecipe(item.use_recipe)
                   : null}
                 {#if recipe}
-                  <div
-                    class="bg-slate-950/50 p-2.5 rounded-xl border border-slate-800 space-y-2"
-                  >
-                    <!-- Inputs -->
+                  <div class="space-y-3">
                     {#if recipe.inputs_items && recipe.inputs_items.length > 0}
-                      <div class="flex flex-wrap gap-1">
+                      <div class="flex flex-col gap-1.5">
                         <span
-                          class="text-slate-500 font-bold mr-1 text-[10px] uppercase"
-                          >Conso:</span
+                          class="text-[9px] font-bold text-slate-500 uppercase tracking-widest"
+                          >Consomme:</span
                         >
-                        {#each recipe.inputs_items as inputId}
-                          {@const input = getItem(inputId)}
-                          <span
-                            class="bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded text-[10px] border border-slate-700"
-                          >
-                            {input?.name || inputId}
-                            <span class="text-amber-400 font-mono"
-                              >x{recipe.input_quantity}</span
+                        <div class="flex flex-wrap gap-1">
+                          {#each recipe.inputs_items as inputId}
+                            {@const input = getItem(inputId)}
+                            <span
+                              class="bg-[#1e293b] text-slate-300 px-1.5 py-0.5 rounded text-[10px] border border-slate-700 flex items-center gap-1"
                             >
-                          </span>
-                        {/each}
+                              {input?.name || inputId}
+                              <span class="text-amber-400 font-mono text-[9px]"
+                                >x{recipe.input_quantity}</span
+                              >
+                            </span>
+                          {/each}
+                        </div>
                       </div>
                     {/if}
 
-                    <!-- Output -->
                     <div
-                      class="flex items-center gap-2 border-t border-slate-800 pt-2"
+                      class="pt-2 border-t border-slate-800 flex flex-col gap-1.5"
                     >
                       <span
-                        class="text-slate-500 font-bold text-[10px] uppercase"
-                        >Prod:</span
+                        class="text-[9px] font-bold text-slate-500 uppercase tracking-widest"
+                        >Produit:</span
                       >
-                      <span class="text-emerald-400 font-medium truncate">
-                        {getItem(recipe.output_item)?.name ||
-                          recipe.name ||
-                          "Item"}
-                      </span>
-                      <span
-                        class="text-[10px] text-slate-500 bg-slate-900 border border-slate-800 px-1.5 py-0.5 rounded ml-auto"
-                      >
-                        {recipe.production_time}s
-                      </span>
+                      <div class="flex items-center justify-between">
+                        <span class="text-emerald-400 font-bold text-sm">
+                          {getItem(recipe.output_item)?.name ||
+                            recipe.name ||
+                            "Item"}
+                        </span>
+                        <span
+                          class="text-[10px] text-slate-400 bg-slate-900 border border-slate-800 px-1.5 py-0.5 rounded font-mono"
+                        >
+                          {recipe.production_time}s
+                        </span>
+                      </div>
                     </div>
                   </div>
                 {:else if item.product}
-                  Produit <span class="text-emerald-400 font-semibold"
-                    >{item.product_quantity || 1}</span
-                  >
-                  unité(s) de
-                  <span class="text-emerald-400 font-semibold"
-                    >{getItem(item.product)?.name || "Produit"}</span
-                  > par cycle.
+                  <div class="flex items-center gap-2">
+                    <span>Produit</span>
+                    <span class="text-emerald-400 font-bold"
+                      >{item.product_quantity || 1}x</span
+                    >
+                    <span
+                      class="text-emerald-400 font-bold border-b border-emerald-500/20"
+                      >{getItem(item.product)?.name || "Produit"}</span
+                    >
+                  </div>
                 {/if}
               {:else}
-                <p>
-                  Essentiel pour le bon fonctionnement de votre usine et la
-                  production de composants avancés.
+                <p class="italic opacity-80">
+                  Élément essentiel pour l'infrastructure et la production de
+                  votre usine.
                 </p>
               {/if}
             </div>
 
-            <!-- Volatility Badge REMOVED -->
-
+            <!-- Stats Grid -->
             {#if item.type === "Machine" || item.type === "Stockage"}
-              <div class="flex flex-wrap gap-2 mt-3">
+              <div class="grid grid-cols-2 gap-2 mb-4">
                 {#if item.energy_type === "Soleil" || item.metadata?.energy_type === "Soleil"}
                   <div
-                    class="flex items-center gap-1.5 text-xs bg-yellow-500/10 text-yellow-400 px-2 py-1 rounded-lg border border-yellow-500/20"
-                    title="Fonctionne uniquement de 8h à 18h UTC"
+                    class="col-span-2 flex items-center gap-2 text-[10px] bg-amber-500/10 text-amber-400 px-2 py-1.5 rounded border border-amber-500/20 font-medium"
                   >
                     <span>☀️</span>
-                    <span>Solaire (8h-18h)</span>
+                    <span class="uppercase">Solaire (8h-18h)</span>
                   </div>
                 {/if}
-                {#if (item.need_energy && item.need_energy > 0 && item.energy_type !== "Soleil") || (item.metadata?.need_energy && item.metadata.need_energy > 0 && item.metadata.energy_type !== "Soleil")}
+
+                {#if item.need_energy && item.need_energy > 0 && item.energy_type !== "Soleil"}
                   <div
-                    class="flex items-center gap-1.5 text-xs bg-red-500/10 text-red-400 px-2 py-1 rounded-lg border border-red-500/20"
+                    class="flex items-center gap-2 text-[10px] bg-red-500/5 text-red-400 px-2 py-1.5 rounded border border-red-500/10 font-mono"
                   >
-                    <span>⚡</span>
-                    <span
-                      >Conso: {item.metadata?.need_energy || item.need_energy}
-                      kW</span
-                    >
+                    <span>⚡</span> -{item.metadata?.need_energy ||
+                      item.need_energy} kW
                   </div>
                 {/if}
-                {#if (item.produce_energy && item.produce_energy > 0) || (item.metadata?.produce_energy && item.metadata.produce_energy > 0)}
+
+                {#if item.produce_energy && item.produce_energy > 0}
                   <div
-                    class="flex items-center gap-1.5 text-xs bg-emerald-500/10 text-emerald-400 px-2 py-1 rounded-lg border border-emerald-500/20"
+                    class="flex items-center gap-2 text-[10px] bg-emerald-500/5 text-emerald-400 px-2 py-1.5 rounded border border-emerald-500/10 font-mono"
                   >
-                    <span>🔋</span>
-                    <span
-                      >Prod: +{item.metadata?.produce_energy ||
-                        item.produce_energy} kW</span
-                    >
+                    <span>🔋</span> +{item.metadata?.produce_energy ||
+                      item.produce_energy} kW
                   </div>
                 {/if}
+
                 {#if item.can_store_energy && item.can_store_energy > 0}
                   <div
-                    class="flex items-center gap-1.5 text-xs bg-cyan-500/10 text-cyan-400 px-2 py-1 rounded-lg border border-cyan-500/20"
+                    class="flex items-center gap-2 text-[10px] bg-cyan-500/5 text-cyan-400 px-2 py-1.5 rounded border border-cyan-500/10 font-mono"
                   >
                     <span>🔌</span>
-                    <span>Stock: {item.can_store_energy} kWh</span>
+                    {item.can_store_energy} kWh
                   </div>
                 {/if}
+
                 {#if item.metadata?.storage_capacity && item.metadata.storage_capacity > 0}
                   <div
-                    class="flex items-center gap-1.5 text-xs bg-blue-500/10 text-blue-400 px-2 py-1 rounded-lg border border-blue-500/20"
+                    class="flex items-center gap-2 text-[10px] bg-blue-500/5 text-blue-400 px-2 py-1.5 rounded border border-blue-500/10 font-mono col-span-2"
                   >
-                    <span>📦</span>
-                    <span
-                      >Stock: {item.metadata.storage_capacity}
-                      {item.metadata.supported_storage_types?.[0] || "u"}</span
-                    >
-                  </div>
-                {/if}
-                {#if (item.max_employee && item.max_employee > 1) || (item.metadata?.max_employee && item.metadata.max_employee > 1)}
-                  <div
-                    class="flex items-center gap-1.5 text-xs bg-indigo-500/10 text-indigo-400 px-2 py-1 rounded-lg border border-indigo-500/20"
-                  >
-                    <span>👥</span>
-                    <span
-                      >Max: {item.metadata?.max_employee || item.max_employee}
-                      emp.</span
-                    >
+                    <span>📦</span> Capacité: {item.metadata.storage_capacity}
+                    {item.metadata.supported_storage_types?.[0] || "u"}
                   </div>
                 {/if}
               </div>
             {/if}
-          </div>
 
-          <div
-            class="space-y-3 pt-4 border-t border-slate-800/50 relative z-10 mt-auto"
-          >
-            <!-- Price info row -->
-            <div class="flex items-center justify-between px-1">
-              <span class="text-xs font-medium text-slate-500"
-                >Prix unitaire</span
-              >
-              <span class="font-mono font-bold text-white text-lg"
-                >{formatCurrency(item.base_price)}</span
-              >
-            </div>
-
-            <!-- Qty Selector - Full Width like Inventory -->
-            <div
-              class="flex items-center gap-1 bg-slate-950 rounded-xl p-1 border border-slate-800 w-full"
-            >
-              <button
-                onclick={() => setQuantity(item.id, getQuantity(item.id) - 1)}
-                disabled={getQuantity(item.id) <= 1}
-                class="w-10 h-10 rounded-lg bg-slate-900 hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white transition-all disabled:opacity-30 disabled:hover:bg-slate-900 border border-slate-800 font-bold text-lg"
-                >−</button
-              >
-              <input
-                type="number"
-                class="flex-1 min-w-0 h-10 bg-slate-900 border border-slate-700 rounded-lg text-center font-mono font-bold text-base text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                value={getQuantity(item.id)}
-                oninput={(e) =>
-                  setQuantity(item.id, parseInt(e.currentTarget.value) || 1)}
-                min="1"
-              />
-              <button
-                onclick={() => setQuantity(item.id, getQuantity(item.id) + 1)}
-                class="w-10 h-10 rounded-lg bg-slate-900 hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white transition-all disabled:opacity-30 disabled:hover:bg-slate-900 border border-slate-800 font-bold text-lg"
-                >+</button
-              >
-            </div>
-
-            <!-- Total Price Box -->
-            <div
-              class="flex items-center justify-between px-3 py-2.5 bg-indigo-500/10 border border-indigo-500/20 rounded-xl"
-            >
-              <span class="text-xs text-indigo-400 font-semibold">
-                Total ({getQuantity(item.id)} unité{getQuantity(item.id) > 1
-                  ? "s"
-                  : ""})
-              </span>
-              <span class="text-base font-mono font-bold text-indigo-300">
-                {formatCurrency(item.base_price * getQuantity(item.id))}
-              </span>
-            </div>
-
-            <!-- Buy Button -->
-            <button
-              onclick={() => handleBuy(item)}
-              disabled={buyingId === item.id ||
-                (dashboardData?.financials.cash || 0) <
-                  item.base_price * getQuantity(item.id)}
-              class="w-full h-11 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-indigo-900/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 border border-indigo-500/50"
-            >
-              {#if buyingId === item.id}
-                <div
-                  class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"
-                ></div>
-              {:else}
-                <span>Acheter</span>
-                <svg
-                  class="w-4 h-4"
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  ><line x1="5" y1="12" x2="19" y2="12"></line><polyline
-                    points="12 5 19 12 12 19"
-                  ></polyline></svg
+            <!-- Footer: Price & Buy -->
+            <div class="pt-4 border-t border-slate-800/50 mt-auto space-y-3">
+              <div class="flex justify-between items-center">
+                <span class="text-[10px] font-bold text-slate-500 uppercase"
+                  >Prix Unitaire</span
                 >
-              {/if}
-            </button>
+                <span class="font-mono font-bold text-white text-lg"
+                  >{formatCurrency(item.base_price)}</span
+                >
+              </div>
+
+              <!-- Quantity Selector -->
+              <div
+                class="flex items-center bg-[#0f172a] rounded-lg border border-[#334155] p-1"
+              >
+                <button
+                  onclick={() => setQuantity(item.id, getQuantity(item.id) - 1)}
+                  disabled={getQuantity(item.id) <= 1}
+                  class="w-8 h-8 flex items-center justify-center rounded bg-[#1e293b] hover:bg-[#334155] text-slate-400 hover:text-white transition-colors disabled:opacity-30 border border-[#334155]"
+                  >−</button
+                >
+                <input
+                  type="number"
+                  value={getQuantity(item.id)}
+                  class="flex-1 bg-transparent text-center font-mono font-bold text-white text-sm focus:outline-none"
+                  oninput={(e) =>
+                    setQuantity(item.id, parseInt(e.currentTarget.value) || 1)}
+                />
+                <button
+                  onclick={() => setQuantity(item.id, getQuantity(item.id) + 1)}
+                  class="w-8 h-8 flex items-center justify-center rounded bg-[#1e293b] hover:bg-[#334155] text-slate-400 hover:text-white transition-colors border border-[#334155]"
+                  >+</button
+                >
+              </div>
+
+              <div class="flex justify-between items-center px-1">
+                <span class="text-xs text-indigo-400 font-medium">Total</span>
+                <span class="text-sm font-mono font-bold text-indigo-300"
+                  >{formatCurrency(
+                    item.base_price * getQuantity(item.id)
+                  )}</span
+                >
+              </div>
+
+              <button
+                onclick={() => handleBuy(item)}
+                disabled={buyingId === item.id ||
+                  (dashboardData?.financials.cash || 0) <
+                    item.base_price * getQuantity(item.id)}
+                class="w-full py-3 rounded-lg font-bold text-xs uppercase tracking-widest relative overflow-hidden transition-all duration-200 border
+                  {buyingId === item.id
+                  ? 'bg-slate-700 border-slate-600 cursor-wait'
+                  : (dashboardData?.financials.cash || 0) >=
+                      item.base_price * getQuantity(item.id)
+                    ? 'bg-gradient-to-br from-indigo-600 to-indigo-700 text-white border-indigo-500/50 shadow-[0_4px_0_#312e81] hover:shadow-[0_2px_0_#312e81] hover:translate-y-[2px] active:translate-y-[4px] active:shadow-none'
+                    : 'bg-[#1e293b] text-slate-600 border-[#334155] cursor-not-allowed opacity-50'}"
+              >
+                {#if buyingId === item.id}
+                  <span
+                    class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block"
+                  ></span>
+                {:else}
+                  ACHETER
+                {/if}
+              </button>
+            </div>
           </div>
         </div>
       {/each}

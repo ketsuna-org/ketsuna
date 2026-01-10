@@ -145,30 +145,32 @@
   }
 </script>
 
-<div class="space-y-6">
+<div class="h-full overflow-y-auto pr-2 custom-scrollbar">
   {#if $isGameDataLoading || loadingInventory}
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div
+      class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+    >
       {#each Array(6) as _}
         <div
-          class="h-64 bg-slate-900/50 rounded-2xl animate-pulse border border-slate-800"
+          class="h-72 bg-slate-900/50 rounded-lg animate-pulse border border-slate-800"
         ></div>
       {/each}
     </div>
   {:else if manualRecipes.length === 0}
     <div
-      class="text-center py-20 bg-slate-900/30 rounded-3xl border border-slate-800/50"
+      class="flex flex-col items-center justify-center h-64 border-2 border-dashed border-slate-800 rounded-2xl bg-slate-900/20"
     >
-      <span class="text-4xl block mb-4">🤷‍♂️</span>
-      <h3 class="text-xl font-bold text-white mb-2">
-        Aucune recette disponible
+      <span class="text-4xl mb-4 opacity-50">🔨</span>
+      <h3 class="text-xl font-bold text-slate-400 mb-2 uppercase tracking-wide">
+        Aucune recette
       </h3>
-      <p class="text-slate-500">
-        Aucune recette manuelle n'est disponible pour le moment.
+      <p class="text-slate-600 font-medium">
+        L'atelier est vide pour le moment.
       </p>
     </div>
   {:else}
     <div
-      class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+      class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5"
     >
       {#each manualRecipes as recipe (recipe.id)}
         {@const outputItem = getItem(recipe.output_item)}
@@ -177,110 +179,136 @@
         {@const inputs = getInputs(recipe)}
 
         <div
-          class="relative bg-slate-900/40 border border-slate-800 hover:border-indigo-500/30 rounded-3xl p-6 transition-all duration-300 hover:shadow-xl hover:shadow-indigo-500/10 group"
+          class="group relative bg-[#1e293b] border border-[#334155] rounded-xl overflow-hidden transition-all duration-300 hover:border-[#6366f1] hover:shadow-[0_0_20px_rgba(99,102,241,0.15)] flex flex-col"
         >
-          <!-- Header -->
-          <div class="flex items-start justify-between mb-4">
-            <div class="flex items-center gap-3">
-              <div
-                class="w-12 h-12 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-center shadow-lg group-hover:border-indigo-500/40 transition-colors"
-              >
-                <GameIcon
-                  icon={outputItem?.icon || "📦"}
-                  size={24}
-                  alt={outputItem?.name}
-                />
-              </div>
-              <div>
-                <h3 class="font-bold text-white leading-tight">
-                  {recipe.name}
-                </h3>
-                <span
-                  class="text-xs text-emerald-400 font-bold flex items-center gap-1"
+          <!-- Metallic Header Bar -->
+          <div
+            class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-cyan-500 opacity-50 group-hover:opacity-100 transition-opacity"
+          ></div>
+
+          <div class="p-5 flex-1 flex flex-col gap-4">
+            <!-- Header -->
+            <div class="flex items-start justify-between">
+              <div class="flex items-center gap-3">
+                <div
+                  class="w-12 h-12 rounded-lg bg-[#0f172a] border border-[#334155] flex items-center justify-center shadow-inner relative overflow-hidden group-hover:border-[#6366f1]/50 transition-colors"
                 >
-                  ⚡ Instantané (vs {recipe.production_time}s auto)
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Ingredients -->
-          <div class="space-y-2 mb-6 min-h-[80px]">
-            <p
-              class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2"
-            >
-              Ingrédients requis
-            </p>
-            {#if inputs.length > 0}
-              {#each inputs as ing}
-                <!-- Support dynamic property access for different JSON structures -->
-                {@const ingId = (ing as any).item_id || ing.item}
-                {@const ingItem = getItem(ingId)}
-                {@const status = getIngredientStatus(ingId, ing.quantity, qty)}
-
-                <div class="flex justify-between items-center text-xs">
-                  <div class="flex items-center gap-2 text-slate-300">
-                    <GameIcon icon={ingItem?.icon} size={16} />
-                    <span>{ingItem?.name}</span>
-                  </div>
                   <div
-                    class="{status.hasEnough
-                      ? 'text-emerald-400'
-                      : 'text-red-400'} font-mono font-bold"
+                    class="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none"
+                  ></div>
+                  <GameIcon
+                    icon={outputItem?.icon || "📦"}
+                    size={26}
+                    alt={outputItem?.name}
+                  />
+                </div>
+                <div>
+                  <h3
+                    class="font-bold text-slate-100 text-sm uppercase tracking-wide leading-tight"
                   >
-                    {status.available} / {status.required}
+                    {recipe.name}
+                  </h3>
+                  <div
+                    class="flex items-center gap-1.5 mt-1 text-[10px] font-bold text-emerald-400 bg-emerald-950/30 px-2 py-0.5 rounded border border-emerald-900/50 w-fit"
+                  >
+                    <span>⚡ INSTANTANÉ</span>
                   </div>
                 </div>
-              {/each}
-            {:else}
-              <p class="text-xs text-slate-600 italic">
-                Aucun ingrédient requis
-              </p>
-            {/if}
-          </div>
-
-          <!-- Actions -->
-          <div class="mt-auto space-y-3">
-            <!-- Quantity Control -->
-            <div
-              class="flex items-center bg-slate-950/50 rounded-lg p-1 border border-slate-800"
-            >
-              <button
-                onclick={() => adjustQuantity(recipe.id, -1)}
-                class="w-8 h-8 flex items-center justify-center rounded bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
-                >-</button
-              >
-              <input
-                type="number"
-                value={qty}
-                readonly
-                class="flex-1 bg-transparent text-center font-mono font-bold text-white focus:outline-none"
-              />
-              <button
-                onclick={() => adjustQuantity(recipe.id, 1)}
-                class="w-8 h-8 flex items-center justify-center rounded bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
-                >+</button
-              >
+              </div>
             </div>
 
-            <!-- Produce Button -->
-            <button
-              onclick={() => handleProduce(recipe)}
-              disabled={!craftable || producing[recipe.id]}
-              class="w-full py-3 rounded-xl font-bold text-sm tracking-wide uppercase transition-all duration-300 flex items-center justify-center gap-2
-                {craftable
-                ? 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/20 hover:scale-[1.02]'
-                : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'}"
+            <!-- Ingredients -->
+            <div
+              class="bg-[#0f172a]/50 rounded-lg p-3 border border-[#334155]/50 flex-1"
             >
-              {#if producing[recipe.id]}
-                <div
-                  class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"
-                ></div>
-                Production...
+              <p
+                class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3 border-b border-slate-800 pb-1"
+              >
+                Requis
+              </p>
+              {#if inputs.length > 0}
+                <div class="space-y-2">
+                  {#each inputs as ing}
+                    {@const ingId = (ing as any).item_id || ing.item}
+                    {@const ingItem = getItem(ingId)}
+                    {@const status = getIngredientStatus(
+                      ingId,
+                      ing.quantity,
+                      qty
+                    )}
+
+                    <div class="flex justify-between items-center text-xs">
+                      <div class="flex items-center gap-2 text-slate-300">
+                        <div
+                          class="w-5 h-5 rounded bg-[#1e293b] flex items-center justify-center border border-slate-700"
+                        >
+                          <GameIcon icon={ingItem?.icon} size={12} />
+                        </div>
+                        <span class="font-medium text-slate-400"
+                          >{ingItem?.name}</span
+                        >
+                      </div>
+                      <div
+                        class="font-mono font-bold {status.hasEnough
+                          ? 'text-emerald-400'
+                          : 'text-red-400'} bg-slate-900 px-1.5 py-0.5 rounded border border-slate-800"
+                      >
+                        {status.available}/{status.required}
+                      </div>
+                    </div>
+                  {/each}
+                </div>
               {:else}
-                Fabriquer
+                <p class="text-xs text-slate-600 italic text-center py-2">
+                  Aucun coût
+                </p>
               {/if}
-            </button>
+            </div>
+
+            <!-- Controls -->
+            <div class="space-y-3 mt-auto">
+              <!-- Quantity Stepper -->
+              <div
+                class="flex items-center bg-[#0f172a] rounded-lg border border-[#334155] p-1"
+              >
+                <button
+                  onclick={() => adjustQuantity(recipe.id, -1)}
+                  class="w-8 h-8 flex items-center justify-center rounded bg-[#1e293b] hover:bg-[#334155] text-slate-400 hover:text-white transition-colors border border-[#334155]"
+                  >-</button
+                >
+                <div
+                  class="flex-1 text-center font-mono font-bold text-slate-200"
+                >
+                  <span class="text-slate-500 text-[10px] mr-1">x</span>{qty}
+                </div>
+                <button
+                  onclick={() => adjustQuantity(recipe.id, 1)}
+                  class="w-8 h-8 flex items-center justify-center rounded bg-[#1e293b] hover:bg-[#334155] text-slate-400 hover:text-white transition-colors border border-[#334155]"
+                  >+</button
+                >
+              </div>
+
+              <!-- Action Button -->
+              <button
+                onclick={() => handleProduce(recipe)}
+                disabled={!craftable || producing[recipe.id]}
+                class="w-full py-3 rounded-lg font-bold text-xs uppercase tracking-widest relative overflow-hidden transition-all duration-200 border
+                  {craftable
+                  ? 'bg-gradient-to-br from-indigo-600 to-indigo-700 text-white border-indigo-500/50 shadow-[0_4px_0_#312e81] hover:shadow-[0_2px_0_#312e81] hover:translate-y-[2px] active:translate-y-[4px] active:shadow-none'
+                  : 'bg-[#1e293b] text-slate-600 border-[#334155] cursor-not-allowed opacity-75'}"
+              >
+                {#if producing[recipe.id]}
+                  <span class="flex items-center justify-center gap-2">
+                    <span
+                      class="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"
+                    ></span>
+                    Fabrication...
+                  </span>
+                {:else}
+                  Fabriquer
+                {/if}
+              </button>
+            </div>
           </div>
         </div>
       {/each}
