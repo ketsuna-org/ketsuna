@@ -12,6 +12,7 @@
   } from "$lib/data/game-static";
   import type { Recipe } from "$lib/types/game";
   import GameIcon from "$lib/components/GameIcon.svelte";
+  import { logAnalyticsEvent } from "$lib/firebase";
 
   // State
   let inventory = $state<Record<string, number>>({});
@@ -128,6 +129,13 @@
       notifications.success(
         `Production terminée: ${res.produced}x ${res.itemName}`
       );
+
+      logAnalyticsEvent("workshop_produce", {
+        recipe_id: recipe.id,
+        recipe_name: recipe.name,
+        quantity: qty,
+        produced_amount: res.produced,
+      });
 
       // Refresh inventory
       await loadInventory();

@@ -82,29 +82,6 @@
       <stop offset="50%" stop-color="#3a3b3f" />
       <stop offset="100%" stop-color="#2a2b2f" />
     </linearGradient>
-
-    <!-- Resource glow -->
-    <filter id="{uniqueId}-glow" x="-200%" y="-200%" width="500%" height="500%">
-      <feGaussianBlur stdDeviation="5" result="coloredBlur" />
-      <feMerge>
-        <feMergeNode in="coloredBlur" />
-        <feMergeNode in="coloredBlur" />
-        <feMergeNode in="SourceGraphic" />
-      </feMerge>
-    </filter>
-
-    <!-- Strong shadow -->
-    <filter id="{uniqueId}-shadow">
-      <feGaussianBlur in="SourceAlpha" stdDeviation="3" />
-      <feOffset dx="4" dy="6" result="offsetblur" />
-      <feComponentTransfer>
-        <feFuncA type="linear" slope="0.6" />
-      </feComponentTransfer>
-      <feMerge>
-        <feMergeNode />
-        <feMergeNode in="SourceGraphic" />
-      </feMerge>
-    </filter>
   </defs>
 
   <!-- BOTTOM FACE (Right side - darkest) -->
@@ -115,7 +92,6 @@
     stroke-width="12"
     stroke-linecap="round"
     transform="translate(6, 6)"
-    filter="url(#{uniqueId}-shadow)"
     class="pipe-bottom"
   />
 
@@ -188,12 +164,12 @@
     class="flow-ambient"
   />
 
-  <!-- Animated resource items -->
-  {#each Array(8)
+  <!-- Animated resource items (Reduced count for performance) -->
+  {#each Array(3)
     .fill(0)
-    .map((_, i) => i / 8) as offset}
-    <g filter="url(#{uniqueId}-glow)">
-      <!-- Main resource chunk (isometric cube-like) -->
+    .map((_, i) => i / 3) as offset}
+    <g>
+      <!-- Main resource chunk (simplified) -->
       <g>
         <animateMotion
           dur="{animDuration}s"
@@ -202,81 +178,14 @@
           path={pathData[0]}
         />
 
-        <!-- Top face of resource -->
-        <polygon
-          points="0,-3 4,0 0,3 -4,0"
-          fill={resourceColor}
-          opacity="0.95"
-        />
-
-        <!-- Left face -->
-        <polygon
-          points="-4,0 -4,4 0,6 0,3"
-          fill={resourceColor}
-          opacity="0.7"
-          style="filter: brightness(0.7)"
-        />
-
-        <!-- Right face -->
-        <polygon
-          points="4,0 4,4 0,6 0,3"
-          fill={resourceColor}
-          opacity="0.7"
-          style="filter: brightness(0.5)"
-        />
-
-        <!-- Bright highlight -->
-        <circle cx="0" cy="-1" r="2" fill="white" opacity="0.7" />
+        <circle r="4" fill={resourceColor} opacity="0.9" />
+        <circle r="2" fill="white" opacity="0.6" />
       </g>
     </g>
   {/each}
 
-  <!-- Rivets along the pipe edges -->
-  {#each Array(Math.floor(pathLength / 35)).fill(0) as _, i}
-    <!-- Top edge rivets -->
-    <g opacity="0.95">
-      <circle r="2.5" fill="#9a9ca3" stroke="#2a2b2f" stroke-width="0.8">
-        <animateMotion
-          dur="0.01s"
-          fill="freeze"
-          path={pathData[0]}
-          keyPoints="{(i + 0.5) / Math.floor(pathLength / 35)};{(i + 0.5) /
-            Math.floor(pathLength / 35)}"
-          keyTimes="0;1"
-        />
-      </circle>
-      <circle r="1" fill="#d4d5d9" opacity="0.8">
-        <animateMotion
-          dur="0.01s"
-          fill="freeze"
-          path={pathData[0]}
-          keyPoints="{(i + 0.5) / Math.floor(pathLength / 35)};{(i + 0.5) /
-            Math.floor(pathLength / 35)}"
-          keyTimes="0;1"
-        />
-      </circle>
-    </g>
-
-    <!-- Bottom edge rivets (offset) -->
-    <g opacity="0.8" transform="translate(4, 5)">
-      <circle r="2.5" fill="#5a5c63" stroke="#1a1b1f" stroke-width="0.8">
-        <animateMotion
-          dur="0.01s"
-          fill="freeze"
-          path={pathData[0]}
-          keyPoints="{(i + 0.5) / Math.floor(pathLength / 35)};{(i + 0.5) /
-            Math.floor(pathLength / 35)}"
-          keyTimes="0;1"
-        />
-      </circle>
-    </g>
-  {/each}
-
   <!-- Connection flanges -->
-  <g
-    transform="translate({sourceX}, {sourceY})"
-    filter="url(#{uniqueId}-shadow)"
-  >
+  <g transform="translate({sourceX}, {sourceY})">
     <!-- Flange bottom -->
     <ellipse cx="3" cy="3" rx="16" ry="12" fill="url(#{uniqueId}-right)" />
     <ellipse cx="0" cy="0" rx="16" ry="12" fill="url(#{uniqueId}-left)" />
@@ -299,10 +208,7 @@
     {/each}
   </g>
 
-  <g
-    transform="translate({targetX}, {targetY})"
-    filter="url(#{uniqueId}-shadow)"
-  >
+  <g transform="translate({targetX}, {targetY})">
     <!-- Flange bottom -->
     <ellipse cx="3" cy="3" rx="16" ry="12" fill="url(#{uniqueId}-right)" />
     <ellipse cx="0" cy="0" rx="16" ry="12" fill="url(#{uniqueId}-left)" />

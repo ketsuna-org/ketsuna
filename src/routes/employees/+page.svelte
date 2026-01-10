@@ -9,6 +9,7 @@
     getHireCostPreview,
     type HireCostPreview,
   } from "$lib/services/employee";
+  import { logAnalyticsEvent } from "$lib/firebase";
   import EmployeeCard from "$lib/components/EmployeeCard.svelte";
   import DeleteConfirmation from "$lib/components/DeleteConfirmation.svelte";
   import FilterBar from "$lib/components/FilterBar.svelte";
@@ -104,7 +105,7 @@
 
   // Derived state from URL
   let showDeleteModal = $derived(
-    $page.url.searchParams.get("state") === "delete",
+    $page.url.searchParams.get("state") === "delete"
   );
   let deleteId = $derived($page.url.searchParams.get("id"));
   let employeeToDelete = $derived(employees.find((e) => e.id === deleteId));
@@ -122,7 +123,7 @@
       activeCompany.set(updated);
 
       notifications.success(
-        `${result.hiredCount} employé(s) recruté(s) pour ${result.totalCost}€`,
+        `${result.hiredCount} employé(s) recruté(s) pour ${result.totalCost}€`
       );
     } catch (e: any) {
       notifications.error(e.message);
@@ -144,6 +145,13 @@
 
     try {
       await pb.collection("employees").delete(employeeToDelete.id);
+
+      logAnalyticsEvent("employee_fire", {
+        employee_id: employeeToDelete.id,
+        poste: employeeToDelete.poste,
+        salary: employeeToDelete.salary,
+      });
+
       employees = employees.filter((e) => e.id !== employeeToDelete?.id);
       totalItems = Math.max(0, totalItems - 1);
 

@@ -16,29 +16,35 @@ const firebaseConfig = {
 
 let app: import('firebase/app').FirebaseApp | undefined;
 let analytics: import('firebase/analytics').Analytics | undefined;
+let initPromise: Promise<{ app: import('firebase/app').FirebaseApp | undefined; analytics: import('firebase/analytics').Analytics | undefined }> | null = null;
 
 // Initialise Firebase et Analytics côté navigateur uniquement
 export async function initFirebase() {
     if (!browser) return { app: undefined, analytics: undefined };
+    if (initPromise) return initPromise;
 
-    const { getApps, getApp, initializeApp }: FirebaseExports = await import('firebase/app');
-    if (!getApps().length) {
-        app = initializeApp(firebaseConfig);
-    } else {
-        app = getApp();
-    }
-
-    try {
-        const { getAnalytics, isSupported } = await import('firebase/analytics');
-        if (await isSupported()) {
-            analytics = getAnalytics(app!);
+    initPromise = (async () => {
+        const { getApps, getApp, initializeApp }: FirebaseExports = await import('firebase/app');
+        if (!getApps().length) {
+            app = initializeApp(firebaseConfig);
+        } else {
+            app = getApp();
         }
-    } catch (err) {
-        // Ignore l'erreur si l'environnement ne supporte pas Analytics
-        analytics = undefined;
-    }
 
-    return { app, analytics };
+        try {
+            const { getAnalytics, isSupported } = await import('firebase/analytics');
+            if (await isSupported()) {
+                analytics = getAnalytics(app!);
+            }
+        } catch (err) {
+            // Ignore l'erreur si l'environnement ne supporte pas Analytics
+            analytics = undefined;
+        }
+
+        return { app, analytics };
+    })();
+
+    return initPromise;
 }
 
 export function getFirebaseInstances() {
@@ -48,7 +54,8 @@ export function getFirebaseInstances() {
 /**
  * Sets the user ID for Google Analytics
  */
-export function setAnalyticsUserId(userId: string | null) {
+export async function setAnalyticsUserId(userId: string | null) {
+    await initFirebase();
     if (!analytics) return;
     
     // Only import setUserId if analytics is initialized to avoid errors
@@ -60,7 +67,8 @@ export function setAnalyticsUserId(userId: string | null) {
 /**
  * Logs a custom event to Google Analytics
  */
-export function logAnalyticsEvent(eventName: string, eventParams?: { [key: string]: any }) {
+export async function logAnalyticsEvent(eventName: string, eventParams?: { [key: string]: any }) {
+    await initFirebase();
     if (!analytics) return;
 
     import('firebase/analytics').then(({ logEvent }) => {

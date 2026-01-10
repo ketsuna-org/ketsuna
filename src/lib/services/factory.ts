@@ -329,6 +329,7 @@ export async function createEdge(
 export async function deleteEdge(edgeId: string): Promise<boolean> {
   try {
     await pb.collection('edge_relation').delete(edgeId);
+    logAnalyticsEvent("factory_edge_delete", { edgeId });
     return true;
   } catch (error) {
     console.error('Failed to delete edge:', error);

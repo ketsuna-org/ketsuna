@@ -6,6 +6,7 @@
 import { writable, get } from 'svelte/store';
 import pb from '$lib/pocketbase';
 import { activeCompany } from '$lib/stores';
+import { logAnalyticsEvent } from '$lib/firebase';
 
 interface StorageInventoryItem {
   item_id: string;
@@ -80,6 +81,14 @@ function createGraphRefreshStore() {
         storageCount: Object.keys(storageInventory).length,
         items: producedItems,
         storage: storageInventory,
+      });
+
+      // Log to Analytics
+      logAnalyticsEvent('graph_refresh', {
+        company_id: companyId,
+        produced_items_count: Object.keys(producedItems).length,
+        storage_items_count: Object.keys(storageInventory).length,
+        refresh_type: force ? 'manual' : 'auto'
       });
     } catch (err: any) {
       console.error('[GRAPH_REFRESH] Refresh failed:', err);

@@ -40,6 +40,7 @@
     type Edge,
     type Node,
   } from "@xyflow/svelte";
+  import { logAnalyticsEvent } from "$lib/firebase";
 
   let { company } = $props<{ company: any }>();
 
@@ -77,6 +78,10 @@
     icon?: string;
   }
   let placingSelection = $state<PlacementSelection | null>(null);
+
+  // Mobile Connection Mode State
+  let isConnectionMode = $state(false);
+  let connectionSourceId = $state<string | null>(null);
 
   // Derived Selection State
   let selectedNode = $derived(nodes.find((n) => n.selected === true));
@@ -436,6 +441,14 @@
         if (nodeIndex !== -1) {
           nodes[nodeIndex].position = { x: roundedX, y: roundedY };
         }
+
+        // Log movement
+        logAnalyticsEvent("factory_node_moved", {
+          node_id: node.id,
+          node_type: node.type,
+          new_x: roundedX,
+          new_y: roundedY,
+        });
       }
     } catch (error) {
       console.error("Failed to update node position:", error);
@@ -471,6 +484,16 @@
     );
 
     if (success) {
+      logAnalyticsEvent("factory_connection_created", {
+        source_id: sourceNode.id,
+        source_type: sourceNode.type,
+        target_id: targetNode.id,
+        target_type: targetNode.type,
+        resource_id:
+          (sourceNode.data.itemId as string) ||
+          (sourceNode.data.resourceId as string) ||
+          "",
+      });
       await loadData();
     }
   }
@@ -545,6 +568,112 @@
       showInventory = false;
       showWorkshop = false;
       showMobileSidebar = false;
+
+      if (isConnectionMode) {
+        cancelConnectionMode();
+      }
+    }
+  }
+
+  function toggleConnectionMode() {
+    isConnectionMode = !isConnectionMode;
+    connectionSourceId = null;
+    showMobileSidebar = false;
+
+    // Deselect everything when determining mode
+    if (isConnectionMode) {
+      nodes = nodes.map((n) => ({ ...n, selected: false }));
+      edges = edges.map((e) => ({ ...e, selected: false }));
+    }
+  }
+
+  function cancelConnectionMode() {
+    isConnectionMode = false;
+    connectionSourceId = null;
+  }
+
+  async function handleNodeClick({
+    event,
+    node,
+  }: {
+    event: MouseEvent | TouchEvent;
+    node: Node;
+  }) {
+    if (!isConnectionMode) return;
+
+    if (!connectionSourceId) {
+      // Step 1: Select Source
+      console.log("Mobile Connection: Selecting source", node);
+      if (node.type === "company") {
+        notifications.error(
+          "Le Quartier Général ne peut pas être une source !"
+        );
+        return;
+      }
+      connectionSourceId = node.id;
+      // Visual feedback: Select the node
+      nodes = nodes.map((n) => ({ ...n, selected: n.id === node.id }));
+      notifications.info(`Source: ${node.data.label || node.type}`);
+    } else {
+      // Step 2: Select Target
+      console.log("Mobile Connection: Selecting target", node);
+
+      if (node.id === connectionSourceId) {
+        // Clicked same node -> Deselect
+        connectionSourceId = null;
+        nodes = nodes.map((n) => ({ ...n, selected: false }));
+        notifications.info("Sélection annulée");
+        return;
+      }
+
+      const sourceNode = nodes.find((n) => n.id === connectionSourceId);
+      const targetNode = node;
+
+      if (sourceNode && targetNode) {
+        const resourceId =
+          (sourceNode.data.itemId as string) ||
+          (sourceNode.data.resourceId as string) ||
+          "";
+        console.log("Mobile Connection: Attempting createEdge", {
+          source: sourceNode.id,
+          target: targetNode.id,
+          resourceId,
+        });
+
+        try {
+          const success = await createEdge(
+            sourceNode.id,
+            sourceNode.type as "machine" | "deposit",
+            targetNode.id,
+            targetNode.type as "machine" | "company" | "deposit",
+            resourceId
+          );
+
+          if (success) {
+            logAnalyticsEvent("factory_connection_created_mobile", {
+              source_id: sourceNode.id,
+              source_type: sourceNode.type,
+              target_id: targetNode.id,
+              target_type: targetNode.type,
+              resource_id: resourceId,
+            });
+
+            await loadData();
+
+            notifications.success("Connexion établie !");
+            connectionSourceId = null;
+            nodes = nodes.map((n) => ({ ...n, selected: false }));
+          } else {
+            console.warn("Mobile Connection: createEdge returned false");
+            notifications.error(
+              "Échec de la connexion. Vérifiez la distance ou la compatibilité."
+            );
+          }
+        } catch (err: any) {
+          console.error("Mobile Connection: Error in createEdge", err);
+          notifications.error("Erreur technique: " + (err.message || err));
+        }
+      }
     }
   }
 </script>
@@ -735,6 +864,23 @@
           <span class="btn-icon">📦</span>
           <span class="btn-label">Inventaire & Stock</span>
         </button>
+        <!-- Mobile Connection Mode Toggle -->
+        <button
+          class="action-btn full-width {isConnectionMode
+            ? 'bg-amber-600 border-amber-500'
+            : 'bg-[#1e293b] border-[#334155]'}"
+          onclick={toggleConnectionMode}
+          style={isConnectionMode
+            ? "background: linear-gradient(135deg, #d97706 0%, #b45309 100%); box-shadow: 0 4px 0 #78350f;"
+            : ""}
+        >
+          <span class="btn-icon">🔗</span>
+          <span class="btn-label"
+            >{isConnectionMode
+              ? "Mode Liaison Activé"
+              : "Mode Liaison (Mobile)"}</span
+          >
+        </button>
       </div>
     </div>
 
@@ -778,6 +924,7 @@
       ondelete={onDelete}
       onnodedrag={onNodeDrag}
       onnodedragstop={onNodeDragStop}
+      onnodeclick={handleNodeClick}
     >
       <Background bgColor="#334155" gap={20} />
       <Controls />
@@ -802,6 +949,46 @@
       </div>
     </div>
   </div>
+
+  <!-- Connection Mode Overlay (Mobile) -->
+  {#if isConnectionMode}
+    <div
+      class="fixed top-24 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 w-full max-w-sm px-4 pointer-events-none"
+    >
+      <div
+        class="bg-slate-900/95 backdrop-blur border border-amber-500/50 text-white px-6 py-4 rounded-2xl shadow-2xl flex flex-col items-center gap-2 animate-bounce-in pointer-events-auto w-full"
+      >
+        <div
+          class="flex items-center gap-2 font-bold text-amber-400 uppercase tracking-widest text-xs"
+        >
+          <span>🔗 Mode Liaison</span>
+        </div>
+
+        <p class="text-center font-bold text-lg">
+          {#if !connectionSourceId}
+            Sélectionnez la <span class="text-blue-400">Source</span>
+          {:else}
+            Sélectionnez la <span class="text-emerald-400">Destination</span>
+          {/if}
+        </p>
+
+        <p class="text-[10px] text-slate-400 text-center">
+          {#if !connectionSourceId}
+            Touchez une machine ou un gisement
+          {:else}
+            Touchez la machine ou l'entrepôt de destination
+          {/if}
+        </p>
+
+        <button
+          onclick={cancelConnectionMode}
+          class="mt-2 px-6 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors w-full"
+        >
+          Terminer
+        </button>
+      </div>
+    </div>
+  {/if}
 
   <!-- Tap-to-Place Overlay -->
   {#if placingSelection}
