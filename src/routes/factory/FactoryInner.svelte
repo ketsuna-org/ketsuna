@@ -977,16 +977,6 @@
           >{company?.balance?.toLocaleString() || 0} $</span
         >
       </div>
-      <div class="glass-pill energy-pill">
-        <span class="pill-icon">⚡</span>
-        <span
-          class="pill-value {totalEnergy < 0
-            ? 'text-red-400'
-            : 'text-amber-400'}"
-        >
-          {formatEnergy(totalEnergy)}
-        </span>
-      </div>
     </div>
   </div>
 

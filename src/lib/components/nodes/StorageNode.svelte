@@ -23,9 +23,6 @@
 
   let { id, data, selected }: NodeProps<StorageNode> = $props();
 
-  let storageRecord = $state<any>(null);
-  let loading = $state(false);
-  let capacity = $state(0);
   let usedCapacity = $state(0);
   let unsubscribe: () => void;
 
@@ -49,9 +46,6 @@
   // Load storage data when selected or mounted
   $effect(() => {
     if (data.itemId) {
-      const machineData = gamedataStore.getItem(data.itemId);
-      capacity = machineData?.metadata?.storage_capacity || 1000;
-
       loadStorageInventory();
 
       // Subscribe to changes
@@ -61,7 +55,6 @@
             if (e.action === "delete") {
               usedCapacity = 0;
             } else {
-              // Ensure we're reading quantity correctly even if record structure varies
               usedCapacity = Math.floor((e.record as any).quantity || 0);
             }
           }
@@ -86,23 +79,23 @@
 
       <!-- Storage Stats -->
       <div class="space-y-2">
-        <!-- Capacity -->
+        <!-- Current Stock -->
         <div
           class="bg-slate-800/50 border border-slate-600/30 rounded-lg p-2 space-y-1"
         >
           <div class="flex items-center justify-between">
-            <span class="text-xs font-medium text-slate-300">📊 Capacité:</span>
+            <span class="text-xs font-medium text-slate-300"
+              >📊 Stock actuel:</span
+            >
             <span class="text-xs font-bold text-cyan-400">
-              {usedCapacity} / {capacity}
+              {usedCapacity} unités
             </span>
           </div>
-          <div class="h-1.5 bg-slate-700 rounded-full overflow-hidden">
-            <div
-              class="h-full transition-all duration-300 bg-cyan-500"
-              style="width: {capacity > 0
-                ? (usedCapacity / capacity) * 100
-                : 0}%"
-            ></div>
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-medium text-slate-300">📦 Capacité:</span>
+            <span class="text-xs font-bold text-emerald-400">
+              ♾️ Illimitée
+            </span>
           </div>
         </div>
 
@@ -153,15 +146,7 @@
 
           <div class="capacity-display">
             <span class="cap-label">STOCKAGE</span>
-            <div class="cap-bar">
-              <div
-                class="cap-fill"
-                style="width: {capacity > 0
-                  ? (usedCapacity / capacity) * 100
-                  : 0}%"
-              ></div>
-            </div>
-            <span class="cap-value">{usedCapacity} / {capacity}</span>
+            <span class="cap-value">{usedCapacity} unités (♾️)</span>
           </div>
         </div>
       </div>
