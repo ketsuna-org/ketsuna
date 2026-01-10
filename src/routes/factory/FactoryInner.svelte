@@ -54,9 +54,34 @@
   };
 
   // Custom edge types
-  const edgeTypes = {
-    pipe: PipeEdge,
-  };
+  // Graphics Quality Setting (persisted)
+  let lowQualityEdges = $state(true); // Default to low quality for performance
+
+  // Load setting from localStorage on mount
+  import { onMount as onMountInternal } from "svelte";
+  import { browser } from "$app/environment";
+
+  $effect(() => {
+    if (browser) {
+      const stored = localStorage.getItem("factory_low_quality_edges");
+      if (stored !== null) {
+        lowQualityEdges = stored === "true";
+      }
+    }
+  });
+
+  function toggleEdgeQuality() {
+    lowQualityEdges = !lowQualityEdges;
+    if (browser) {
+      localStorage.setItem(
+        "factory_low_quality_edges",
+        String(lowQualityEdges)
+      );
+    }
+  }
+
+  // Edge types: use PipeEdge only when high quality is enabled
+  let edgeTypes = $derived(lowQualityEdges ? {} : { pipe: PipeEdge });
 
   // State
   let nodes = $state<Node[]>([]);
@@ -879,6 +904,21 @@
             >{isConnectionMode
               ? "Mode Liaison Activé"
               : "Mode Liaison (Mobile)"}</span
+          >
+        </button>
+        <!-- Graphics Quality Toggle -->
+        <button
+          class="action-btn full-width"
+          onclick={toggleEdgeQuality}
+          style={lowQualityEdges
+            ? "background: linear-gradient(135deg, #374151 0%, #1f2937 100%);"
+            : "background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%); box-shadow: 0 4px 0 #4c1d95;"}
+        >
+          <span class="btn-icon">{lowQualityEdges ? "⚡" : "✨"}</span>
+          <span class="btn-label"
+            >{lowQualityEdges
+              ? "Graphismes: Rapide"
+              : "Graphismes: Haute Qualité"}</span
           >
         </button>
       </div>
