@@ -1,5 +1,6 @@
 import pb from "$lib/pocketbase";
 import type { InventoryItem } from "$lib/pocketbase";
+import { logAnalyticsEvent } from '$lib/firebase';
 
 export interface ReserveOverview {
     used: number;
@@ -36,17 +37,21 @@ export async function getReserveOverview(): Promise<ReserveOverview> {
 }
 
 export async function depositToReserve(itemId: string, quantity: number): Promise<{ success: boolean; message: string; used: number; max: number }> {
-    return await pb.send('/api/reserve/deposit', {
+    const res = await pb.send('/api/reserve/deposit', {
         method: 'POST',
         body: JSON.stringify({ itemId, quantity })
     });
+    logAnalyticsEvent("reserve_deposit", { itemId, quantity });
+    return res;
 }
 
 export async function withdrawFromReserve(itemId: string, quantity: number): Promise<{ success: boolean; message: string }> {
-    return await pb.send('/api/reserve/withdraw', {
+    const res = await pb.send('/api/reserve/withdraw', {
         method: 'POST',
         body: JSON.stringify({ itemId, quantity })
     });
+    logAnalyticsEvent("reserve_withdraw", { itemId, quantity });
+    return res;
 }
 
 export async function fetchReserveItems(companyId: string): Promise<ReserveItem[]> {

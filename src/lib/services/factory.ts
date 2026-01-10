@@ -5,6 +5,7 @@
 
 import pb from '$lib/pocketbase';
 import { getItem } from '$lib/data/game-static';
+import { logAnalyticsEvent } from '$lib/firebase';
 
 // Types
 export interface FactoryNode {
@@ -268,6 +269,7 @@ export async function placeNode(
       location: { lng: x, lat: y },
       placed: true,
     });
+    logAnalyticsEvent("factory_place_node", { type, id, x, y });
     return true;
   } catch (error) {
     console.error('Failed to place node:', error);
@@ -345,6 +347,7 @@ export async function unplaceNode(
       placed: false,
       location: null,
     });
+    logAnalyticsEvent("factory_unplace_node", { type, id });
     return true;
   } catch (error) {
     console.error('Failed to unplace node:', error);

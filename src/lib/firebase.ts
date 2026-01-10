@@ -44,3 +44,26 @@ export async function initFirebase() {
 export function getFirebaseInstances() {
     return { app, analytics };
 }
+
+/**
+ * Sets the user ID for Google Analytics
+ */
+export function setAnalyticsUserId(userId: string | null) {
+    if (!analytics) return;
+    
+    // Only import setUserId if analytics is initialized to avoid errors
+    import('firebase/analytics').then(({ setUserId }) => {
+        setUserId(analytics!, userId);
+    }).catch(err => console.error("Error setting User ID:", err));
+}
+
+/**
+ * Logs a custom event to Google Analytics
+ */
+export function logAnalyticsEvent(eventName: string, eventParams?: { [key: string]: any }) {
+    if (!analytics) return;
+
+    import('firebase/analytics').then(({ logEvent }) => {
+        logEvent(analytics!, eventName, eventParams);
+    }).catch(err => console.error("Error logging event:", err));
+}

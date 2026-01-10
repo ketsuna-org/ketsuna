@@ -1,5 +1,6 @@
 import pb from '$lib/pocketbase';
 import type { Company, Employee } from '$lib/pocketbase';
+import { logAnalyticsEvent } from '$lib/firebase';
 
 export interface BulkHireResult {
     success: boolean;
@@ -40,9 +41,11 @@ export async function hireRandomEmployee(company: Company, quantity: number = 1)
         // Handle both old format (record) and new format (records)
         if (response.records && Array.isArray(response.records)) {
             // New bulk format
+            logAnalyticsEvent("employee_hire", { quantity, cost: response.totalCost, count: response.hiredCount });
             return response as BulkHireResult;
         } else if (response.record) {
             // Old single record format - convert to bulk format
+            logAnalyticsEvent("employee_hire", { quantity: 1, cost: response.cost, count: 1 });
             return {
                 success: response.success,
                 message: response.message || "Employé recruté avec succès",

@@ -2,6 +2,8 @@ import pb from "$lib/pocketbase";
 import type { CompanyTech } from "$lib/pocketbase";
 import { getAllTechnologies, type Technology } from "$lib/data/game-static";
 
+import { logAnalyticsEvent } from "$lib/firebase";
+
 /**
  * Débloque une technologie pour une entreprise
  */
@@ -16,6 +18,11 @@ export async function unlockTechnology(companyId: string, technology: Technology
         });
 
         console.log(`[TECH] Technologie débloquée: ${technology.name}`);
+        logAnalyticsEvent("unlock_technology", { 
+            tech_id: technology.id, 
+            tech_name: technology.name,
+            company_id: companyId
+        });
     } catch (err: unknown) {
         const error = err as Error;
         console.error("[TECH] Erreur déblocage:", error);

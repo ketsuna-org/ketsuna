@@ -1,5 +1,6 @@
 import pb from '$lib/pocketbase';
 import type { Company } from '$lib/pocketbase';
+import { logAnalyticsEvent } from "$lib/firebase";
 
 /**
  * Handles the logic for leveling up a company.
@@ -17,11 +18,17 @@ export async function levelUpCompany(company: Company, cost: number): Promise<vo
     // Balance decreases, Level increases.
     
     // Use the dedicated server-side endpoint which bypasses strict field protections safely
-    await pb.send("/api/company/levelup", {
+    const result = await pb.send("/api/company/levelup", {
         method: "POST",
         body: {
             companyId: company.id
         }
+    }) as { newLevel: number };
+
+    logAnalyticsEvent("company_level_up", {
+        company_id: company.id,
+        level: result.newLevel,
+        cost: cost
     });
 }
 
@@ -48,4 +55,5 @@ export async function deleteCompany(companyId: string, userId: string): Promise<
         owned_companies: updatedOwned,
         active_company: updatedActive
     });
+    logAnalyticsEvent("company_delete", { company_id: companyId });
 }

@@ -1,6 +1,6 @@
-<script lang="ts">
   import { goto } from "$app/navigation";
   import pb from "$lib/pocketbase";
+  import { logAnalyticsEvent } from "$lib/firebase";
 
   let email = "";
   let password = "";
@@ -21,6 +21,7 @@
     try {
       if (isLogin) {
         await pb.collection("users").authWithPassword(email, password);
+        logAnalyticsEvent("login", { method: "password" });
       } else {
         if (!username) {
           error = "Le nom d'utilisateur est requis pour l'inscription";
@@ -34,6 +35,8 @@
           passwordConfirm: password,
         });
         await pb.collection("users").authWithPassword(email, password);
+        logAnalyticsEvent("sign_up", { method: "password" });
+        logAnalyticsEvent("login", { method: "password" });
       }
       goto("/factory");
     } catch (err: any) {
@@ -73,6 +76,7 @@
 
     try {
       await pb.collection("users").authWithOAuth2({ provider: "discord" });
+      logAnalyticsEvent("login", { method: "discord" });
       goto("/factory");
     } catch (err: any) {
       error = err.message || "Erreur lors de la connexion Discord";

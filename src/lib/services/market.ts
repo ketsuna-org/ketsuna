@@ -1,4 +1,5 @@
 import pb from "$lib/pocketbase";
+import { logAnalyticsEvent } from '$lib/firebase';
 
 import type { Item as MarketItem } from "$lib/types/game";
 export type { MarketItem };
@@ -19,6 +20,12 @@ export async function buyItem(companyId: string, item: MarketItem, quantity: num
   
           const totalCost = item.base_price * quantity;
           console.log(`[MARKET] Achat réussi: ${quantity}x ${item.name} pour €${totalCost}`);
+          logAnalyticsEvent("market_buy", { 
+              item_id: item.id, 
+              item_name: item.name, 
+              quantity, 
+              total_cost: totalCost 
+          });
       } catch (err: unknown) {
           const error = err as Error;
           console.error("[MARKET] Erreur lors de l'achat:", error);

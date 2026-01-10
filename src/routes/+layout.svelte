@@ -2,7 +2,7 @@
   import "./layout.css";
   import favicon from "$lib/assets/favicon.svg";
   import { onMount } from "svelte";
-  import { initFirebase } from "$lib/firebase";
+  import { initFirebase, setAnalyticsUserId } from "$lib/firebase";
   import pb from "$lib/pocketbase";
   import { currentUser, activeCompany } from "$lib/stores";
   import type { Company } from "$lib/pocketbase";
@@ -24,12 +24,20 @@
 
   onMount(async () => {
     // Initialise Firebase/Analytics
-    initFirebase();
+    await initFirebase();
 
     // Load static game data from backend API
     loadGameData();
     pb.authStore.onChange(async (token, model) => {
       currentUser.set(model);
+
+      // Sync Analytics User ID
+      if (model?.id) {
+        setAnalyticsUserId(model.id);
+      } else {
+        setAnalyticsUserId(null);
+      }
+
       if (model && model.active_company) {
         try {
           const company = await pb
