@@ -1,3 +1,4 @@
+<script lang="ts">
   import { goto } from "$app/navigation";
   import pb from "$lib/pocketbase";
   import { logAnalyticsEvent } from "$lib/firebase";
