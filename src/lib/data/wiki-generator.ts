@@ -9,9 +9,30 @@ export function generateItemArticle(item: Item): WikiArticle {
   const isStorage = item.type === "Stockage";
   const allRecipes = getAllRecipes();
   
+  // Utiliser la description du backend si disponible, sinon un fallback générique
+  const descriptionBlock = item.description 
+    ? `<div class="p-6 bg-slate-900/50 border-l-4 border-indigo-500 rounded-r-xl mb-8 not-prose">
+         <p class="text-lg text-slate-200 leading-relaxed italic">"${item.description}"</p>
+       </div>`
+    : '';
+
+  // Bloc Conseil Stratégique
+  const tipBlock = item.strategic_tip
+    ? `<div class="p-4 bg-emerald-900/20 border border-emerald-500/30 rounded-xl mb-8 flex gap-4 items-start not-prose">
+         <div class="text-2xl">💡</div>
+         <div>
+           <h3 class="text-emerald-400 font-bold uppercase text-xs tracking-wider mb-1 mt-1">Conseil Stratégique</h3>
+           <p class="text-slate-300 text-sm">${item.strategic_tip}</p>
+         </div>
+       </div>`
+    : '';
+
   let content = `
+    ${descriptionBlock}
+    ${tipBlock}
+    
     <h2>Caractéristiques</h2>
-    <div class="grid grid-cols-2 gap-4 mb-8 not-prose">
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8 not-prose">
         <div class="bg-slate-900/50 p-4 rounded-xl border border-slate-800">
             <div class="text-xs text-slate-500 uppercase tracking-wider">Type</div>
             <div class="font-bold text-white">${item.type}</div>
@@ -24,17 +45,21 @@ export function generateItemArticle(item: Item): WikiArticle {
             <div class="text-xs text-slate-500 uppercase tracking-wider">Unité</div>
             <div class="font-bold text-slate-300">${item.unit}</div>
         </div>
+        <div class="bg-slate-900/50 p-4 rounded-xl border border-slate-800">
+            <div class="text-xs text-slate-500 uppercase tracking-wider">Volatilité</div>
+            <div class="font-bold ${item.volatility > 0.4 ? 'text-red-400' : 'text-slate-300'}">${(item.volatility * 100).toFixed(0)}%</div>
+        </div>
     </div>
   `;
 
   if (isMachine || isStorage) {
     content += `
         <h2>Spécifications Industrielles</h2>
-        <ul class="list-none pl-0 space-y-2">
-            ${item.production_time ? `<li>⏱️ <strong>Temps de cycle:</strong> ${item.production_time}s</li>` : ''}
-            ${item.max_employee ? `<li>👥 <strong>Employés Max:</strong> ${item.max_employee}</li>` : ''}
-            ${item.energy_type ? `<li>⚡ <strong>Énergie:</strong> ${item.energy_type}</li>` : ''}
-            ${item.product ? `<li>📦 <strong>Produit Direct:</strong> ${getItemName(item.product)} (x${item.product_quantity})</li>` : ''}
+        <ul class="list-none pl-0 space-y-2 mb-8">
+            ${item.production_time ? `<li class="flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center">⏱️</span> <span><strong>Temps de cycle:</strong> ${item.production_time}s</span></li>` : ''}
+            ${item.max_employee ? `<li class="flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center">👥</span> <span><strong>Employés Max:</strong> ${item.max_employee}</span></li>` : ''}
+            ${item.energy_type ? `<li class="flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center">⚡</span> <span><strong>Énergie:</strong> ${item.energy_type}</span></li>` : ''}
+            ${item.product ? `<li class="flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center">📦</span> <span><strong>Produit Direct:</strong> <a href="/wiki/item-${item.product}" class="text-indigo-400 hover:underline">${getItemName(item.product)}</a> (x${item.product_quantity})</span></li>` : ''}
         </ul>
     `;
     
@@ -42,14 +67,14 @@ export function generateItemArticle(item: Item): WikiArticle {
     const machineRecipes = allRecipes.filter(r => r.machine_type === item.id);
     if (machineRecipes.length > 0) {
       const recipeLinks = machineRecipes.map(r => 
-        `<a href="/wiki/recipe-${r.id}" class="inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 hover:bg-indigo-500/20 transition-colors">
-            📋 ${r.name}
+        `<a href="/wiki/recipe-${r.id}" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 hover:bg-indigo-500/20 transition-colors">
+            <span>📋</span> ${r.name}
         </a>`
       ).join(" ");
       
       content += `
         <h2>Recettes Compatibles (${machineRecipes.length})</h2>
-        <p class="text-slate-400 text-sm mb-4">Cette machine peut exécuter les recettes suivantes :</p>
+        <p class="text-slate-400 text-sm mb-4">Cette machine est configurée pour exécuter les protocoles suivants :</p>
         <div class="flex flex-wrap gap-2 not-prose">
             ${recipeLinks}
         </div>
@@ -59,10 +84,19 @@ export function generateItemArticle(item: Item): WikiArticle {
     // Resource/Item details
     content += `
         <h2>Usage et Disponibilité</h2>
-        <ul class="list-disc pl-5 space-y-2">
-            <li><strong>Minable par le CEO:</strong> ${item.minable ? 'Oui' : 'Non'}</li>
-            <li><strong>Explorable:</strong> ${item.is_explorable ? 'Oui via expéditions' : 'Non'}</li>
-            <li><strong>Marché Global:</strong> ${item.market_available ? "Disponible à l'achat" : 'Restreint / Craft uniquement'}</li>
+        <ul class="list-none pl-0 space-y-2 mb-8">
+            <li class="flex items-center gap-3">
+                <span class="w-6 h-6 rounded bg-slate-800 flex items-center justify-center text-xs">${item.minable ? '✅' : '❌'}</span>
+                <span class="text-slate-300">Minable par le CEO</span>
+            </li>
+            <li class="flex items-center gap-3">
+                <span class="w-6 h-6 rounded bg-slate-800 flex items-center justify-center text-xs">${item.is_explorable ? '✅' : '❌'}</span>
+                <span class="text-slate-300">Trouvable en exploration</span>
+            </li>
+            <li class="flex items-center gap-3">
+                <span class="w-6 h-6 rounded bg-slate-800 flex items-center justify-center text-xs">${item.market_available ? '✅' : '⚠️'}</span>
+                <span class="text-slate-300">${item.market_available ? "Disponible au Marché Global" : 'Restreint (Craft ou Exploration uniquement)'}</span>
+            </li>
         </ul>
     `;
     
@@ -70,41 +104,56 @@ export function generateItemArticle(item: Item): WikiArticle {
     const producingRecipes = allRecipes.filter(r => r.output_item === item.id);
     if (producingRecipes.length > 0) {
       const recipeList = producingRecipes.map(r => {
-        const machineName = r.machine_type ? getItemName(r.machine_type) : "Manuel";
-        return `<li class="flex justify-between items-center py-2 border-b border-slate-800/50 last:border-0">
-            <a href="/wiki/recipe-${r.id}" class="text-indigo-400 hover:text-indigo-300">${r.name}</a>
-            <span class="text-sm text-slate-500">via ${machineName}</span>
+        const machineName = r.machine_type ? getItemName(r.machine_type) : "Atelier Manuel";
+        const machineSlug = r.machine_type ? `item-${r.machine_type}` : "";
+        
+        return `<li class="flex justify-between items-center py-3 border-b border-slate-800/50 last:border-0 hover:bg-slate-800/30 px-2 rounded transition-colors">
+            <a href="/wiki/recipe-${r.id}" class="font-medium text-indigo-400 hover:text-indigo-300 flex items-center gap-2">
+                <span>⚡</span> ${r.name}
+            </a>
+            <div class="text-sm text-slate-500 flex items-center gap-1">
+                <span>via</span>
+                ${machineSlug ? `<a href="/wiki/${machineSlug}" class="text-slate-400 hover:text-white underline decoration-dotted">${machineName}</a>` : machineName}
+            </div>
         </li>`;
       }).join("");
       
       content += `
         <h2>Comment Produire</h2>
-        <p class="text-slate-400 text-sm mb-4">Cet item peut être fabriqué avec les recettes suivantes :</p>
-        <ul class="list-none bg-slate-900/30 rounded-xl p-4 not-prose">
-            ${recipeList}
-        </ul>
+        <div class="bg-slate-900/30 rounded-xl border border-slate-800 p-2 not-prose overflow-hidden">
+            <ul class="list-none m-0 p-0">
+                ${recipeList}
+            </ul>
+        </div>
+        <br>
       `;
     }
     
     // Find recipes that USE this item as input
     const usingRecipes = allRecipes.filter(r => 
-      r.inputs.some(i => (i.item_id || i.item) === item.id)
+      r.inputs?.some(i => (i.item_id || i.item) === item.id)
     );
     if (usingRecipes.length > 0) {
       const recipeList = usingRecipes.map(r => {
         const outputName = getItemName(r.output_item);
-        return `<li class="flex justify-between items-center py-2 border-b border-slate-800/50 last:border-0">
-            <a href="/wiki/recipe-${r.id}" class="text-indigo-400 hover:text-indigo-300">${r.name}</a>
-            <span class="text-sm text-slate-500">→ ${outputName}</span>
+        const outputSlug = `item-${r.output_item}`;
+        
+        return `<li class="flex justify-between items-center py-2 border-b border-slate-800/50 last:border-0 px-2">
+            <a href="/wiki/recipe-${r.id}" class="text-slate-300 hover:text-indigo-400 transition-colors">${r.name}</a>
+            <a href="/wiki/${outputSlug}" class="text-sm px-2 py-1 bg-slate-800 rounded text-slate-400 hover:text-white hover:bg-indigo-600 transition-all">
+                → ${outputName}
+            </a>
         </li>`;
       }).join("");
       
       content += `
         <h2>Utilisé Dans (${usingRecipes.length} recettes)</h2>
-        <p class="text-slate-400 text-sm mb-4">Cet item est requis pour fabriquer :</p>
-        <ul class="list-none bg-slate-900/30 rounded-xl p-4 not-prose">
-            ${recipeList}
-        </ul>
+        <p class="text-slate-400 text-sm mb-4">Cet item est un composant requis pour :</p>
+        <div class="bg-slate-900/30 rounded-xl border border-slate-800 p-2 not-prose max-h-64 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700">
+            <ul class="list-none m-0 p-0">
+                ${recipeList}
+            </ul>
+        </div>
       `;
     }
   }
@@ -113,18 +162,18 @@ export function generateItemArticle(item: Item): WikiArticle {
     slug: `item-${item.id}`,
     title: item.name,
     category: isMachine ? "machines" : "items",
-    excerpt: `Fiche technique pour : ${item.name} (${item.type})`,
+    excerpt: item.description ? item.description.substring(0, 150) + "..." : `Fiche technique pour : ${item.name}`,
     content,
   };
 }
 
 export function generateRecipeArticle(recipe: Recipe): WikiArticle {
-  const inputsList = recipe.inputs.map(i => 
+  const inputsList = recipe.inputs?.map(i => 
     `<li class="flex justify-between items-center py-1 border-b border-slate-800/50 last:border-0">
         <span>${getItemName(i.item_id || i.item)}</span>
         <span class="font-mono text-indigo-400">x${i.quantity}</span>
     </li>`
-  ).join("");
+  ).join("") || "";
 
   const content = `
     <h2>Détails de Fabrication</h2>
@@ -174,33 +223,47 @@ export function generateRecipeArticle(recipe: Recipe): WikiArticle {
 
 export function generateTechArticle(tech: Technology): WikiArticle {
   const unlocksList = tech.item_unlocked?.map(id => 
-    `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+    `<a href="/wiki/item-${id}" class="inline-flex items-center px-2.5 py-1.5 rounded-lg text-xs font-medium bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 hover:bg-indigo-500/20 transition-colors">
         ${getItemName(id)}
-    </span>`
+    </a>`
   ).join(" ") || "Aucun item direct";
+
+  // Bloc Conseil Stratégique
+  const tipBlock = tech.strategic_tip
+    ? `<div class="p-4 bg-emerald-900/20 border border-emerald-500/30 rounded-xl mb-8 flex gap-4 items-start not-prose">
+         <div class="text-2xl">💡</div>
+         <div>
+           <h3 class="text-emerald-400 font-bold uppercase text-xs tracking-wider mb-1 mt-1">Conseil Stratégique</h3>
+           <p class="text-slate-300 text-sm">${tech.strategic_tip}</p>
+         </div>
+       </div>`
+    : '';
 
   const content = `
     <div class="p-6 bg-slate-900/50 border-l-4 border-purple-500 rounded-r-xl mb-8 not-prose">
         <p class="text-lg text-slate-200 italic">"${tech.description}"</p>
     </div>
 
+    ${tipBlock}
+
     <h2>Pré-requis</h2>
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8 not-prose">
         <div class="bg-slate-900 p-4 rounded-xl border border-slate-800">
-            <div class="text-xs text-slate-500 uppercase">Coût Recherche</div>
-            <div class="font-bold text-amber-400">${tech.cost.toLocaleString()} ₭</div>
+            <div class="text-xs text-slate-500 uppercase tracking-widest mb-1">Coût Recherche</div>
+            <div class="font-bold text-amber-400 text-lg">${tech.cost.toLocaleString()} ₭</div>
         </div>
         <div class="bg-slate-900 p-4 rounded-xl border border-slate-800">
-            <div class="text-xs text-slate-500 uppercase">Temps</div>
-            <div class="font-bold text-slate-300">${tech.unlock_time > 0 ? tech.unlock_time + 's' : 'Instant'}</div>
+            <div class="text-xs text-slate-500 uppercase tracking-widest mb-1">Temps</div>
+            <div class="font-bold text-slate-300 text-lg">${tech.unlock_time > 0 ? (tech.unlock_time/60).toFixed(0) + ' min' : 'Instant'}</div>
         </div>
         <div class="bg-slate-900 p-4 rounded-xl border border-slate-800">
-            <div class="text-xs text-slate-500 uppercase">Niveau requis</div>
-            <div class="font-bold text-white">Lvl ${tech.required_level}</div>
+            <div class="text-xs text-slate-500 uppercase tracking-widest mb-1">Niveau requis</div>
+            <div class="font-bold text-white text-lg">Lvl ${tech.required_level}</div>
         </div>
     </div>
 
     <h2>Déblocages</h2>
+    <p class="text-slate-400 text-sm mb-4">Cette technologie donne accès aux plans suivants :</p>
     <div class="flex flex-wrap gap-2 not-prose">
         ${unlocksList}
     </div>

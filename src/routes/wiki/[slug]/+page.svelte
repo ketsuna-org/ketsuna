@@ -4,8 +4,8 @@
 
   export let data;
 
-  const { article } = data;
-  const category = wikiCategories.find((c) => c.id === article.category);
+  $: ({ article } = data);
+  $: category = wikiCategories.find((c) => c.id === article?.category);
 </script>
 
 <svelte:head>

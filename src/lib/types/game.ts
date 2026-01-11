@@ -22,6 +22,9 @@ export interface MachineMetadata {
 }
 
 export interface Item {
+  market_available: boolean;
+  strategic_tip: string;
+  description: string;
   id: string; // Static ID (e.g., 'iron_ore')
   name: string;
   type: "Ressource Brute" | "Composant" | "Produit Fini" | "Machine" | "Stockage";
@@ -72,10 +75,15 @@ export interface RecipeIngredient {
 }
 
 export interface Technology {
+  unlock_time: number;
   id: string;
   name: string;
   description: string;
   cost: number;
   required_level: number;
   item_unlocked: string[];
+  prerequisites?: string[];
+  category?: string;
+  icon?: string;
+  strategic_tip?: string;
 }
