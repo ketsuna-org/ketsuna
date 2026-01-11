@@ -1,11 +1,13 @@
 import type { Item, Recipe, Technology } from "$lib/types/game";
 import type { WikiArticle } from "$lib/data/wiki-categories";
-import { getItemName } from "$lib/data/game-static";
+import { getItemName, getAllRecipes } from "$lib/data/game-static";
 
 // --- Generators ---
 
 export function generateItemArticle(item: Item): WikiArticle {
   const isMachine = item.type === "Machine";
+  const isStorage = item.type === "Stockage";
+  const allRecipes = getAllRecipes();
   
   let content = `
     <h2>Caractéristiques</h2>
@@ -25,7 +27,7 @@ export function generateItemArticle(item: Item): WikiArticle {
     </div>
   `;
 
-  if (isMachine) {
+  if (isMachine || isStorage) {
     content += `
         <h2>Spécifications Industrielles</h2>
         <ul class="list-none pl-0 space-y-2">
@@ -35,16 +37,76 @@ export function generateItemArticle(item: Item): WikiArticle {
             ${item.product ? `<li>📦 <strong>Produit Direct:</strong> ${getItemName(item.product)} (x${item.product_quantity})</li>` : ''}
         </ul>
     `;
+    
+    // Find recipes that use this machine
+    const machineRecipes = allRecipes.filter(r => r.machine_type === item.id);
+    if (machineRecipes.length > 0) {
+      const recipeLinks = machineRecipes.map(r => 
+        `<a href="/wiki/recipe-${r.id}" class="inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 hover:bg-indigo-500/20 transition-colors">
+            📋 ${r.name}
+        </a>`
+      ).join(" ");
+      
+      content += `
+        <h2>Recettes Compatibles (${machineRecipes.length})</h2>
+        <p class="text-slate-400 text-sm mb-4">Cette machine peut exécuter les recettes suivantes :</p>
+        <div class="flex flex-wrap gap-2 not-prose">
+            ${recipeLinks}
+        </div>
+      `;
+    }
   } else {
-    // Resource details
+    // Resource/Item details
     content += `
         <h2>Usage et Disponibilité</h2>
         <ul class="list-disc pl-5 space-y-2">
             <li><strong>Minable par le CEO:</strong> ${item.minable ? 'Oui' : 'Non'}</li>
             <li><strong>Explorable:</strong> ${item.is_explorable ? 'Oui via expéditions' : 'Non'}</li>
-            <li><strong>Marché Global:</strong> ${item.market_available ? 'Disponible à l\'achat' : 'Restreint / Craft uniquement'}</li>
+            <li><strong>Marché Global:</strong> ${item.market_available ? 'Disponible à l\\'achat' : 'Restreint / Craft uniquement'}</li>
         </ul>
     `;
+    
+    // Find recipes that PRODUCE this item
+    const producingRecipes = allRecipes.filter(r => r.output_item === item.id);
+    if (producingRecipes.length > 0) {
+      const recipeList = producingRecipes.map(r => {
+        const machineName = r.machine_type ? getItemName(r.machine_type) : "Manuel";
+        return `<li class="flex justify-between items-center py-2 border-b border-slate-800/50 last:border-0">
+            <a href="/wiki/recipe-${r.id}" class="text-indigo-400 hover:text-indigo-300">${r.name}</a>
+            <span class="text-sm text-slate-500">via ${machineName}</span>
+        </li>`;
+      }).join("");
+      
+      content += `
+        <h2>Comment Produire</h2>
+        <p class="text-slate-400 text-sm mb-4">Cet item peut être fabriqué avec les recettes suivantes :</p>
+        <ul class="list-none bg-slate-900/30 rounded-xl p-4 not-prose">
+            ${recipeList}
+        </ul>
+      `;
+    }
+    
+    // Find recipes that USE this item as input
+    const usingRecipes = allRecipes.filter(r => 
+      r.inputs.some(i => (i.item_id || i.item) === item.id)
+    );
+    if (usingRecipes.length > 0) {
+      const recipeList = usingRecipes.map(r => {
+        const outputName = getItemName(r.output_item);
+        return `<li class="flex justify-between items-center py-2 border-b border-slate-800/50 last:border-0">
+            <a href="/wiki/recipe-${r.id}" class="text-indigo-400 hover:text-indigo-300">${r.name}</a>
+            <span class="text-sm text-slate-500">→ ${outputName}</span>
+        </li>`;
+      }).join("");
+      
+      content += `
+        <h2>Utilisé Dans (${usingRecipes.length} recettes)</h2>
+        <p class="text-slate-400 text-sm mb-4">Cet item est requis pour fabriquer :</p>
+        <ul class="list-none bg-slate-900/30 rounded-xl p-4 not-prose">
+            ${recipeList}
+        </ul>
+      `;
+    }
   }
 
   return {
