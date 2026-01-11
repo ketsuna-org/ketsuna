@@ -27,12 +27,29 @@ export function generateItemArticle(item: Item): WikiArticle {
        </div>`
     : '';
 
+  // Bloc Image (Icon starting with / is an image path, otherwise it's an emoji)
+  const isImage = item.icon?.startsWith('/');
+  const imageBlock = isImage 
+    ? `<div class="w-full h-64 bg-slate-900 rounded-2xl border border-slate-800 mb-8 overflow-hidden flex items-center justify-center relative group not-prose">
+         <div class="absolute inset-0 bg-linear-to-t from-slate-950 to-transparent opacity-60"></div>
+         <img src="${item.icon}" alt="${item.name}" class="max-w-[40%] max-h-[80%] object-contain drop-shadow-[0_0_30px_rgba(99,102,241,0.3)] group-hover:scale-110 transition-transform duration-500" />
+         <div class="absolute bottom-4 left-6">
+            <h1 class="text-3xl font-black text-white mb-0 drop-shadow-md tracking-tight">${item.name}</h1>
+            <p class="text-slate-400 text-sm font-medium tracking-widest uppercase">${item.type}</p>
+         </div>
+       </div>`
+    : `<div class="mb-8 not-prose">
+         <h1 class="text-4xl font-black text-white mb-2 tracking-tight">${item.icon || ''} ${item.name}</h1>
+         <p class="text-slate-400 font-bold tracking-widest uppercase text-sm border-l-2 border-indigo-500 pl-4">${item.type}</p>
+       </div>`;
+
   let content = `
+    ${imageBlock}
     ${descriptionBlock}
     ${tipBlock}
     
     <h2>Caractéristiques</h2>
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8 not-prose">
+    <div class="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-8 not-prose">
         <div class="bg-slate-900/50 p-4 rounded-xl border border-slate-800">
             <div class="text-xs text-slate-500 uppercase tracking-wider">Type</div>
             <div class="font-bold text-white">${item.type}</div>
@@ -44,10 +61,6 @@ export function generateItemArticle(item: Item): WikiArticle {
         <div class="bg-slate-900/50 p-4 rounded-xl border border-slate-800">
             <div class="text-xs text-slate-500 uppercase tracking-wider">Unité</div>
             <div class="font-bold text-slate-300">${item.unit}</div>
-        </div>
-        <div class="bg-slate-900/50 p-4 rounded-xl border border-slate-800">
-            <div class="text-xs text-slate-500 uppercase tracking-wider">Volatilité</div>
-            <div class="font-bold ${item.volatility > 0.4 ? 'text-red-400' : 'text-slate-300'}">${(item.volatility * 100).toFixed(0)}%</div>
         </div>
     </div>
   `;
@@ -242,7 +255,24 @@ export function generateTechArticle(tech: Technology): WikiArticle {
        </div>`
     : '';
 
+  // Bloc Image (Icon starting with / is an image path, otherwise it's an emoji)
+  const isImage = tech.icon?.startsWith('/');
+  const imageBlock = isImage 
+    ? `<div class="w-full h-64 bg-slate-900 rounded-2xl border border-slate-800 mb-8 overflow-hidden flex items-center justify-center relative group not-prose">
+         <div class="absolute inset-0 bg-linear-to-t from-slate-950 to-transparent opacity-60"></div>
+         <img src="${tech.icon}" alt="${tech.name}" class="max-w-[40%] max-h-[80%] object-contain drop-shadow-[0_0_30px_rgba(99,102,241,0.3)] group-hover:scale-110 transition-transform duration-500" />
+         <div class="absolute bottom-4 left-6">
+            <h1 class="text-3xl font-black text-white mb-0 drop-shadow-md tracking-tight">${tech.name}</h1>
+            <p class="text-slate-400 text-sm font-medium tracking-widest uppercase">${tech.category || 'Technology'}</p>
+         </div>
+       </div>`
+    : `<div class="mb-8 not-prose">
+         <h1 class="text-4xl font-black text-white mb-2 tracking-tight">${tech.icon || ''} ${tech.name}</h1>
+         <p class="text-slate-400 font-bold tracking-widest uppercase text-sm border-l-2 border-indigo-500 pl-4">${tech.category || 'Technology'}</p>
+       </div>`;
+
   const content = `
+    ${imageBlock}
     <div class="p-6 bg-slate-900/50 border-l-4 border-purple-500 rounded-r-xl mb-8 not-prose">
         <p class="text-lg text-slate-200 italic">"${tech.description}"</p>
     </div>

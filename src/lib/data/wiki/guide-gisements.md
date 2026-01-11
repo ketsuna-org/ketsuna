@@ -25,7 +25,6 @@ Ce guide t'apprendra à trouver, exploiter et optimiser ces trésors enfouis.
 
 - **Ressource** : Bois
 - **Abondance** : Très commun
-- **Volatilité prix** : Faible
 - **Machine d'extraction** : Exploitation Forestière
 
 Le bois est la ressource de départ par excellence. Facile à trouver, facile à exploiter.
@@ -42,7 +41,6 @@ Les minerais sont plus précieux que le bois, mais nécessitent des technologies
 
 - **Ressource** : Pétrole Brut
 - **Abondance** : Rare
-- **Volatilité prix** : Très élevée (55%)
 - **Machine d'extraction** : Pompe à Pétrole, Plateforme Offshore
 
 Le pétrole est l'or noir du Secteur Omni. Celui qui le contrôle a un avantage stratégique majeur.
@@ -264,7 +262,7 @@ Pour les batteries avancées. Rare et précieux.
 
 ### L'Or
 
-Pour les composants électroniques de pointe. Très volatile, très rentable.
+Pour les composants électroniques de pointe. Stable et très rentable.
 
 ---
 

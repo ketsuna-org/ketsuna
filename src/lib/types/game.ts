@@ -29,7 +29,6 @@ export interface Item {
   name: string;
   type: "Ressource Brute" | "Composant" | "Produit Fini" | "Machine" | "Stockage";
   base_price: number;
-  volatility: number;
   unit: "kg" | "l" | "u";
   minable: boolean;
   is_explorable: boolean;

@@ -12,7 +12,6 @@ export interface Item {
   name: string;
   type: string;
   base_price: number;
-  volatility?: number;
   icon?: string;
   unit: string;
   minable: boolean;

@@ -52,19 +52,21 @@
         >
       </div>
 
-      <h1
-        class="text-5xl md:text-6xl font-black text-white mb-8 leading-tight tracking-tight"
-      >
-        {article.title}
-      </h1>
+      {#if !article.content.includes("group not-prose")}
+        <h1
+          class="text-5xl md:text-6xl font-black text-white mb-8 leading-tight tracking-tight"
+        >
+          {article.title}
+        </h1>
 
-      <div
-        class="p-6 bg-slate-900/30 border-l-4 border-indigo-500 backdrop-blur-sm rounded-r-xl"
-      >
-        <p class="text-xl text-slate-200 leading-relaxed font-light italic">
-          "{article.excerpt}"
-        </p>
-      </div>
+        <div
+          class="p-6 bg-slate-900/30 border-l-4 border-indigo-500 backdrop-blur-sm rounded-r-xl"
+        >
+          <p class="text-xl text-slate-200 leading-relaxed font-light italic">
+            "{article.excerpt}"
+          </p>
+        </div>
+      {/if}
     </div>
 
     <!-- Content Card -->
