@@ -310,21 +310,6 @@
     font-weight: 600;
   }
 
-  .cap-bar {
-    width: 100%;
-    height: 4px;
-    background: #0f172a;
-    border-radius: 2px;
-    overflow: hidden;
-  }
-
-  .cap-fill {
-    height: 100%;
-    background: #22d3ee;
-    box-shadow: 0 0 4px #22d3ee;
-    transition: width 0.3s ease;
-  }
-
   .cap-value {
     font-size: 10px;
     color: #22d3ee;

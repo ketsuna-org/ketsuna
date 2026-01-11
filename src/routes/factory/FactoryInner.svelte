@@ -40,6 +40,7 @@
     type Connection,
     type Edge,
     type Node,
+    type EdgeTypes,
   } from "@xyflow/svelte";
   import { logAnalyticsEvent } from "$lib/firebase";
 
@@ -85,7 +86,9 @@
   }
 
   // Edge types: use PipeEdge only when high quality is enabled
-  let edgeTypes = $derived(lowQualityEdges ? {} : { pipe: PipeEdge });
+  let edgeTypes: EdgeTypes = $derived(
+    (lowQualityEdges ? {} : { pipe: PipeEdge }) as EdgeTypes
+  );
 
   // State
   let nodes = $state<Node[]>([]);
@@ -506,29 +509,10 @@
     if (!sourceNode || !targetNode) return;
 
     // Constraint: Machine can only have ONE deposit input
-    if (sourceNode.type === "deposit" && targetNode.type === "machine") {
-      const existingDeposit = edges.find((e) => {
-        if (e.target !== targetNode.id) return false;
-        const src = nodes.find((n) => n.id === e.source);
-        return src?.type === "deposit";
-      });
+    // Note: The backend hook (edge_hooks.go) now handles the replacement automatically.
+    // It will delete the old edge if one exists.
 
-      if (existingDeposit) {
-        notifications.error(
-          "Impossible: Une machine ne peut être reliée qu'à un seul gisement !"
-        );
-        return;
-      }
-    }
-
-    /* Restriction removed: connections now allowed between machines
-    if (targetNode.type !== "company") {
-      console.warn(
-        "Connections are only supported to the Company node for now."
-      );
-      return;
-    }
-    */
+    // We just proceed to create the new edge.
 
     const success = await createEdge(
       connection.source,
@@ -719,22 +703,7 @@
 
         try {
           // Constraint: Machine can only have ONE deposit input
-          if (sourceNode.type === "deposit" && targetNode.type === "machine") {
-            const existingDeposit = edges.find((e) => {
-              if (e.target !== targetNode.id) return false;
-              const src = nodes.find((n) => n.id === e.source);
-              return src?.type === "deposit";
-            });
-
-            if (existingDeposit) {
-              notifications.error(
-                "Impossible: Une machine ne peut être reliée qu'à un seul gisement !"
-              );
-              connectionSourceId = null;
-              nodes = nodes.map((n) => ({ ...n, selected: false }));
-              return;
-            }
-          }
+          // Backend hook handles replacement automatically
 
           const success = await createEdge(
             sourceNode.id,
@@ -820,7 +789,7 @@
       class="
     toolbar
     {showMobileSidebar ? 'flex fixed inset-0 w-full h-full z-50' : 'hidden'}
-    md:flex md:static md:w-[300px] md:h-auto flex-col gap-8 p-6
+    md:flex md:static md:w-75 md:h-auto flex-col gap-8 p-6
   "
     >
       <div class="toolbar-header">
@@ -1142,6 +1111,7 @@
       >
         <button
           onclick={cancelPlacement}
+          aria-label="Annuler le placement"
           class="w-16 h-16 rounded-full bg-red-500 hover:bg-red-600 text-white shadow-lg flex items-center justify-center border-4 border-slate-900 active:scale-95 transition-all"
         >
           <svg
@@ -1160,6 +1130,7 @@
 
         <button
           onclick={confirmPlacement}
+          aria-label="Confirmer le placement"
           class="w-20 h-20 rounded-full bg-green-500 hover:bg-green-600 text-white shadow-[0_0_20px_rgba(34,197,94,0.4)] flex items-center justify-center border-4 border-slate-900 active:scale-95 transition-all"
         >
           <svg
@@ -1602,14 +1573,6 @@
 
   .balance-pill {
     border-left: 4px solid #10b981;
-  }
-
-  .energy-pill {
-    border-left: 4px solid #f59e0b;
-  }
-
-  .text-red-400 {
-    color: #f87171 !important;
   }
 
   .text-amber-400 {
