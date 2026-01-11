@@ -13,7 +13,7 @@
   import { activeCompany } from "$lib/stores";
   import { gamedataStore } from "$lib/stores/gamedataStore";
   import { calculateProductionProgress } from "$lib/graph/lazyCalculator";
-  import { getRecipe, getItem } from "$lib/data/game-static";
+  import { getRecipe, getItem, getAllRecipes } from "$lib/data/game-static";
 
   type MachineNode = Node<
     {
@@ -33,6 +33,23 @@
   let panelLoading = $state(false);
   let productionProgress = $state(0);
   let estimatedProduced = $state(0);
+  let savingRecipe = $state(false);
+
+  // Get compatible recipes for this machine type
+  let compatibleRecipes = $derived.by(() => {
+    if (!machineRecord?.machine_id) return [];
+    const machineId = machineRecord.machine_id;
+    return getAllRecipes().filter((r) => r.machine_type === machineId);
+  });
+
+  // Current active recipe (from machine record or default)
+  let activeRecipe = $derived.by(() => {
+    if (!machineRecord) return null;
+    const recipeId =
+      machineRecord.active_recipe ||
+      gamedataStore.getItem(machineRecord.machine_id)?.use_recipe;
+    return recipeId ? getRecipe(recipeId) : null;
+  });
 
   // Load data when node is selected
   $effect(() => {
@@ -87,6 +104,22 @@
       availableEmployees = response.items || [];
     } catch (e) {
       console.error("Failed to refresh employees", e);
+    }
+  }
+
+  async function changeRecipe(recipeId: string) {
+    if (!machineRecord || savingRecipe) return;
+    savingRecipe = true;
+    try {
+      await pb.collection("machines").update(machineRecord.id, {
+        active_recipe: recipeId,
+      });
+      // Reload to reflect change
+      await loadData();
+    } catch (e) {
+      console.error("Failed to change recipe", e);
+    } finally {
+      savingRecipe = false;
     }
   }
 
@@ -149,13 +182,9 @@
 
         <!-- Machine Specs / Recipe Info -->
         {#if machineRecord.machine_id}
-          {@const staticItem = gamedataStore.getItem(machineRecord.machine_id)}
-          {@const recipe = staticItem?.use_recipe
-            ? getRecipe(staticItem.use_recipe)
-            : null}
-
-          {#if recipe}
-            {@const outItem = getItem(recipe.output_item)}
+          {#if activeRecipe || compatibleRecipes.length > 0}
+            {@const recipe = activeRecipe}
+            {@const outItem = recipe ? getItem(recipe.output_item) : null}
             <div class="mt-4 pt-4 border-t border-slate-700">
               <h3
                 class="text-sm font-bold text-white mb-2 flex items-center gap-2"
@@ -166,54 +195,84 @@
               <div
                 class="text-xs text-slate-300 space-y-2 bg-slate-800/50 p-3 rounded-lg"
               >
-                <div class="flex justify-between items-center">
-                  <span class="text-slate-400">Recette:</span>
-                  <span class="font-medium text-white">{recipe.name}</span>
-                </div>
-                <div class="flex justify-between items-center">
-                  <span class="text-slate-400">Cycle:</span>
-                  <span class="font-mono text-emerald-400"
-                    >{recipe.production_time}s</span
-                  >
-                </div>
-
-                <!-- Inputs -->
-                {#if recipe.inputs?.length}
-                  <div class="pt-1">
-                    <span
-                      class="text-slate-500 block mb-1 text-[10px] uppercase"
-                      >Entrées:</span
+                <!-- Recipe Selector (if multiple recipes available) -->
+                {#if compatibleRecipes.length > 1}
+                  <div class="space-y-1">
+                    <span class="text-slate-400 text-[10px] uppercase"
+                      >Recette Active:</span
                     >
-                    <div class="flex flex-wrap gap-1">
-                      {#each recipe.inputs as input}
-                        {@const inputItem = getItem(
-                          input.item || input.item_id
-                        )}
-                        <!-- item is safer, item_id from go wrapper -->
-                        <span
-                          class="bg-slate-900 border border-slate-700 px-1.5 py-0.5 rounded text-[10px]"
-                        >
-                          {input.quantity}x {inputItem?.name || input.item}
-                        </span>
+                    <select
+                      class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-xs text-white focus:border-indigo-500 focus:outline-none disabled:opacity-50"
+                      value={machineRecord.active_recipe ||
+                        gamedataStore.getItem(machineRecord.machine_id)
+                          ?.use_recipe ||
+                        ""}
+                      disabled={savingRecipe}
+                      onchange={(e) => changeRecipe(e.currentTarget.value)}
+                    >
+                      {#each compatibleRecipes as r (r.id)}
+                        <option value={r.id}>{r.name}</option>
                       {/each}
-                    </div>
+                    </select>
+                  </div>
+                {:else if recipe}
+                  <div class="flex justify-between items-center">
+                    <span class="text-slate-400">Recette:</span>
+                    <span class="font-medium text-white">{recipe.name}</span>
                   </div>
                 {/if}
 
-                <!-- Outputs -->
-                <div class="pt-1 border-t border-slate-700/50 mt-1">
-                  <span class="text-slate-500 block mb-1 text-[10px] uppercase"
-                    >Sorties:</span
-                  >
-                  <div class="flex flex-wrap gap-1">
-                    <span
-                      class="bg-emerald-950/30 border border-emerald-900/50 text-emerald-300 px-1.5 py-0.5 rounded text-[10px]"
+                {#if recipe}
+                  <div class="flex justify-between items-center">
+                    <span class="text-slate-400">Cycle:</span>
+                    <span class="font-mono text-emerald-400"
+                      >{recipe.production_time}s</span
                     >
-                      {recipe.output_quantity}x {outItem?.name ||
-                        recipe.output_item}
-                    </span>
                   </div>
-                </div>
+
+                  <!-- Inputs -->
+                  {#if recipe.inputs?.length}
+                    <div class="pt-1">
+                      <span
+                        class="text-slate-500 block mb-1 text-[10px] uppercase"
+                        >Entrées:</span
+                      >
+                      <div class="flex flex-wrap gap-1">
+                        {#each recipe.inputs as input}
+                          {@const inputItem = getItem(
+                            input.item || input.item_id
+                          )}
+                          <!-- item is safer, item_id from go wrapper -->
+                          <span
+                            class="bg-slate-900 border border-slate-700 px-1.5 py-0.5 rounded text-[10px]"
+                          >
+                            {input.quantity}x {inputItem?.name || input.item}
+                          </span>
+                        {/each}
+                      </div>
+                    </div>
+                  {/if}
+
+                  <!-- Outputs -->
+                  <div class="pt-1 border-t border-slate-700/50 mt-1">
+                    <span
+                      class="text-slate-500 block mb-1 text-[10px] uppercase"
+                      >Sorties:</span
+                    >
+                    <div class="flex flex-wrap gap-1">
+                      <span
+                        class="bg-emerald-950/30 border border-emerald-900/50 text-emerald-300 px-1.5 py-0.5 rounded text-[10px]"
+                      >
+                        {recipe.output_quantity}x {outItem?.name ||
+                          recipe.output_item}
+                      </span>
+                    </div>
+                  </div>
+                {:else}
+                  <p class="text-slate-500 text-center py-2">
+                    Aucune recette sélectionnée
+                  </p>
+                {/if}
               </div>
             </div>
           {/if}

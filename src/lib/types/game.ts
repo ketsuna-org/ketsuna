@@ -50,6 +50,7 @@ export interface Item {
 }
 
 export interface Recipe {
+  output_quantity: number;
   id: string;
   name: string;
   output_item: string;
@@ -61,9 +62,11 @@ export interface Recipe {
   inputs?: RecipeIngredient[];
   icon?: string;
   manual_craftable?: boolean;
+  machine_type?: string;
 }
 
 export interface RecipeIngredient {
+  item_id: string;
   item: string;
   quantity: number;
 }

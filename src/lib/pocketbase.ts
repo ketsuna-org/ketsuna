@@ -140,6 +140,7 @@ export interface Machine extends BaseRecord {
   production_started_at: string;
   stored_energy: number;
   durability: number;
+  active_recipe?: string;
   deposit?: string;
   location?: { lat: number; lng: number };
   placed: boolean;
