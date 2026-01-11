@@ -29,10 +29,13 @@ export function generateItemArticle(item: Item): WikiArticle {
 
   // Bloc Image (Icon starting with / is an image path, otherwise it's an emoji)
   const isImage = item.icon?.startsWith('/');
+  const imageBaseUrl = "https://api.ketsuna.com";
+  const imagePath = isImage ? `${imageBaseUrl}${item.icon}` : null;
+  
   const imageBlock = isImage 
     ? `<div class="w-full h-64 bg-slate-900 rounded-2xl border border-slate-800 mb-8 overflow-hidden flex items-center justify-center relative group not-prose">
          <div class="absolute inset-0 bg-linear-to-t from-slate-950 to-transparent opacity-60"></div>
-         <img src="${item.icon}" alt="${item.name}" class="max-w-[40%] max-h-[80%] object-contain drop-shadow-[0_0_30px_rgba(99,102,241,0.3)] group-hover:scale-110 transition-transform duration-500" />
+         <img src="${imagePath}" alt="${item.name}" class="max-w-[40%] max-h-[80%] object-contain drop-shadow-[0_0_30px_rgba(99,102,241,0.3)] group-hover:scale-110 transition-transform duration-500" />
          <div class="absolute bottom-4 left-6">
             <h1 class="text-3xl font-black text-white mb-0 drop-shadow-md tracking-tight">${item.name}</h1>
             <p class="text-slate-400 text-sm font-medium tracking-widest uppercase">${item.type}</p>
@@ -257,10 +260,13 @@ export function generateTechArticle(tech: Technology): WikiArticle {
 
   // Bloc Image (Icon starting with / is an image path, otherwise it's an emoji)
   const isImage = tech.icon?.startsWith('/');
+  const imageBaseUrl = "https://api.ketsuna.com";
+  const imagePath = isImage ? `${imageBaseUrl}${tech.icon}` : null;
+
   const imageBlock = isImage 
     ? `<div class="w-full h-64 bg-slate-900 rounded-2xl border border-slate-800 mb-8 overflow-hidden flex items-center justify-center relative group not-prose">
          <div class="absolute inset-0 bg-linear-to-t from-slate-950 to-transparent opacity-60"></div>
-         <img src="${tech.icon}" alt="${tech.name}" class="max-w-[40%] max-h-[80%] object-contain drop-shadow-[0_0_30px_rgba(99,102,241,0.3)] group-hover:scale-110 transition-transform duration-500" />
+         <img src="${imagePath}" alt="${tech.name}" class="max-w-[40%] max-h-[80%] object-contain drop-shadow-[0_0_30px_rgba(99,102,241,0.3)] group-hover:scale-110 transition-transform duration-500" />
          <div class="absolute bottom-4 left-6">
             <h1 class="text-3xl font-black text-white mb-0 drop-shadow-md tracking-tight">${tech.name}</h1>
             <p class="text-slate-400 text-sm font-medium tracking-widest uppercase">${tech.category || 'Technology'}</p>

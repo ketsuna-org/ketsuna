@@ -441,7 +441,7 @@
                         >
                           {#if item.icon && item.icon.startsWith("/")}
                             <img
-                              src={item.icon}
+                              src={`https://api.ketsuna.com${item.icon}`}
                               alt={item.name}
                               class="w-full h-full object-contain"
                             />
