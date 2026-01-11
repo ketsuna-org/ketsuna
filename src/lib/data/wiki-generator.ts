@@ -62,7 +62,7 @@ export function generateItemArticle(item: Item): WikiArticle {
         <ul class="list-disc pl-5 space-y-2">
             <li><strong>Minable par le CEO:</strong> ${item.minable ? 'Oui' : 'Non'}</li>
             <li><strong>Explorable:</strong> ${item.is_explorable ? 'Oui via expéditions' : 'Non'}</li>
-            <li><strong>Marché Global:</strong> ${item.market_available ? 'Disponible à l\\'achat' : 'Restreint / Craft uniquement'}</li>
+            <li><strong>Marché Global:</strong> ${item.market_available ? "Disponible à l'achat" : 'Restreint / Craft uniquement'}</li>
         </ul>
     `;
     
