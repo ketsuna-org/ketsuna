@@ -112,9 +112,17 @@
   let isConnectionMode = $state(false);
   let connectionSourceId = $state<string | null>(null);
 
-  // Derived Selection State
-  let selectedNode = $derived(nodes.find((n) => n.selected === true));
-  let selectedEdge = $derived(edges.find((e) => e.selected === true));
+  // Derived Selection State (Multi-selection)
+  let selectedNodes = $derived(nodes.filter((n) => n.selected === true));
+  let selectedEdges = $derived(edges.filter((e) => e.selected === true));
+
+  // Legacy single getters for backward compatibility / singular logic if needed
+  let selectedNode = $derived(
+    selectedNodes.length === 1 ? selectedNodes[0] : null
+  );
+  let selectedEdge = $derived(
+    selectedEdges.length === 1 ? selectedEdges[0] : null
+  );
 
   function handlePlacementSelect(
     type: "machine" | "deposit",
@@ -583,11 +591,29 @@
 
   // Handle context actions
   async function handleDeleteSelection() {
-    if (selectedNode) {
-      if (!selectedNode.deletable) return;
-      await deleteElements({ nodes: [selectedNode] });
-    } else if (selectedEdge) {
-      await deleteElements({ edges: [selectedEdge] });
+    // Filter deletable nodes (exclude Zone, Company, Deposit)
+    // Note: 'deletable' property is already set during loadData logic
+    const nodesToDelete = selectedNodes.filter(
+      (n) => n.deletable || n.type === "machine" || n.type === "storage"
+    );
+
+    // Edges are always deletable
+    const edgesToDelete = selectedEdges;
+
+    if (nodesToDelete.length === 0 && edgesToDelete.length === 0) return;
+
+    if (
+      confirm(
+        `Supprimer ${nodesToDelete.length} élément(s) et ${edgesToDelete.length} connexion(s) ?`
+      )
+    ) {
+      await deleteElements({
+        nodes: nodesToDelete,
+        edges: edgesToDelete,
+      });
+      // Clear selection after delete
+      nodes = nodes.map((n) => ({ ...n, selected: false }));
+      edges = edges.map((e) => ({ ...e, selected: false }));
     }
   }
 
@@ -1160,7 +1186,7 @@
   {/if}
 
   <!-- Context Action Bar (Mobile/Touch) -->
-  {#if selectedNode || selectedEdge}
+  {#if selectedNodes.length > 0 || selectedEdges.length > 0}
     <div
       class="fixed bottom-0 left-0 w-full z-40 bg-[#1e293b] border-t border-[#334155] p-4 pr-24 shadow-[0_-4px_20px_rgba(0,0,0,0.5)] flex items-center justify-between animate-slide-up"
     >
@@ -1169,41 +1195,50 @@
           class="w-10 h-10 rounded-lg bg-[#0f172a] border border-[#334155] flex items-center justify-center"
         >
           <span class="text-xl">
-            {#if selectedNode?.type === "machine"}⚙️
-            {:else if selectedNode?.type === "deposit"}⛏️
-            {:else if selectedNode?.type === "company"}🏢
-            {:else if selectedNode?.type === "storage"}📦
-            {:else if selectedEdge}🔗
-            {:else}📍{/if}
+            {#if selectedNodes.length === 1 && selectedEdges.length === 0}
+              {#if selectedNodes[0].type === "machine"}⚙️
+              {:else if selectedNodes[0].type === "deposit"}⛏️
+              {:else if selectedNodes[0].type === "company"}🏢
+              {:else if selectedNodes[0].type === "storage"}📦
+              {:else}📍{/if}
+            {:else if selectedNodes.length === 0 && selectedEdges.length === 1}
+              🔗
+            {:else}
+              🔢
+            {/if}
           </span>
         </div>
         <div>
           <h3 class="font-bold text-white text-sm uppercase tracking-wider">
-            {#if selectedNode}
-              {selectedNode.data?.label || selectedNode.type}
-            {:else if selectedEdge}
+            {#if selectedNodes.length === 1 && selectedEdges.length === 0}
+              {selectedNodes[0].data?.label || selectedNodes[0].type}
+            {:else if selectedNodes.length === 0 && selectedEdges.length === 1}
               Connexion
+            {:else}
+              Sélection Multiple
             {/if}
           </h3>
           <p class="text-xs text-slate-400">
-            {#if selectedNode}
-              {Math.round(selectedNode.position.x)}, {Math.round(
-                selectedNode.position.y
+            {#if selectedNodes.length === 1 && selectedEdges.length === 0}
+              {Math.round(selectedNodes[0].position.x)}, {Math.round(
+                selectedNodes[0].position.y
               )}
-            {:else}
+            {:else if selectedNodes.length === 0 && selectedEdges.length === 1}
               Transfert de ressources
+            {:else}
+              {selectedNodes.length} machine(s), {selectedEdges.length} connexion(s)
             {/if}
           </p>
         </div>
       </div>
 
       <div class="flex items-center gap-2">
-        {#if selectedNode && selectedNode.type !== "company" && selectedNode.type !== "deposit" && selectedNode.type !== "zone"}
-          <!-- Delete Button -->
+        {#if selectedNodes.some((n) => n.deletable) || selectedEdges.length > 0}
+          <!-- Delete Button (Bulk) -->
           <button
             onclick={handleDeleteSelection}
             class="p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-500 hover:bg-red-500/20 active:scale-95 transition-all"
-            aria-label="Supprimer"
+            aria-label="Supprimer la sélection"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -1217,40 +1252,8 @@
               stroke-linejoin="round"
               ><path d="M3 6h18" /><path
                 d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"
-              /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /><line
-                x1="10"
-                x2="10"
-                y1="11"
-                y2="17"
-              /><line x1="14" x2="14" y1="11" y2="17" /></svg
-            >
-          </button>
-        {/if}
-
-        {#if selectedEdge}
-          <!-- Delete Button for Edge -->
-          <button
-            onclick={handleDeleteSelection}
-            class="p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-500 hover:bg-red-500/20 active:scale-95 transition-all"
-            aria-label="Supprimer"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              ><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><line
-                x1="9"
-                y1="9"
-                x2="15"
-                y2="15"
-              /><line x1="15" y1="9" x2="9" y2="15" /></svg
-            >
+              /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+            </svg>
           </button>
         {/if}
       </div>
