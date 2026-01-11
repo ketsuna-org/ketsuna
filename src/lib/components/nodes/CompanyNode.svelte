@@ -49,7 +49,36 @@
 </script>
 
 <div class="company-node">
-  <Handle type="target" position={Position.Left} class="handle" />
+  <Handle
+    type="target"
+    position={Position.Left}
+    id="input-1"
+    class="handle handle-1"
+  />
+  <Handle
+    type="target"
+    position={Position.Left}
+    id="input-2"
+    class="handle handle-2"
+  />
+  <Handle
+    type="target"
+    position={Position.Left}
+    id="input-3"
+    class="handle handle-3"
+  />
+  <Handle
+    type="target"
+    position={Position.Left}
+    id="input-4"
+    class="handle handle-4"
+  />
+  <Handle
+    type="target"
+    position={Position.Left}
+    id="input-5"
+    class="handle handle-5"
+  />
 
   <!-- Building structure with isometric depth -->
   <div class="building-container">
@@ -562,10 +591,28 @@
 
   /* Handle styling */
   :global(.handle) {
-    background: #3a3b3f;
-    border: 2px solid #6e7078;
+    background: #ef4444; /* Red for input */
+    border: 2px solid #991b1b;
     width: 12px;
     height: 12px;
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.5);
+  }
+
+  /* Position multiple input handles vertically */
+  :global(.handle-1) {
+    top: 15% !important;
+  }
+  :global(.handle-2) {
+    top: 30% !important;
+  }
+  :global(.handle-3) {
+    top: 45% !important;
+  }
+  :global(.handle-4) {
+    top: 60% !important;
+  }
+  :global(.handle-5) {
+    top: 75% !important;
   }
 
   /* Animations */

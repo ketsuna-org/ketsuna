@@ -24,7 +24,6 @@
   let { id, data, selected }: NodeProps<StorageNode> = $props();
 
   let usedCapacity = $state(0);
-  let unsubscribe: () => void;
 
   async function loadStorageInventory() {
     try {
@@ -47,23 +46,6 @@
   $effect(() => {
     if (data.itemId) {
       loadStorageInventory();
-
-      // Subscribe to changes
-      pb.collection("inventory")
-        .subscribe("*", (e) => {
-          if (e.record.linked_storage === id) {
-            if (e.action === "delete") {
-              usedCapacity = 0;
-            } else {
-              usedCapacity = Math.floor((e.record as any).quantity || 0);
-            }
-          }
-        })
-        .then((unsub) => (unsubscribe = unsub));
-
-      return () => {
-        if (unsubscribe) unsubscribe();
-      };
     }
   });
 </script>
@@ -351,17 +333,21 @@
   }
 
   :global(.handle) {
-    background: #06b6d4;
-    border: 2px solid #164e63;
     width: 10px;
     height: 10px;
   }
 
   :global(.handle.source) {
+    background: #3b82f6; /* Blue for output */
+    border: 2px solid #1e3a8a;
     right: -15px !important;
+    box-shadow: 0 0 6px rgba(59, 130, 246, 0.5);
   }
 
   :global(.handle.target) {
+    background: #ef4444; /* Red for input */
+    border: 2px solid #991b1b;
     left: -15px !important;
+    box-shadow: 0 0 6px rgba(239, 68, 68, 0.5);
   }
 </style>

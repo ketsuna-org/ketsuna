@@ -33,7 +33,6 @@
   let miningProgress = $state(0);
   let estimatedHarvested = $state(0);
   let currentQuantity = $state(0); // Local state for realtime updates
-  let unsubscribe: () => void;
 
   // Initialize from data on mount
   $effect(() => {
@@ -45,30 +44,8 @@
   );
 
   $effect(() => {
-    // Initial data load for quantity even if not selected
+    // Initial data load for quantity
     loadRealtimeData();
-
-    // Subscribe to deposit updates
-    pb.collection("deposits")
-      .subscribe(id, (e) => {
-        if (e.action === "update") {
-          const newQty = e.record.quantity;
-          if (typeof newQty === "number") {
-            currentQuantity = newQty;
-            // Update internal record if loaded
-            if (depositRecord) {
-              depositRecord.quantity = newQty;
-              depositRecord.last_harvest_at = e.record.last_harvest_at;
-              depositRecord.harvested = e.record.harvested;
-            }
-          }
-        }
-      })
-      .then((unsub) => (unsubscribe = unsub));
-
-    return () => {
-      if (unsubscribe) unsubscribe();
-    };
   });
 
   $effect(() => {
@@ -495,10 +472,11 @@
   }
 
   :global(.handle) {
-    background: #10b981;
-    border: 2px solid #064e3b;
+    background: #3b82f6; /* Blue for output */
+    border: 2px solid #1e3a8a;
     width: 10px;
     height: 10px;
     right: -15px !important;
+    box-shadow: 0 0 6px rgba(59, 130, 246, 0.5);
   }
 </style>

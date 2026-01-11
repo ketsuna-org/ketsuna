@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import pb from "$lib/pocketbase";
+  import { notifications } from "$lib/notifications";
   import MachineNode from "$lib/components/nodes/MachineNode.svelte";
   import DepositNode from "$lib/components/nodes/DepositNode.svelte";
   import CompanyNode from "$lib/components/nodes/CompanyNode.svelte";
@@ -496,6 +497,22 @@
 
     if (!sourceNode || !targetNode) return;
 
+    // Constraint: Machine can only have ONE deposit input
+    if (sourceNode.type === "deposit" && targetNode.type === "machine") {
+      const existingDeposit = edges.find((e) => {
+        if (e.target !== targetNode.id) return false;
+        const src = nodes.find((n) => n.id === e.source);
+        return src?.type === "deposit";
+      });
+
+      if (existingDeposit) {
+        notifications.error(
+          "Impossible: Une machine ne peut être reliée qu'à un seul gisement !"
+        );
+        return;
+      }
+    }
+
     /* Restriction removed: connections now allowed between machines
     if (targetNode.type !== "company") {
       console.warn(
@@ -512,7 +529,9 @@
       targetNode.type as "machine" | "company" | "deposit",
       (sourceNode.data.itemId as string) ||
         (sourceNode.data.resourceId as string) ||
-        ""
+        "",
+      connection.sourceHandle || undefined,
+      connection.targetHandle || undefined
     );
 
     if (success) {
@@ -673,12 +692,32 @@
         });
 
         try {
+          // Constraint: Machine can only have ONE deposit input
+          if (sourceNode.type === "deposit" && targetNode.type === "machine") {
+            const existingDeposit = edges.find((e) => {
+              if (e.target !== targetNode.id) return false;
+              const src = nodes.find((n) => n.id === e.source);
+              return src?.type === "deposit";
+            });
+
+            if (existingDeposit) {
+              notifications.error(
+                "Impossible: Une machine ne peut être reliée qu'à un seul gisement !"
+              );
+              connectionSourceId = null;
+              nodes = nodes.map((n) => ({ ...n, selected: false }));
+              return;
+            }
+          }
+
           const success = await createEdge(
             sourceNode.id,
             sourceNode.type as "machine" | "deposit",
             targetNode.id,
             targetNode.type as "machine" | "company" | "deposit",
-            resourceId
+            resourceId,
+            undefined, // Mobile mode doesn't specify handles
+            undefined
           );
 
           if (success) {

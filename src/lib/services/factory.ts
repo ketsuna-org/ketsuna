@@ -204,6 +204,8 @@ export async function loadFactory(companyId: string): Promise<{
         id: edge.id,
         source: edge.input_id,
         target: edge.output_id,
+        sourceHandle: edge.source_handle || undefined,
+        targetHandle: edge.target_handle || undefined,
         animated: false, // PipeEdge handles its own animation
         type: 'pipe',
         data: {
@@ -304,13 +306,14 @@ export async function updateNodePosition(
 }
 
 // Create an edge connection
-// Create an edge connection
 export async function createEdge(
   inputId: string,
   inputType: 'machine' | 'deposit',
   outputId: string,
   outputType: 'machine' | 'company' | 'deposit', // Added outputType
-  item: string
+  item: string,
+  sourceHandle?: string,
+  targetHandle?: string
 ): Promise<string | null> {
   try {
     const record = await pb.collection('edge_relation').create({
@@ -319,6 +322,8 @@ export async function createEdge(
       output_id: outputId,
       output_type: outputType, // Use dynamic outputType
       item: item,
+      source_handle: sourceHandle || '',
+      target_handle: targetHandle || '',
     });
     return record.id;
   } catch (error) {

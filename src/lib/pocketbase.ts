@@ -75,6 +75,8 @@ export interface Deposit extends BaseRecord {
 
 // edge_relation (Connections for the factory canvas)
 export interface EdgeRelation extends BaseRecord {
+  target_handle: string;
+  source_handle: string;
   input_id: string;
   input_type: "deposit" | "machine" | "storage";
   output_id: string;
