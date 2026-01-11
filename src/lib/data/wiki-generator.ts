@@ -1,6 +1,6 @@
 import type { Item, Recipe, Technology } from "$lib/types/game";
 import type { WikiArticle } from "$lib/data/wiki-categories";
-import { getItemName, getAllRecipes } from "$lib/data/game-static";
+import { getItem, getItemName, getAllRecipes } from "$lib/data/game-static";
 
 // --- Generators ---
 
@@ -59,7 +59,7 @@ export function generateItemArticle(item: Item): WikiArticle {
             ${item.production_time ? `<li class="flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center">⏱️</span> <span><strong>Temps de cycle:</strong> ${item.production_time}s</span></li>` : ''}
             ${item.max_employee ? `<li class="flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center">👥</span> <span><strong>Employés Max:</strong> ${item.max_employee}</span></li>` : ''}
             ${item.energy_type ? `<li class="flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center">⚡</span> <span><strong>Énergie:</strong> ${item.energy_type}</span></li>` : ''}
-            ${item.product ? `<li class="flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center">📦</span> <span><strong>Produit Direct:</strong> <a href="/wiki/item-${item.product}" class="text-indigo-400 hover:underline">${getItemName(item.product)}</a> (x${item.product_quantity})</span></li>` : ''}
+            ${item.product && getItem(item.product) ? `<li class="flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center">📦</span> <span><strong>Produit Direct:</strong> <a href="/wiki/item-${item.product}" class="text-indigo-400 hover:underline">${getItemName(item.product)}</a> (x${item.product_quantity})</span></li>` : item.product ? `<li class="flex items-center gap-3"><span class="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center">📦</span> <span><strong>Produit Direct:</strong> ${getItemName(item.product)} (x${item.product_quantity})</span></li>` : ''}
         </ul>
     `;
     
@@ -113,7 +113,7 @@ export function generateItemArticle(item: Item): WikiArticle {
             </a>
             <div class="text-sm text-slate-500 flex items-center gap-1">
                 <span>via</span>
-                ${machineSlug ? `<a href="/wiki/${machineSlug}" class="text-slate-400 hover:text-white underline decoration-dotted">${machineName}</a>` : machineName}
+                ${machineSlug && getItem(r.machine_type as string) ? `<a href="/wiki/${machineSlug}" class="text-slate-400 hover:text-white underline decoration-dotted">${machineName}</a>` : machineName}
             </div>
         </li>`;
       }).join("");
@@ -140,9 +140,12 @@ export function generateItemArticle(item: Item): WikiArticle {
         
         return `<li class="flex justify-between items-center py-2 border-b border-slate-800/50 last:border-0 px-2">
             <a href="/wiki/recipe-${r.id}" class="text-slate-300 hover:text-indigo-400 transition-colors">${r.name}</a>
-            <a href="/wiki/${outputSlug}" class="text-sm px-2 py-1 bg-slate-800 rounded text-slate-400 hover:text-white hover:bg-indigo-600 transition-all">
-                → ${outputName}
-            </a>
+            ${getItem(r.output_item) ? 
+              `<a href="/wiki/${outputSlug}" class="text-sm px-2 py-1 bg-slate-800 rounded text-slate-400 hover:text-white hover:bg-indigo-600 transition-all">
+                  → ${outputName}
+              </a>` : 
+              `<span class="text-sm px-2 py-1 bg-slate-800 rounded text-slate-500">→ ${outputName}</span>`
+            }
         </li>`;
       }).join("");
       
@@ -222,7 +225,7 @@ export function generateRecipeArticle(recipe: Recipe): WikiArticle {
 }
 
 export function generateTechArticle(tech: Technology): WikiArticle {
-  const unlocksList = tech.item_unlocked?.map(id => 
+  const unlocksList = tech.item_unlocked?.filter(id => getItem(id) !== undefined).map(id => 
     `<a href="/wiki/item-${id}" class="inline-flex items-center px-2.5 py-1.5 rounded-lg text-xs font-medium bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 hover:bg-indigo-500/20 transition-colors">
         ${getItemName(id)}
     </a>`
