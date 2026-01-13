@@ -6,10 +6,8 @@
     type NodeProps,
     NodeToolbar,
   } from "@xyflow/svelte";
-  import { untrack } from "svelte";
-  import pb, { type Employee } from "$lib/pocketbase";
+  import pb from "$lib/pocketbase";
   import { activeCompany } from "$lib/stores";
-  import { calculateMiningProgress } from "$lib/graph/lazyCalculator";
 
   type DepositNode = Node<
     {
@@ -24,14 +22,9 @@
 
   let { id, data, selected }: NodeProps<DepositNode> = $props();
 
-  // State for assignments
   let depositRecord = $state<any>(null);
-  let availableEmployees = $state<Employee[]>([]);
   let loading = $state(false);
-  let panelLoading = $state(false);
-  let miningProgress = $state(0);
-  let estimatedHarvested = $state(0);
-  let currentQuantity = $state(0); // Local state for realtime updates
+  let currentQuantity = $state(0);
 
   // Initialize from data on mount
   $effect(() => {
@@ -42,135 +35,56 @@
     currentQuantity ? Math.min(100, (currentQuantity / 10000) * 100) : 0
   );
 
+  // Track if initial load is done
+  let initialLoadDone = false;
+
+  // Load data ONCE on mount
   $effect(() => {
-    // Initial data load for quantity
-    loadRealtimeData();
+    if (initialLoadDone) return;
+    initialLoadDone = true;
+    loadData();
   });
 
+  import { lastProductionTick } from "$lib/services/productionHeartbeat";
+
+  // Periodic refresh via Heartbeat
   $effect(() => {
-    if (selected) {
-      $activeCompany; // Depend on company changes
-      id; // Depend on ID changes
-      untrack(() => loadData());
+    if ($lastProductionTick > 0) {
+      // Reload only quantity when heartbeats
+      pb.collection("deposits")
+        .getOne(id, { fields: "quantity,ressource_id" })
+        .then((rec) => {
+          currentQuantity = rec.quantity;
+          if (depositRecord) {
+            depositRecord.quantity = rec.quantity;
+          }
+        })
+        .catch(() => {});
     }
   });
-
-  async function loadRealtimeData() {
-    try {
-      const rec = await pb
-        .collection("deposits")
-        .getOne(id, { fields: "quantity,last_harvest_at,harvested" });
-      currentQuantity = rec.quantity;
-      if (depositRecord) {
-        depositRecord.last_harvest_at = rec.last_harvest_at;
-        depositRecord.harvested = rec.harvested;
-      }
-    } catch (e) {
-      console.error("Failed to load deposit realtime", e);
-    }
-  }
 
   async function loadData() {
     if (loading) return;
     loading = true;
     try {
-      // Fetch deposit details with employees
-      // Fetch deposit details
       const dep = await pb.collection("deposits").getOne(id);
-
-      // Fetch assigned employees
-      const assignedEmps = await pb.collection("employees").getFullList({
-        filter: `deposit = '${id}'`,
-      });
-
-      // Manually attach to expand for compatibility
-      if (!dep.expand) dep.expand = {};
-      (dep.expand as any).employees = assignedEmps;
-
       depositRecord = dep;
-
-      // Fetch available employees from the backend endpoint
-      const response = await pb.send("/api/employees/available", {
-        method: "GET",
-      });
-      availableEmployees = response.items || [];
+      currentQuantity = dep.quantity;
     } catch (e) {
       console.error("Failed to load deposit data", e);
     } finally {
       loading = false;
     }
   }
-
-  function handleDepositUpdate() {
-    loadData();
-  }
-
-  async function refreshAvailableEmployees() {
-    try {
-      const response = await pb.send("/api/employees/available", {
-        method: "GET",
-      });
-      availableEmployees = response.items || [];
-    } catch (e) {
-      console.error("Failed to refresh employees", e);
-    }
-  }
-
-  async function handleHarvest() {
-    if (!depositRecord || !depositRecord.id) return;
-    panelLoading = true;
-    try {
-      await pb.send("/api/deposits/harvest", {
-        method: "POST",
-        body: { depositId: depositRecord.id },
-      });
-      await loadData(); // Refresh to show 0 harvested
-    } catch (e: any) {
-      console.error("Failed to harvest", e);
-      alert(e.message || "Erreur lors de la récolte");
-    } finally {
-      panelLoading = false;
-    }
-  }
-
-  // Real-time mining progress using Graph Economy calculations
-  $effect(() => {
-    const interval = setInterval(() => {
-      if (!depositRecord?.last_harvest_at) {
-        miningProgress = 0;
-        estimatedHarvested = 0;
-        return;
-      }
-
-      const assignedEmployees = depositRecord.expand?.employees || [];
-      if (assignedEmployees.length === 0) {
-        miningProgress = 0;
-        estimatedHarvested = 0;
-        return;
-      }
-
-      // Use lazy calculator for accurate calculations
-      const result = calculateMiningProgress(
-        depositRecord,
-        assignedEmployees,
-        new Date(depositRecord.last_harvest_at)
-      );
-
-      miningProgress = result.progressPercent;
-      estimatedHarvested = result.estimatedYield;
-    }, 100); // Update 10 times per second
-
-    return () => clearInterval(interval);
-  });
 </script>
 
 <div class="deposit-node" class:selected>
   <NodeToolbar isVisible={selected} position={Position.Top} align="center">
     <div
-      class="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-4 w-72 backdrop-blur-md"
+      class="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-4 w-64 backdrop-blur-md"
     >
       <h3 class="text-sm font-bold text-white mb-3 flex items-center gap-2">
-        <span class="text-lg">⛏️</span> Personnel
+        <span class="text-lg">⛏️</span> Gisement
       </h3>
       {#if loading}
         <div class="flex justify-center py-4">
@@ -179,28 +93,32 @@
           ></div>
         </div>
       {:else if depositRecord}
-        <div class="space-y-3">
-          {#if depositRecord.harvested && depositRecord.harvested > 0}
-            <div
-              class="bg-amber-900/20 border border-amber-500/30 rounded-lg p-3 space-y-2"
+        <div
+          class="text-xs text-slate-300 space-y-2 bg-slate-800/50 p-3 rounded-lg"
+        >
+          <div class="flex justify-between items-center">
+            <span class="text-slate-400">Ressource:</span>
+            <span class="font-medium text-white">{data.name}</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-slate-400">Quantité:</span>
+            <span class="font-mono text-emerald-400"
+              >{Math.floor(currentQuantity).toLocaleString()}</span
             >
-              <div class="flex items-center justify-between">
-                <span class="text-xs font-medium text-amber-200"
-                  >⛏️ Récolté:</span
-                >
-                <span class="text-sm font-bold text-amber-400"
-                  >{depositRecord.harvested.toLocaleString()}</span
-                >
-              </div>
-              <button
-                onclick={handleHarvest}
-                disabled={panelLoading}
-                class="w-full py-1.5 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white text-xs font-bold rounded-lg transition-colors"
-              >
-                🫣 Récolter
-              </button>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-slate-400">Taille:</span>
+            <span class="font-mono text-amber-400"
+              >Niv. {depositRecord.size || 1}</span
+            >
+          </div>
+
+          <!-- Quantity gauge -->
+          <div class="pt-2">
+            <div class="gauge-full">
+              <div class="gauge-bar" style="width: {quantityPercent}%"></div>
             </div>
-          {/if}
+          </div>
         </div>
       {:else}
         <p class="text-xs text-red-400">Erreur chargement</p>
@@ -210,20 +128,15 @@
 
   <!-- Industrial Structure -->
   <div class="structure-container">
-    <!-- Base Platform -->
     <div class="platform"></div>
-
-    <!-- Main Block -->
     <div class="block-body">
-      <!-- Faces -->
       <div class="face-left"></div>
       <div class="face-right"></div>
       <div class="face-top"></div>
 
-      <!-- Front Content -->
       <div class="face-front">
         <div class="face-header">
-          <div class="status-light" class:active={miningProgress > 0}></div>
+          <div class="status-light" class:active={currentQuantity > 0}></div>
           <div class="rivet-row">
             <div class="rivet"></div>
             <div class="rivet"></div>
@@ -245,13 +158,6 @@
             {/if}
           </div>
         </div>
-
-        <!-- Progress Bar (Mining) -->
-        {#if depositRecord?.last_harvest_at && miningProgress > 0}
-          <div class="operation-bar">
-            <div class="op-fill" style="width: {miningProgress}%"></div>
-          </div>
-        {/if}
       </div>
     </div>
   </div>
@@ -276,7 +182,6 @@
     height: 100%;
   }
 
-  /* Platform */
   .platform {
     position: absolute;
     bottom: 0;
@@ -289,7 +194,6 @@
     border-radius: 4px;
   }
 
-  /* Block Body */
   .block-body {
     position: absolute;
     bottom: 16px;
@@ -299,14 +203,13 @@
     height: 180px;
   }
 
-  /* Faces */
   .face-left {
     position: absolute;
     top: 10px;
     left: -12px;
     width: 14px;
     height: 180px;
-    background: #064e3b; /* Dark emerald */
+    background: #064e3b;
     border: 1px solid #022c22;
     transform: skewY(-10deg);
   }
@@ -349,7 +252,6 @@
     box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
   }
 
-  /* Details */
   .face-header {
     display: flex;
     justify-content: space-between;
@@ -447,22 +349,22 @@
     box-shadow: 0 0 4px rgba(16, 185, 129, 0.5);
   }
 
-  .operation-bar {
-    margin-top: auto;
+  .gauge-full {
     width: 100%;
-    height: 3px;
-    background: #374151;
+    height: 6px;
+    background: #1f2937;
+    border-radius: 3px;
     overflow: hidden;
   }
 
-  .op-fill {
+  .gauge-bar {
     height: 100%;
-    background: #fbbf24;
-    box-shadow: 0 0 4px #fbbf24;
+    background: linear-gradient(90deg, #10b981, #34d399);
+    border-radius: 3px;
   }
 
   :global(.handle) {
-    background: #3b82f6; /* Blue for output */
+    background: #3b82f6;
     border: 2px solid #1e3a8a;
     width: 10px;
     height: 10px;

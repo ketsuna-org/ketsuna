@@ -7,7 +7,7 @@
   import CompanyNode from "$lib/components/nodes/CompanyNode.svelte";
   import ZoneNode from "$lib/components/nodes/ZoneNode.svelte";
   import StorageNode from "$lib/components/nodes/StorageNode.svelte";
-  import { PipeEdge } from "$lib/components/edges";
+  import { PipeEdge, SimpleEdge } from "$lib/components/edges";
   import GameIcon from "$lib/components/GameIcon.svelte";
   import ExplorationModal from "$lib/components/ExplorationModal.svelte";
   import MarketView from "$lib/components/MarketView.svelte";
@@ -85,9 +85,10 @@
     }
   }
 
-  // Edge types: use PipeEdge only when high quality is enabled
+  // Edge types: SimpleEdge for low quality (animated + step path), PipeEdge for high quality
+  // Note: Edges have type:'pipe' set in factory.ts, so we map 'pipe' to our component
   let edgeTypes: EdgeTypes = $derived(
-    (lowQualityEdges ? {} : { pipe: PipeEdge }) as EdgeTypes
+    (lowQualityEdges ? { pipe: SimpleEdge } : { pipe: PipeEdge }) as EdgeTypes
   );
 
   // State
@@ -403,99 +404,101 @@
   }
 
   async function onNodeDragStop({
-    targetNode: node,
-    nodes: _eventNodes, // Renamed to avoid shadowing component state
+    targetNode: _targetNode, // We don't rely only on targetNode for multi-select
+    nodes: _eventNodes,
   }: {
     targetNode: Node | null;
     nodes: Node[];
     event: MouseEvent | TouchEvent;
   }) {
-    // 1. Guard clause for null target or specific restricted zones
-    if (!node || node.id === ZONE_ID) return;
+    // 1. Identify which nodes to update
+    // If multiple nodes are selected, update all of them.
+    // Otherwise, just update the dragged node (if exists)
+    const nodesToUpdate = nodes.filter((n) => n.selected && n.type !== "zone");
 
-    // 2. Use measured dimensions for precision (critical for collision)
-    // Svelte Flow populates 'measured' after the node renders.
-    const nodeDim = {
-      width:
-        node.measured?.width ??
-        NODE_DIMENSIONS[node.type as keyof typeof NODE_DIMENSIONS]?.width ??
-        140,
-      height:
-        node.measured?.height ??
-        NODE_DIMENSIONS[node.type as keyof typeof NODE_DIMENSIONS]?.height ??
-        100,
-    };
-
-    // 3. Filter child nodes for collision (excluding the one being dragged)
-    // Use component-level nodes state, not the event's nodes array
-    const otherNodes = nodes.filter(
-      (n) => n.type !== "zone" && n.id !== node.id
-    ) as FactoryNode[];
-
-    // 4. Boundary Validation
-    const isOutOfBounds =
-      node.position.x < 0 ||
-      node.position.y < 0 ||
-      node.position.x > canvasBounds.width - nodeDim.width ||
-      node.position.y > canvasBounds.height - nodeDim.height;
-
-    if (isOutOfBounds) {
-      console.warn("Node out of bounds, resetting position");
-      await loadData(); // Revert state from source of truth
-      return;
+    // If no selection (unexpected in drag stop), fallback to targetNode if selected
+    if (
+      nodesToUpdate.length === 0 &&
+      _targetNode &&
+      _targetNode.type !== "zone"
+    ) {
+      nodesToUpdate.push(_targetNode);
     }
 
-    // 5. Collision Validation - TEMPORARILY DISABLED for debugging
-    // The collision logic was causing false positives, preventing all node movement
-    // TODO: Re-enable after fixing the collision detection logic
-    /*
-    const hasCollision = checkCollision(
-      node.position.x,
-      node.position.y,
-      nodeDim.width,
-      nodeDim.height,
-      otherNodes,
-      node.id
-    );
+    if (nodesToUpdate.length === 0) return;
 
-    if (hasCollision) {
-      console.warn("Collision detected, resetting position");
+    // 2. Validate Bounds & Prepare Updates
+    const updates = [];
+    let isAnyOutOfBounds = false;
+
+    for (const node of nodesToUpdate) {
+      // Use measured dimensions or fallback
+      const nodeDim = {
+        width:
+          node.measured?.width ??
+          NODE_DIMENSIONS[node.type as keyof typeof NODE_DIMENSIONS]?.width ??
+          140,
+        height:
+          node.measured?.height ??
+          NODE_DIMENSIONS[node.type as keyof typeof NODE_DIMENSIONS]?.height ??
+          100,
+      };
+
+      const isOutOfBounds =
+        node.position.x < 0 ||
+        node.position.y < 0 ||
+        node.position.x > canvasBounds.width - nodeDim.width ||
+        node.position.y > canvasBounds.height - nodeDim.height;
+
+      if (isOutOfBounds) {
+        isAnyOutOfBounds = true;
+        break; // Stop checking, we will revert
+      }
+
+      updates.push({
+        id: node.id,
+        type: node.type,
+        x: Math.round(node.position.x),
+        y: Math.round(node.position.y),
+      });
+    }
+
+    if (isAnyOutOfBounds) {
+      console.warn("One or more nodes out of bounds, resetting positions");
       await loadData(); // Revert state
       return;
     }
-    */
 
-    // 6. Persistence
+    // 3. Persistence - Update all moved nodes
     try {
-      const roundedX = Math.round(node.position.x);
-      const roundedY = Math.round(node.position.y);
-
-      const success = await updateNodePosition(
-        node.type as "machine" | "deposit" | "company" | "storage",
-        node.id,
-        roundedX,
-        roundedY
+      // TODO: In the future, use a batch update API for atomic operations
+      // For now, parallel requests are acceptable for small selections
+      await Promise.all(
+        updates.map((u) =>
+          updateNodePosition(
+            u.type as "machine" | "deposit" | "company" | "storage",
+            u.id,
+            u.x,
+            u.y
+          )
+        )
       );
 
-      if (!success) {
-        await loadData();
-      } else {
-        // Update local state with rounded values to avoid visual drift
-        const nodeIndex = nodes.findIndex((n) => n.id === node.id);
-        if (nodeIndex !== -1) {
-          nodes[nodeIndex].position = { x: roundedX, y: roundedY };
+      // 4. Update local state
+      // (Actually, Svelte Flow bind:nodes already updated positions,
+      // but we round them to match backend state)
+      for (const u of updates) {
+        const idx = nodes.findIndex((n) => n.id === u.id);
+        if (idx !== -1) {
+          nodes[idx].position = { x: u.x, y: u.y };
         }
-
-        // Log movement
-        logAnalyticsEvent("factory_node_moved", {
-          node_id: node.id,
-          node_type: node.type,
-          new_x: roundedX,
-          new_y: roundedY,
-        });
       }
+
+      logAnalyticsEvent("factory_nodes_moved_batch", {
+        count: updates.length,
+      });
     } catch (error) {
-      console.error("Failed to update node position:", error);
+      console.error("Failed to update node positions:", error);
       await loadData();
     }
   }

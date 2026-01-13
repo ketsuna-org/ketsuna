@@ -210,9 +210,12 @@
     }).format(val);
   }
 
-  // Load inventory when company changes
+  // Load inventory when company changes (track by ID, not object reference)
+  let lastInventoryCompanyId: string | null = null;
   $effect(() => {
-    if ($activeCompany) {
+    const companyId = $activeCompany?.id;
+    if (companyId && companyId !== lastInventoryCompanyId) {
+      lastInventoryCompanyId = companyId;
       currentPage = 1;
       hasMore = true;
       loadInventory(1, false);

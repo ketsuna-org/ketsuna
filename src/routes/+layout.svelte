@@ -22,6 +22,11 @@
 
   let navHubOpen = $state(false);
 
+  import {
+    startProductionHeartbeat,
+    stopProductionHeartbeat,
+  } from "$lib/services/productionHeartbeat";
+
   onMount(async () => {
     // Initialise Firebase/Analytics
     await initFirebase();
@@ -34,8 +39,12 @@
       // Sync Analytics User ID
       if (model?.id) {
         setAnalyticsUserId(model.id);
+        // Start heartbeat when logged in
+        startProductionHeartbeat();
       } else {
         setAnalyticsUserId(null);
+        // Stop heartbeat when logged out
+        stopProductionHeartbeat();
       }
 
       if (model && model.active_company) {
@@ -51,6 +60,10 @@
         activeCompany.set(null);
       }
     }, true);
+
+    return () => {
+      stopProductionHeartbeat();
+    };
   });
 </script>
 

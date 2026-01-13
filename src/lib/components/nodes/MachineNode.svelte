@@ -6,9 +6,8 @@
     type NodeProps,
     NodeToolbar,
   } from "@xyflow/svelte";
-  import { untrack } from "svelte";
   import GameIcon from "$lib/components/GameIcon.svelte";
-  import pb, { type Machine, type Employee } from "$lib/pocketbase";
+  import pb, { type Machine } from "$lib/pocketbase";
   import { activeCompany } from "$lib/stores";
   import { gamedataStore } from "$lib/stores/gamedataStore";
   import { calculateProductionProgress } from "$lib/graph/lazyCalculator";
@@ -27,12 +26,18 @@
   let { id, data, selected }: NodeProps<MachineNode> = $props();
 
   let machineRecord = $state<Machine | null>(null);
-  let availableEmployees = $state<Employee[]>([]);
   let loading = $state(false);
-  let panelLoading = $state(false);
   let productionProgress = $state(0);
-  let estimatedProduced = $state(0);
   let savingRecipe = $state(false);
+
+  // Get machine definition from static data
+  let machineDef = $derived.by(() => {
+    if (!machineRecord?.machine_id) return null;
+    return gamedataStore.getItem(machineRecord.machine_id);
+  });
+
+  // Is this an extractor (no recipe, has product)?
+  let isExtractor = $derived(machineDef?.product && !machineDef?.use_recipe);
 
   // Get compatible recipes for this machine type
   let compatibleRecipes = $derived.by(() => {
@@ -44,65 +49,30 @@
   // Current active recipe (from machine record or default)
   let activeRecipe = $derived.by(() => {
     if (!machineRecord) return null;
-    const recipeId =
-      machineRecord.active_recipe ||
-      gamedataStore.getItem(machineRecord.machine_id)?.use_recipe;
+    const recipeId = machineRecord.active_recipe || machineDef?.use_recipe;
     return recipeId ? getRecipe(recipeId) : null;
   });
 
-  // Load data when node is selected
-  $effect(() => {
-    // Track dependencies explicitly
-    if (selected) {
-      $activeCompany; // Depend on company changes
-      id; // Depend on ID changes
-      untrack(() => loadData());
-    }
+  import { onMount, untrack } from "svelte";
+
+  // Load data ONCE on mount
+  onMount(() => {
+    // We use untrack just to be absolutely safe, though onMount shouldn't track anyway
+    untrack(() => {
+      loadData();
+    });
   });
 
   async function loadData() {
     if (loading) return;
     loading = true;
     try {
-      // 1. Fetch Machine details (with employees)
-      // 1. Fetch Machine details
       const m = await pb.collection("machines").getOne<Machine>(id);
-
-      // Fetch assigned employees
-      const assignedEmps = await pb.collection("employees").getFullList({
-        filter: `machine = '${id}'`,
-      });
-
-      // Manually attach for compatibility
-      if (!m.expand) m.expand = {};
-      m.expand.employees = assignedEmps;
-
       machineRecord = m;
-
-      // 2. Fetch Available Employees from the backend endpoint
-      const response = await pb.send("/api/employees/available", {
-        method: "GET",
-      });
-      availableEmployees = response.items || [];
     } catch (e) {
       console.error("Failed to load machine data", e);
     } finally {
       loading = false;
-    }
-  }
-
-  function handleMachineUpdate() {
-    loadData(); // Reload to refresh list
-  }
-
-  async function refreshAvailableEmployees() {
-    try {
-      const response = await pb.send("/api/employees/available", {
-        method: "GET",
-      });
-      availableEmployees = response.items || [];
-    } catch (e) {
-      console.error("Failed to refresh employees", e);
     }
   }
 
@@ -113,7 +83,6 @@
       await pb.collection("machines").update(machineRecord.id, {
         active_recipe: recipeId,
       });
-      // Reload to reflect change
       await loadData();
     } catch (e) {
       console.error("Failed to change recipe", e);
@@ -122,32 +91,31 @@
     }
   }
 
-  // Real-time production progress using Graph Economy calculations
+  // Client-side Simulation Only:
+  // We do NOT reload data from server automatically to avoid infinite loops.
+  // The progress bar is calculated mathematically based on start time.
+  // Data is only refreshed if the user interacts (e.g. changing recipe).
+
+  // Visual Animation Loop (runs continuously for smooth progress bar)
   $effect(() => {
-    const interval = setInterval(() => {
-      if (!machineRecord?.production_started_at) {
+    const animationInterval = setInterval(() => {
+      // Calculate progress using existing data (no fetch here)
+      if (!machineRecord?.production_started_at || !machineDef) {
         productionProgress = 0;
-        estimatedProduced = 0;
         return;
       }
 
-      // Get machine data from gamedata store
-      const machineData = gamedataStore.getItem(machineRecord.machine_id);
-      const assignedEmployees = machineRecord.expand?.employees || [];
-
-      // Use lazy calculator for accurate calculations
       const result = calculateProductionProgress(
         machineRecord as any,
-        machineData as any,
-        assignedEmployees as any[],
+        machineDef as any,
+        [],
         new Date(machineRecord.production_started_at)
       );
 
       productionProgress = result.progressPercent;
-      estimatedProduced = result.estimatedProduced;
-    }, 100); // Update 10 times per second for smooth animation
+    }, 100);
 
-    return () => clearInterval(interval);
+    return () => clearInterval(animationInterval);
   });
 </script>
 
@@ -157,10 +125,8 @@
       class="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-4 w-72 backdrop-blur-md"
     >
       <h3 class="text-sm font-bold text-white mb-3 flex items-center gap-2">
-        <span class="text-lg">👥</span> Personnel
+        <span class="text-lg">⚙️</span> Production
       </h3>
-
-      <!-- Machine Stats Display -->
 
       {#if loading}
         <div class="flex justify-center py-4">
@@ -168,104 +134,110 @@
             class="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"
           ></div>
         </div>
-      {:else if machineRecord}
-        <!-- Machine Specs / Recipe Info -->
-        {#if machineRecord.machine_id}
-          {#if activeRecipe || compatibleRecipes.length > 0}
-            {@const recipe = activeRecipe}
-            {@const outItem = recipe ? getItem(recipe.output_item) : null}
-            <div class="mt-4 pt-4 border-t border-slate-700">
-              <h3
-                class="text-sm font-bold text-white mb-2 flex items-center gap-2"
-              >
-                <span class="text-lg">⚙️</span> Production
-              </h3>
-
-              <div
-                class="text-xs text-slate-300 space-y-2 bg-slate-800/50 p-3 rounded-lg"
-              >
-                <!-- Recipe Selector (if multiple recipes available) -->
-                {#if compatibleRecipes.length > 1}
-                  <div class="space-y-1">
-                    <span class="text-slate-400 text-[10px] uppercase"
-                      >Recette Active:</span
-                    >
-                    <select
-                      class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-xs text-white focus:border-indigo-500 focus:outline-none disabled:opacity-50"
-                      value={machineRecord.active_recipe ||
-                        gamedataStore.getItem(machineRecord.machine_id)
-                          ?.use_recipe ||
-                        ""}
-                      disabled={savingRecipe}
-                      onchange={(e) => changeRecipe(e.currentTarget.value)}
-                    >
-                      {#each compatibleRecipes as r (r.id)}
-                        <option value={r.id}>{r.name}</option>
-                      {/each}
-                    </select>
-                  </div>
-                {:else if recipe}
-                  <div class="flex justify-between items-center">
-                    <span class="text-slate-400">Recette:</span>
-                    <span class="font-medium text-white">{recipe.name}</span>
-                  </div>
-                {/if}
-
-                {#if recipe}
-                  <div class="flex justify-between items-center">
-                    <span class="text-slate-400">Cycle:</span>
-                    <span class="font-mono text-emerald-400"
-                      >{recipe.production_time}s</span
-                    >
-                  </div>
-
-                  <!-- Inputs -->
-                  {#if recipe.inputs?.length}
-                    <div class="pt-1">
-                      <span
-                        class="text-slate-500 block mb-1 text-[10px] uppercase"
-                        >Entrées:</span
-                      >
-                      <div class="flex flex-wrap gap-1">
-                        {#each recipe.inputs as input}
-                          {@const inputItem = getItem(
-                            input.item || input.item_id
-                          )}
-                          <!-- item is safer, item_id from go wrapper -->
-                          <span
-                            class="bg-slate-900 border border-slate-700 px-1.5 py-0.5 rounded text-[10px]"
-                          >
-                            {input.quantity}x {inputItem?.name || input.item}
-                          </span>
-                        {/each}
-                      </div>
-                    </div>
-                  {/if}
-
-                  <!-- Outputs -->
-                  <div class="pt-1 border-t border-slate-700/50 mt-1">
-                    <span
-                      class="text-slate-500 block mb-1 text-[10px] uppercase"
-                      >Sorties:</span
-                    >
-                    <div class="flex flex-wrap gap-1">
-                      <span
-                        class="bg-emerald-950/30 border border-emerald-900/50 text-emerald-300 px-1.5 py-0.5 rounded text-[10px]"
-                      >
-                        {recipe.output_quantity}x {outItem?.name ||
-                          recipe.output_item}
-                      </span>
-                    </div>
-                  </div>
-                {:else}
-                  <p class="text-slate-500 text-center py-2">
-                    Aucune recette sélectionnée
-                  </p>
-                {/if}
-              </div>
+      {:else if machineRecord && machineDef}
+        <div
+          class="text-xs text-slate-300 space-y-2 bg-slate-800/50 p-3 rounded-lg"
+        >
+          {#if isExtractor}
+            <!-- Extractor Stats -->
+            <div class="flex justify-between items-center">
+              <span class="text-slate-400">Type:</span>
+              <span class="font-medium text-amber-400">Extracteur</span>
             </div>
+            <div class="flex justify-between items-center">
+              <span class="text-slate-400">Produit:</span>
+              <span class="font-medium text-white">
+                {getItem(machineDef.product)?.name || machineDef.product}
+              </span>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="text-slate-400">Quantité/cycle:</span>
+              <span class="font-mono text-emerald-400"
+                >{machineDef.product_quantity ||
+                  machineDef.ProductQuantity ||
+                  1}</span
+              >
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="text-slate-400">Temps de cycle:</span>
+              <span class="font-mono text-emerald-400"
+                >{machineDef.production_time ||
+                  machineDef.ProductionTime ||
+                  60}s</span
+              >
+            </div>
+          {:else}
+            <!-- Recipe Machine -->
+            {#if compatibleRecipes.length > 1}
+              <div class="space-y-1">
+                <span class="text-slate-400 text-[10px] uppercase"
+                  >Recette Active:</span
+                >
+                <select
+                  class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-xs text-white focus:border-indigo-500 focus:outline-none disabled:opacity-50"
+                  value={machineRecord.active_recipe ||
+                    machineDef?.use_recipe ||
+                    ""}
+                  disabled={savingRecipe}
+                  onchange={(e) => changeRecipe(e.currentTarget.value)}
+                >
+                  {#each compatibleRecipes as r (r.id)}
+                    <option value={r.id}>{r.name}</option>
+                  {/each}
+                </select>
+              </div>
+            {:else if activeRecipe}
+              <div class="flex justify-between items-center">
+                <span class="text-slate-400">Recette:</span>
+                <span class="font-medium text-white">{activeRecipe.name}</span>
+              </div>
+            {/if}
+
+            {#if activeRecipe}
+              <div class="flex justify-between items-center">
+                <span class="text-slate-400">Cycle:</span>
+                <span class="font-mono text-emerald-400"
+                  >{activeRecipe.production_time}s</span
+                >
+              </div>
+
+              {#if activeRecipe.inputs?.length}
+                <div class="pt-1">
+                  <span class="text-slate-500 block mb-1 text-[10px] uppercase"
+                    >Entrées:</span
+                  >
+                  <div class="flex flex-wrap gap-1">
+                    {#each activeRecipe.inputs as input}
+                      {@const inputItem = getItem(input.item || input.item_id)}
+                      <span
+                        class="bg-slate-900 border border-slate-700 px-1.5 py-0.5 rounded text-[10px]"
+                      >
+                        {input.quantity}x {inputItem?.name || input.item}
+                      </span>
+                    {/each}
+                  </div>
+                </div>
+              {/if}
+
+              <div class="pt-1 border-t border-slate-700/50 mt-1">
+                <span class="text-slate-500 block mb-1 text-[10px] uppercase"
+                  >Sorties:</span
+                >
+                <div class="flex flex-wrap gap-1">
+                  <span
+                    class="bg-emerald-950/30 border border-emerald-900/50 text-emerald-300 px-1.5 py-0.5 rounded text-[10px]"
+                  >
+                    {activeRecipe.output_quantity}x {getItem(
+                      activeRecipe.output_item
+                    )?.name || activeRecipe.output_item}
+                  </span>
+                </div>
+              </div>
+            {:else}
+              <p class="text-slate-500 text-center py-2">Aucune recette</p>
+            {/if}
           {/if}
-        {/if}
+        </div>
       {:else}
         <p class="text-xs text-red-400">Erreur chargement</p>
       {/if}
@@ -278,12 +250,10 @@
   <div class="structure-container">
     <div class="platform"></div>
     <div class="block-body">
-      <!-- Faces -->
       <div class="face-left"></div>
       <div class="face-right"></div>
       <div class="face-top"></div>
 
-      <!-- Front Content -->
       <div class="face-front">
         <div class="face-header">
           <div class="status-light" class:active={productionProgress > 0}></div>
@@ -334,7 +304,6 @@
     height: 100%;
   }
 
-  /* Platform */
   .platform {
     position: absolute;
     bottom: 0;
@@ -347,7 +316,6 @@
     border-radius: 4px;
   }
 
-  /* Block Body */
   .block-body {
     position: absolute;
     bottom: 16px;
@@ -357,14 +325,13 @@
     height: 180px;
   }
 
-  /* Faces */
   .face-left {
     position: absolute;
     top: 10px;
     left: -12px;
     width: 14px;
     height: 180px;
-    background: #1e3a8a; /* Dark blue */
+    background: #1e3a8a;
     border: 1px solid #172554;
     transform: skewY(-10deg);
   }
@@ -407,7 +374,6 @@
     box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
   }
 
-  /* Details */
   .face-header {
     display: flex;
     justify-content: space-between;
@@ -493,14 +459,14 @@
   }
 
   :global(.handle.source) {
-    background: #3b82f6; /* Blue for output */
+    background: #3b82f6;
     border: 2px solid #1e3a8a;
     right: -15px !important;
     box-shadow: 0 0 6px rgba(59, 130, 246, 0.5);
   }
 
   :global(.handle.target) {
-    background: #ef4444; /* Red for input */
+    background: #ef4444;
     border: 2px solid #991b1b;
     left: -15px !important;
     box-shadow: 0 0 6px rgba(239, 68, 68, 0.5);

@@ -44,6 +44,10 @@
 
   // Calculate segment positions
   let segmentCount = $derived(Math.floor(pathLength / 40));
+
+  // Calculate midpoint for transfer rate label
+  let midX = $derived((sourceX + targetX) / 2);
+  let midY = $derived((sourceY + targetY) / 2);
 </script>
 
 <svg class="pipe-edge-svg">
@@ -243,6 +247,29 @@
       class="selection-highlight"
     />
   {/if}
+
+  <!-- Transfer Rate Label (5/s) -->
+  <g transform="translate({midX}, {midY})">
+    <rect
+      x="-20"
+      y="-10"
+      width="40"
+      height="20"
+      rx="4"
+      fill="rgba(15, 23, 42, 0.9)"
+      stroke="#334155"
+      stroke-width="1"
+    />
+    <text
+      x="0"
+      y="5"
+      text-anchor="middle"
+      fill="#fbbf24"
+      font-size="11"
+      font-weight="600"
+      font-family="monospace">5/s</text
+    >
+  </g>
 
   <!-- Interaction Path (Invisible, captures clicks) -->
   <path
