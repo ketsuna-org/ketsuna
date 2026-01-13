@@ -3,7 +3,7 @@
   import { fade, scale } from "svelte/transition";
   import type { Employee } from "$lib/pocketbase";
   import pb from "$lib/pocketbase";
-  import { activeCompany } from "$lib/stores";
+  import { activeCompany, refreshActiveCompany } from "$lib/stores";
   import { notifications } from "$lib/notifications";
   import { getAllItems } from "$lib/data/game-static";
 
@@ -95,7 +95,11 @@
 
   async function refreshData() {
     loading = true;
-    await Promise.all([loadExplorers(), loadActiveExplorations()]);
+    await Promise.all([
+      loadExplorers(),
+      loadActiveExplorations(),
+      refreshActiveCompany(),
+    ]);
     loading = false;
   }
 
