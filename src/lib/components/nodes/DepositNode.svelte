@@ -7,7 +7,6 @@
     NodeToolbar,
   } from "@xyflow/svelte";
   import { untrack } from "svelte";
-  import DepositEmployeePanel from "$lib/components/machine/DepositEmployeePanel.svelte";
   import pb, { type Employee } from "$lib/pocketbase";
   import { activeCompany } from "$lib/stores";
   import { calculateMiningProgress } from "$lib/graph/lazyCalculator";
@@ -202,15 +201,6 @@
               </button>
             </div>
           {/if}
-
-          <DepositEmployeePanel
-            deposit={depositRecord}
-            {availableEmployees}
-            isLoading={panelLoading}
-            onLoadingChange={(l) => (panelLoading = l)}
-            onDepositUpdate={handleDepositUpdate}
-            onRefresh={refreshAvailableEmployees}
-          />
         </div>
       {:else}
         <p class="text-xs text-red-400">Erreur chargement</p>

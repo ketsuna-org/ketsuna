@@ -8,7 +8,6 @@
   } from "@xyflow/svelte";
   import { untrack } from "svelte";
   import GameIcon from "$lib/components/GameIcon.svelte";
-  import MachineEmployeePanel from "$lib/components/machine/MachineEmployeePanel.svelte";
   import pb, { type Machine, type Employee } from "$lib/pocketbase";
   import { activeCompany } from "$lib/stores";
   import { gamedataStore } from "$lib/stores/gamedataStore";
@@ -170,16 +169,6 @@
           ></div>
         </div>
       {:else if machineRecord}
-        <MachineEmployeePanel
-          machine={machineRecord}
-          {availableEmployees}
-          busyEmployeeIds={new Set()}
-          isLoading={panelLoading}
-          onLoadingChange={(l) => (panelLoading = l)}
-          onMachineUpdate={handleMachineUpdate}
-          onRefresh={refreshAvailableEmployees}
-        />
-
         <!-- Machine Specs / Recipe Info -->
         {#if machineRecord.machine_id}
           {#if activeRecipe || compatibleRecipes.length > 0}
