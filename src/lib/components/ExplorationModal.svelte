@@ -16,6 +16,7 @@
   let availableEmployees = $state<Employee[]>([]);
   let selectedEmployee = $state<string | null>(null);
   let selectedResource = $state<string | null>(null);
+  let distance = $state<number>(10); // Distance in km (default 10)
   let activeExplorations = $state<any[]>([]); // New state for active missions
 
   let loading = $state(true);
@@ -24,10 +25,46 @@
   // Intervals
   let refreshInterval: any;
 
+  // Distance pricing constants
+  const FREE_DISTANCE_KM = 10;
+  const COST_PER_EXTRA_KM = 10000;
+  const MIN_DISTANCE = 10;
+  const MAX_DISTANCE = 200;
+
+  // Calculate exploration cost based on distance
+  let explorationCost = $derived(
+    distance > FREE_DISTANCE_KM
+      ? (distance - FREE_DISTANCE_KM) * COST_PER_EXTRA_KM
+      : 0
+  );
+
+  // Calculate expected resource range (based on size 1-10 at given distance)
+  let expectedMinResources = $derived(Math.floor((distance / 10) * 1 * 1000));
+  let expectedMaxResources = $derived(Math.floor((distance / 10) * 10 * 1000));
+
+  // Check if company can afford this exploration
+  let canAfford = $derived(
+    $activeCompany ? $activeCompany.balance >= explorationCost : false
+  );
+
   // Get only resources (Ressource Brute)
   const availableResources = getAllItems().filter(
     (r: any) => r.type === "Ressource Brute"
   );
+
+  // Format currency helper
+  function formatCurrency(value: number): string {
+    return new Intl.NumberFormat("fr-FR", {
+      style: "currency",
+      currency: "EUR",
+      maximumFractionDigits: 0,
+    }).format(value);
+  }
+
+  // Format number helper
+  function formatNumber(value: number): string {
+    return new Intl.NumberFormat("fr-FR").format(value);
+  }
 
   async function loadExplorers() {
     if (!$activeCompany) return;
@@ -70,6 +107,10 @@
 
   async function handleStartMission() {
     if (!selectedEmployee || !selectedResource) return;
+    if (!canAfford) {
+      notifications.error("Fonds insuffisants pour cette exploration");
+      return;
+    }
 
     starting = true;
     try {
@@ -78,15 +119,21 @@
         body: {
           employeeId: selectedEmployee,
           resourceId: selectedResource,
+          distance: distance,
         },
       });
 
-      notifications.success("Mission d'exploration lancée !");
+      const costMsg =
+        explorationCost > 0
+          ? ` (Coût: ${formatCurrency(explorationCost)})`
+          : " (Gratuit)";
+      notifications.success(`Mission d'exploration lancée !${costMsg}`);
       // Switch tab to active missions and refresh
       await refreshData();
       activeTab = "active";
       selectedEmployee = null; // Reset selection
       selectedResource = null;
+      distance = 10; // Reset distance
     } catch (e: any) {
       console.error("Exploration error:", e);
       notifications.error(
@@ -263,6 +310,89 @@
           {/if}
         </div>
 
+        <!-- Distance Selection -->
+        <div class="space-y-3">
+          <div class="flex items-center justify-between">
+            <span
+              class="text-sm font-medium text-slate-300 uppercase tracking-wider"
+            >
+              Distance d'exploration
+            </span>
+            <span class="text-lg font-bold text-white font-mono"
+              >{distance} km</span
+            >
+          </div>
+
+          <input
+            type="range"
+            min={MIN_DISTANCE}
+            max={MAX_DISTANCE}
+            step="10"
+            bind:value={distance}
+            class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+          />
+
+          <div class="flex justify-between text-xs text-slate-500">
+            <span>{MIN_DISTANCE} km (Gratuit)</span>
+            <span>{MAX_DISTANCE} km</span>
+          </div>
+        </div>
+
+        <!-- Pricing & Expected Resources Info -->
+        <div
+          class="bg-slate-800/50 border border-slate-700 rounded-xl p-4 space-y-3"
+        >
+          <!-- Cost -->
+          <div class="flex items-center justify-between">
+            <span class="text-sm text-slate-400">Coût de l'exploration</span>
+            <span
+              class="font-bold {explorationCost === 0
+                ? 'text-emerald-400'
+                : canAfford
+                  ? 'text-amber-400'
+                  : 'text-red-400'}"
+            >
+              {#if explorationCost === 0}
+                <span class="flex items-center gap-1">
+                  <span class="text-lg">✓</span> Gratuit
+                </span>
+              {:else}
+                {formatCurrency(explorationCost)}
+              {/if}
+            </span>
+          </div>
+
+          <!-- Expected Resources -->
+          <div class="flex items-center justify-between">
+            <span class="text-sm text-slate-400">Ressources attendues</span>
+            <span class="font-mono text-indigo-300">
+              {formatNumber(expectedMinResources)} - {formatNumber(
+                expectedMaxResources
+              )}
+            </span>
+          </div>
+
+          <!-- Balance Warning -->
+          {#if explorationCost > 0 && !canAfford}
+            <div
+              class="bg-red-900/30 border border-red-500/30 rounded-lg p-3 flex items-center gap-2"
+            >
+              <span class="text-red-400">⚠️</span>
+              <span class="text-xs text-red-300">
+                Fonds insuffisants. Solde actuel: {formatCurrency(
+                  $activeCompany?.balance ?? 0
+                )}
+              </span>
+            </div>
+          {/if}
+
+          <!-- Pricing Explanation -->
+          <p class="text-[10px] text-slate-500 leading-relaxed">
+            Les 10 premiers km sont gratuits. Au-delà, chaque km supplémentaire
+            coûte {formatCurrency(COST_PER_EXTRA_KM)}.
+          </p>
+        </div>
+
         <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-800">
           <button
             onclick={onClose}
@@ -275,7 +405,8 @@
             disabled={!selectedEmployee ||
               !selectedResource ||
               availableEmployees.length === 0 ||
-              starting}
+              starting ||
+              !canAfford}
             class="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-2 rounded-xl font-bold transition-all shadow-lg hover:shadow-indigo-500/25 flex items-center gap-2"
           >
             {#if starting}
@@ -283,8 +414,10 @@
                 class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"
               ></div>
               <span>Lancement...</span>
+            {:else if explorationCost > 0}
+              <span>🚀 Lancer ({formatCurrency(explorationCost)})</span>
             {:else}
-              <span>🚀 Lancer</span>
+              <span>🚀 Lancer (Gratuit)</span>
             {/if}
           </button>
         </div>
