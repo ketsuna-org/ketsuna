@@ -29,7 +29,7 @@
   const FREE_DISTANCE_KM = 10;
   const COST_PER_EXTRA_KM = 10000;
   const MIN_DISTANCE = 10;
-  const MAX_DISTANCE = 200;
+  const MAX_DISTANCE = 1000;
 
   // Calculate exploration cost based on distance
   let explorationCost = $derived(
