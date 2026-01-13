@@ -142,14 +142,12 @@ export async function fetchDashboardData(userId: string): Promise<DashboardData>
             // C. Liste employés (Juste pour compter le nombre total et l'efficacité moyenne)
             pb.collection("employees").getFullList<PBEmployee>({
                 filter: `employer="${companyId}"`,
-                fields: "efficiency", // On optimise en ne demandant que ce champ
                 requestKey: null,
             }),
 
             // D. Inventaire (Pour le widget Top Items)
             pb.collection("inventory").getFullList<PBInventoryItem>({
                 filter: `company="${companyId}"`,
-                expand: "item",
                 requestKey: null,
             }),
         ]);

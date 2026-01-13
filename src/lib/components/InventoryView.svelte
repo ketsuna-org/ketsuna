@@ -170,7 +170,12 @@
 
     sellingIds[invItem.id] = true;
     try {
-      const res = await sellItem(invItem.item_id, qty);
+      // Pass linked_storage so backend sells from the correct inventory (general vs storage unit)
+      const res = await sellItem(
+        invItem.item_id,
+        qty,
+        invItem.linked_storage || ""
+      );
       notifications.success(`Vente réussie: +${formatCurrency(res.revenue)}`);
 
       const index = inventory.findIndex((i) => i.id === invItem.id);
