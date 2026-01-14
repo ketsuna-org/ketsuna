@@ -36,15 +36,6 @@ export async function getReserveOverview(): Promise<ReserveOverview> {
     }
 }
 
-export async function depositToReserve(itemId: string, quantity: number): Promise<{ success: boolean; message: string; used: number; max: number }> {
-    const res = await pb.send('/api/reserve/deposit', {
-        method: 'POST',
-        body: JSON.stringify({ itemId, quantity })
-    });
-    logAnalyticsEvent("reserve_deposit", { itemId, quantity });
-    return res;
-}
-
 export async function withdrawFromReserve(itemId: string, quantity: number): Promise<{ success: boolean; message: string }> {
     const res = await pb.send('/api/reserve/withdraw', {
         method: 'POST',

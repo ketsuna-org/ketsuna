@@ -9,7 +9,6 @@
   import FilterBar from "$lib/components/FilterBar.svelte";
   import InfiniteScroll from "$lib/components/InfiniteScroll.svelte";
   import SellConfirmation from "$lib/components/SellConfirmation.svelte";
-  import { depositToReserve } from "$lib/services/reserve";
   import { getItem } from "$lib/data/game-static";
 
   const PER_PAGE = 20;
@@ -75,23 +74,6 @@
     // Set quantity to max and sell
     sellQuantities[invItem.id] = invItem.quantity;
     await handleSell(invItem);
-  }
-
-  async function handleDeposit(invItem: InventoryItem) {
-    const qty = sellQuantities[invItem.id] || 1;
-    const item = getItem(invItem.item_id);
-    if (qty <= 0 || !item) return;
-
-    depositingIds[invItem.id] = true;
-    try {
-      await depositToReserve(item.id, qty);
-      notifications.success(`Déposé: ${qty}x ${item.name}`);
-      await loadInventory(1, false);
-    } catch (e: any) {
-      notifications.error(e.message);
-    } finally {
-      depositingIds[invItem.id] = false;
-    }
   }
 
   async function loadInventory(page: number = 1, append: boolean = false) {
@@ -174,7 +156,7 @@
       const res = await sellItem(
         invItem.item_id,
         qty,
-        invItem.linked_storage || ""
+        invItem.linked_storage || "",
       );
       notifications.success(`Vente réussie: +${formatCurrency(res.revenue)}`);
 
@@ -518,7 +500,7 @@
                               setSellQuantity(
                                 invItem.id,
                                 getSellQuantity(invItem.id) - 1,
-                                invItem.quantity
+                                invItem.quantity,
                               )}
                             disabled={getSellQuantity(invItem.id) <= 1}
                             class="w-7 h-7 flex items-center justify-center rounded bg-[#1e293b] hover:bg-[#334155] text-slate-400 hover:text-white disabled:opacity-30 transition-colors"
@@ -531,7 +513,7 @@
                               setSellQuantity(
                                 invItem.id,
                                 parseInt(e.currentTarget.value) || 1,
-                                invItem.quantity
+                                invItem.quantity,
                               )}
                             class="flex-1 bg-transparent text-center font-mono text-sm font-bold text-white focus:outline-none min-w-0"
                           />
@@ -540,7 +522,7 @@
                               setSellQuantity(
                                 invItem.id,
                                 getSellQuantity(invItem.id) + 1,
-                                invItem.quantity
+                                invItem.quantity,
                               )}
                             disabled={getSellQuantity(invItem.id) >=
                               invItem.quantity}
@@ -551,40 +533,6 @@
 
                         <!-- Action Buttons -->
                         <div class="grid grid-cols-[auto_1fr] gap-2">
-                          <button
-                            onclick={() => handleDeposit(invItem)}
-                            disabled={depositingIds[invItem.id] ||
-                              sellingIds[invItem.id]}
-                            class="h-9 w-9 flex items-center justify-center rounded-lg bg-[#1e293b] hover:bg-slate-700 text-slate-400 hover:text-white border border-[#334155] transition-colors disabled:opacity-50"
-                            title="Déposer dans la réserve"
-                          >
-                            {#if depositingIds[invItem.id]}
-                              <div
-                                class="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"
-                              ></div>
-                            {:else}
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="16"
-                                height="16"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="2"
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                ><rect
-                                  x="3"
-                                  y="11"
-                                  width="18"
-                                  height="11"
-                                  rx="2"
-                                  ry="2"
-                                /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg
-                              >
-                            {/if}
-                          </button>
-
                           <button
                             onclick={() => handleSell(invItem)}
                             disabled={sellingIds[invItem.id] ||
