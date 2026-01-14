@@ -3,7 +3,7 @@
   import pb from "$lib/pocketbase";
   import type { InventoryItem, Company } from "$lib/pocketbase";
   import { fade } from "svelte/transition";
-  import { sellItem } from "$lib/services/inventory";
+  import { sellItem, sellInventoryBulk } from "$lib/services/inventory";
   import { notifications } from "$lib/notifications";
   import { goto } from "$app/navigation";
   import FilterBar from "$lib/components/FilterBar.svelte";
@@ -24,6 +24,10 @@
   let sellQuantities = $state<Record<string, number>>({});
   let sellingIds = $state<Record<string, boolean>>({});
   let depositingIds = $state<Record<string, boolean>>({});
+
+  // Bulk sell state
+  let bulkSellGroup = $state<InventoryGroup | null>(null);
+  let bulkSelling = $state(false);
 
   // Filter states
   let searchQuery = $state("");
@@ -185,6 +189,65 @@
     }
   }
 
+  function openBulkSell(group: InventoryGroup) {
+    bulkSellGroup = group;
+  }
+
+  function closeBulkSell() {
+    bulkSellGroup = null;
+  }
+
+  function getGroupSummary(group: InventoryGroup) {
+    return group.items.reduce(
+      (acc, inv) => {
+        const item = getItem(inv.item_id);
+        const price = item ? item.base_price / 2 : 0;
+        acc.itemCount += 1;
+        acc.totalQuantity += inv.quantity;
+        acc.estimatedRevenue += inv.quantity * price;
+        return acc;
+      },
+      { itemCount: 0, totalQuantity: 0, estimatedRevenue: 0 },
+    );
+  }
+
+  async function handleBulkSell() {
+    if (!bulkSellGroup) return;
+
+    const payloadItems = bulkSellGroup.items
+      .filter((inv) => inv.quantity > 0)
+      .map((inv) => ({ itemId: inv.item_id, quantity: inv.quantity }));
+
+    if (payloadItems.length === 0) {
+      notifications.error("Aucun item à vendre dans ce stockage");
+      return;
+    }
+
+    bulkSelling = true;
+    try {
+      const res = await sellInventoryBulk(
+        bulkSellGroup.storageId,
+        payloadItems,
+      );
+      notifications.success(
+        `Vente groupée réussie: +${formatCurrency(res.totalRevenue)}`,
+      );
+
+      if (res.failures?.length) {
+        notifications.error(
+          `${res.failures.length} échec(s) lors de la vente groupée`,
+        );
+      }
+
+      await loadInventory(1, false);
+      closeBulkSell();
+    } catch (err: any) {
+      notifications.error(err?.message || "Erreur lors de la vente groupée");
+    } finally {
+      bulkSelling = false;
+    }
+  }
+
   function formatCurrency(val: number) {
     return new Intl.NumberFormat("fr-FR", {
       style: "currency",
@@ -217,6 +280,7 @@
   type InventoryGroup = {
     name: string;
     isGeneral: boolean;
+    storageId: string;
     items: InventoryItem[];
   };
 
@@ -225,11 +289,13 @@
     let currentGroup: InventoryGroup | null = null;
 
     for (const item of inventory) {
+      const storageId = item.linked_storage || "";
       const name = getStorageName(item);
-      if (!currentGroup || currentGroup.name !== name) {
+      if (!currentGroup || currentGroup.storageId !== storageId) {
         currentGroup = {
           name,
           isGeneral: name === "Inventaire Général",
+          storageId,
           items: [],
         };
         groups.push(currentGroup);
@@ -328,73 +394,105 @@
           <div class="space-y-6">
             <!-- Group Header -->
             <div
-              class="flex items-center gap-4 pb-3 border-b border-[#334155] relative overflow-hidden group/header"
+              class="flex items-center justify-between gap-4 pb-3 border-b border-[#334155] relative overflow-hidden group/header"
             >
               <div
                 class="absolute bottom-0 left-0 w-32 h-px bg-gradient-to-r from-indigo-500 to-transparent"
               ></div>
 
-              <div
-                class="w-12 h-12 rounded-lg bg-[#0f172a] flex items-center justify-center border border-[#334155] group-hover/header:border-indigo-500/50 transition-all duration-300 relative overflow-hidden shadow-inner"
-              >
-                <div class="relative z-10 text-indigo-400">
-                  {#if group.isGeneral}
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="24"
-                      height="24"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="1.5"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      ><rect width="20" height="14" x="2" y="3" rx="2" /><line
-                        x1="8"
-                        x2="16"
-                        y1="21"
-                        y2="21"
-                      /><line x1="12" x2="12" y1="17" y2="21" /></svg
-                    >
-                  {:else}
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="24"
-                      height="24"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="1.5"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      ><path
-                        d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"
-                      /><path d="m3.3 7 8.7 5 8.7-5" /><path
-                        d="M12 22.08V12"
-                      /></svg
-                    >
-                  {/if}
+              <div class="flex items-center gap-4">
+                <div
+                  class="w-12 h-12 rounded-lg bg-[#0f172a] flex items-center justify-center border border-[#334155] group-hover/header:border-indigo-500/50 transition-all duration-300 relative overflow-hidden shadow-inner"
+                >
+                  <div class="relative z-10 text-indigo-400">
+                    {#if group.isGeneral}
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="24"
+                        height="24"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.5"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        ><rect width="20" height="14" x="2" y="3" rx="2" /><line
+                          x1="8"
+                          x2="16"
+                          y1="21"
+                          y2="21"
+                        /><line x1="12" x2="12" y1="17" y2="21" /></svg
+                      >
+                    {:else}
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="24"
+                        height="24"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.5"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        ><path
+                          d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"
+                        /><path d="m3.3 7 8.7 5 8.7-5" /><path
+                          d="M12 22.08V12"
+                        /></svg
+                      >
+                    {/if}
+                  </div>
+                </div>
+
+                <div>
+                  <h2
+                    class="text-xl font-bold text-slate-200 tracking-wide flex items-center gap-3 uppercase"
+                  >
+                    {group.name}
+                    {#if !group.isGeneral}
+                      <span
+                        class="px-2 py-0.5 rounded bg-indigo-950/30 border border-indigo-900/50 text-[10px] font-bold text-indigo-400 uppercase tracking-widest"
+                        >Stockage</span
+                      >
+                    {/if}
+                  </h2>
+                  <p
+                    class="text-slate-500 text-xs font-medium uppercase tracking-wider"
+                  >
+                    {group.items.length} item{group.items.length > 1 ? "s" : ""}
+                  </p>
                 </div>
               </div>
 
-              <div>
-                <h2
-                  class="text-xl font-bold text-slate-200 tracking-wide flex items-center gap-3 uppercase"
-                >
-                  {group.name}
-                  {#if !group.isGeneral}
-                    <span
-                      class="px-2 py-0.5 rounded bg-indigo-950/30 border border-indigo-900/50 text-[10px] font-bold text-indigo-400 uppercase tracking-widest"
-                      >Stockage</span
-                    >
-                  {/if}
-                </h2>
-                <p
-                  class="text-slate-500 text-xs font-medium uppercase tracking-wider"
-                >
-                  {group.items.length} item{group.items.length > 1 ? "s" : ""}
-                </p>
-              </div>
+              <button
+                onclick={() => openBulkSell(group)}
+                class="px-3 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg border border-indigo-900/60 bg-indigo-950/30 text-indigo-200 hover:bg-indigo-800/40 hover:border-indigo-500/60 transition-colors flex items-center gap-2"
+                disabled={bulkSelling}
+              >
+                {#if bulkSelling && bulkSellGroup?.storageId === group.storageId}
+                  <span
+                    class="w-3 h-3 border-2 border-indigo-400/40 border-t-indigo-400 rounded-full animate-spin"
+                  ></span>
+                {:else}
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    ><path d="M21 15V6" /><path d="M18 10.5 21 6l3 4.5" /><path
+                      d="M21 19v2"
+                    /><path d="M3 6h8" /><path d="M3 12h6" /><path
+                      d="M3 18h4"
+                    /></svg
+                  >
+                {/if}
+                Vendre l'inventaire
+              </button>
             </div>
 
             <!-- Items Grid -->
@@ -575,6 +673,147 @@
         onLoadMore={() => loadInventory(currentPage + 1, true)}
       />
     {/if}
+  {/if}
+
+  {#if bulkSellGroup}
+    {@const summary = getGroupSummary(bulkSellGroup)}
+    <div
+      transition:fade={{ duration: 150 }}
+      class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      onclick={(e) => {
+        if (e.target === e.currentTarget && !bulkSelling) closeBulkSell();
+      }}
+      role="dialog"
+      aria-modal="true"
+    >
+      <div
+        transition:fade={{ duration: 150 }}
+        class="bg-slate-900 rounded-3xl border border-slate-800 shadow-2xl max-w-2xl w-full p-8 relative overflow-hidden"
+        role="document"
+      >
+        <div
+          class="absolute top-0 right-0 w-72 h-72 bg-indigo-500/10 blur-[100px] translate-x-1/4 -translate-y-1/4 pointer-events-none"
+        ></div>
+
+        <div class="flex items-center justify-between gap-4 mb-6 relative z-10">
+          <div class="space-y-1">
+            <p
+              class="text-xs uppercase tracking-[0.2em] text-slate-500 font-bold"
+            >
+              Vente groupée
+            </p>
+            <h2 class="text-2xl font-black text-white tracking-tight">
+              {bulkSellGroup.name}
+            </h2>
+            <p class="text-slate-500 text-sm">
+              Stockage ciblé: {bulkSellGroup.isGeneral
+                ? "Inventaire Général"
+                : "Unité de stockage"}
+            </p>
+          </div>
+          <button
+            onclick={() => !bulkSelling && closeBulkSell()}
+            class="w-10 h-10 rounded-xl bg-slate-800/70 hover:bg-slate-700 text-slate-300 flex items-center justify-center border border-slate-700 hover:border-slate-600 transition-colors"
+            aria-label="Fermer"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 relative z-10">
+          <div class="p-4 rounded-2xl bg-slate-950/50 border border-slate-800">
+            <p
+              class="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-1"
+            >
+              Items
+            </p>
+            <p class="text-xl font-black text-white">{summary.itemCount}</p>
+          </div>
+          <div class="p-4 rounded-2xl bg-slate-950/50 border border-slate-800">
+            <p
+              class="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-1"
+            >
+              Quantité totale
+            </p>
+            <p class="text-xl font-black text-white">
+              {Math.floor(summary.totalQuantity)}
+            </p>
+          </div>
+          <div class="p-4 rounded-2xl bg-slate-950/50 border border-slate-800">
+            <p
+              class="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-1"
+            >
+              Revenu estimé
+            </p>
+            <p class="text-xl font-black text-emerald-400">
+              {formatCurrency(summary.estimatedRevenue)}
+            </p>
+          </div>
+        </div>
+
+        <div
+          class="max-h-64 overflow-auto mb-6 relative z-10 rounded-2xl border border-slate-800 bg-slate-950/50"
+        >
+          <table class="w-full text-sm">
+            <thead
+              class="text-[11px] uppercase tracking-widest text-slate-500 border-b border-slate-800"
+            >
+              <tr>
+                <th class="text-left px-4 py-2">Item</th>
+                <th class="text-left px-4 py-2">Type</th>
+                <th class="text-right px-4 py-2">Quantité</th>
+                <th class="text-right px-4 py-2">Valeur estimée</th>
+              </tr>
+            </thead>
+            <tbody>
+              {#each bulkSellGroup.items as inv}
+                {@const item = getItem(inv.item_id)}
+                {@const price = item ? item.base_price / 2 : 0}
+                <tr class="border-b border-slate-800/80 last:border-b-0">
+                  <td class="px-4 py-2 text-white font-semibold"
+                    >{item?.name || inv.item_id}</td
+                  >
+                  <td
+                    class="px-4 py-2 text-slate-400 text-xs uppercase tracking-widest"
+                    >{item?.type || ""}</td
+                  >
+                  <td class="px-4 py-2 text-right text-slate-200 font-mono"
+                    >{Math.floor(inv.quantity)}</td
+                  >
+                  <td class="px-4 py-2 text-right text-emerald-300 font-mono"
+                    >{formatCurrency(inv.quantity * price)}</td
+                  >
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="flex gap-4 relative z-10">
+          <button
+            onclick={() => !bulkSelling && closeBulkSell()}
+            class="flex-1 px-4 py-3.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl font-bold transition-all border border-slate-700 hover:border-slate-600 active:scale-95 disabled:opacity-50"
+            disabled={bulkSelling}
+          >
+            Annuler
+          </button>
+          <button
+            onclick={handleBulkSell}
+            class="flex-1 px-4 py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold transition-all shadow-lg shadow-emerald-500/20 active:scale-95 border border-emerald-500/50 disabled:opacity-60 flex items-center justify-center gap-2"
+            disabled={bulkSelling}
+          >
+            {#if bulkSelling}
+              <span
+                class="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin"
+              ></span>
+              Vente en cours
+            {:else}
+              Confirmer la vente
+            {/if}
+          </button>
+        </div>
+      </div>
+    </div>
   {/if}
 </div>
 

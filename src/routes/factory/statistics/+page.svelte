@@ -9,8 +9,18 @@
   // Register Chart.js components
   Chart.register(...registerables);
 
+  type Period = "1m" | "10m" | "1h" | "10h" | "24h" | "all";
+
   // State
-  let period = $state<"1m" | "10m" | "1h" | "10h" | "24h">("10m");
+  let period = $state<Period>("10m");
+  const periodOptions: Array<{ value: Period; label: string }> = [
+    { value: "1m", label: "1m" },
+    { value: "10m", label: "10m" },
+    { value: "1h", label: "1h" },
+    { value: "10h", label: "10h" },
+    { value: "24h", label: "24h" },
+    { value: "all", label: "Depuis toujours" },
+  ];
   let loading = $state(false);
   let error = $state("");
 
@@ -56,7 +66,7 @@
         `/api/company/statistics?period=${period}`,
         {
           method: "GET",
-        }
+        },
       );
 
       if (response.success) {
@@ -158,7 +168,7 @@
     }
   }
 
-  function changePeriod(newPeriod: typeof period) {
+  function changePeriod(newPeriod: Period) {
     period = newPeriod;
     fetchStatistics();
   }
@@ -225,15 +235,15 @@
       <div
         class="inline-flex rounded-lg bg-[#0f172a] p-1 border border-[#334155]"
       >
-        {#each ["1m", "10m", "1h", "10h", "24h"] as p}
+        {#each periodOptions as option}
           <button
-            onclick={() => changePeriod(p as typeof period)}
+            onclick={() => changePeriod(option.value)}
             class="px-4 py-2 rounded-md text-xs font-bold uppercase tracking-wider transition-all
-                   {period === p
+                   {period === option.value
               ? 'bg-[#334155] text-white shadow-sm ring-1 ring-white/10'
               : 'text-slate-400 hover:text-white hover:bg-[#1e293b]'}"
           >
-            {p}
+            {option.label}
           </button>
         {/each}
       </div>
