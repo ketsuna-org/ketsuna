@@ -21,17 +21,19 @@
   let isDragging = false;
   let lastMouse = { x: 0, y: 0 };
   let lastTouchDistance = 0;
+  let dragThreshold = 5; // Pixels to move before considering it a drag
+  let startDragPos = { x: 0, y: 0 };
+  let hasDragged = false;
 
   // Hover State
   let hoveredCompany: Company | null = null;
-  let hoverTimer: any;
 
   // Node Definition
   type MapNode = {
     x: number;
     y: number;
     radius: number; // Visual radius for the HQ
-    dominationRadius: number; // Territory radius
+    collisionRadius: number; // Physical radius for layout
     company: Company;
     color: { fill: string; stroke: string; glow: string };
     installations: Array<{
@@ -57,7 +59,6 @@
 
   // Constants
   const MAP_SIZE = 4000; // Virtual map size
-  const MIN_DIST = 300; // Minimum distance between HQs
 
   // Simple Seeded PRNG
   function mulberry32(a: number) {
@@ -130,31 +131,32 @@
     nodes = [];
     if (!companies.length) return;
 
-    // Deterministic placement based on company ID hash or similar would be cool, but random is requested.
-    // We strive for semi-random but consistent-ish if the list order doesn't change much.
-    // Using a simpler approach: Place one by one, checking distance.
-
-    // Sort by wealth/size so big companies get priority placement?
+    // Sort by wealth/size so big companies are in the center
     const sorted = [...companies].sort(
       (a, b) => (b.balance || 0) - (a.balance || 0)
     );
 
-    // Seeded random for consistency across reloads (optional, lets use Math.random for now as requested "random location")
-    // Use a fixed seed if we want it to persist per session? No, plain random is fine.
+    // Spiral Layout Parameters
+    let angle = 0;
+    const angleIncrement = 0.5; // Controls how tight the spiral winds
+    const separation = 80; // Minimum distance between nodes, adjusting this scales the packing
 
     for (const company of sorted) {
       const baseRadius = 40;
-      const wealthFactor = Math.log10((company.balance || 0) + 10) * 2;
-      const empFactor = Math.log2((company.employee_count || 0) + 1) * 3;
-      const visualRadius = Math.min(120, baseRadius + wealthFactor + empFactor);
+      // Much milder growth based on stats to keep things compact
+      const wealthFactor = Math.log10((company.balance || 0) + 10) * 1.5;
+      const empFactor = Math.log2((company.employee_count || 0) + 1) * 2;
+      const visualRadius = Math.min(80, baseRadius + wealthFactor + empFactor);
+
       const machineCount = company.machine_count || 0;
-      const dominationRadius = visualRadius + machineCount * 4 + 50;
+      // Collision radius is smaller than old dominationRadius
+      const collisionRadius = visualRadius + 40;
 
       // Pre-calculate installations for preview
       const installations = [];
       if (machineCount > 0) {
-        // Generate aesthetic positions for installations
-        const installCount = Math.min(machineCount, 24); // Cap for visual clarity
+        // Tighter orbit for installations
+        const installCount = Math.min(machineCount, 12); // Reduced cap
         const extractorCount = Math.ceil(installCount * 0.4);
         const processorCount = Math.ceil(installCount * 0.4);
         const storageCount = installCount - extractorCount - processorCount;
@@ -173,11 +175,11 @@
 
         for (let i = 0; i < installCount; i++) {
           const angle = (i / installCount) * Math.PI * 2;
-          const distVar = 1 + (rand() - 0.5) * 0.3;
-          const dist = (visualRadius * 1.5 + 20) * distVar; // Distance from center
+          const distVar = 1 + (rand() - 0.5) * 0.2;
+          const dist = (visualRadius + 20) * distVar; // Closer orbit
 
           installations.push({
-            x: 0, // Computed at render
+            x: 0,
             y: 0,
             icon: types[i].icon,
             color: types[i].color,
@@ -187,49 +189,68 @@
         }
       }
 
-      // Find position
+      // Spiral Placement
+      let placed = false;
       let x = 0,
         y = 0;
-      let placed = false;
-      let attempts = 0;
-      const MAX_ATTEMPTS = 100;
 
-      while (!placed && attempts < MAX_ATTEMPTS) {
-        const angle = Math.random() * Math.PI * 2;
-        const dist = Math.sqrt(Math.random()) * (MAP_SIZE / 2); // Distribute more uniformly in area
-        x = Math.cos(angle) * dist;
-        y = Math.sin(angle) * dist;
+      // If it's the very first (largest) company, place at center
+      if (nodes.length === 0) {
+        x = 0;
+        y = 0;
+        placed = true;
+      } else {
+        // Search outward along a spiral
+        let searchAngle = angle;
+        // Dynamic radius that grows as we spiral out
+        let searchDist = 100;
 
-        // Check collisions
-        let collides = false;
-        for (const existing of nodes) {
-          const dx = x - existing.x;
-          const dy = y - existing.y;
-          const d = Math.sqrt(dx * dx + dy * dy);
-          // Ensure enough space between territory boundaries or at least HQs
-          if (d < existing.dominationRadius + dominationRadius) {
-            collides = true;
-            break;
+        const maxSteps = 1000;
+        let steps = 0;
+
+        while (!placed && steps < maxSteps) {
+          x = Math.cos(searchAngle) * searchDist;
+          y = Math.sin(searchAngle) * searchDist;
+
+          // Collision check against existing nodes
+          let collides = false;
+          for (const existing of nodes) {
+            const dx = x - existing.x;
+            const dy = y - existing.y;
+            const d = Math.sqrt(dx * dx + dy * dy);
+            // Check if they are too close
+            if (d < existing.collisionRadius + collisionRadius) {
+              collides = true;
+              break;
+            }
           }
-        }
 
-        if (!collides) {
-          placed = true;
+          if (!collides) {
+            placed = true;
+            // Update starting angle for next node to continue spiral
+            angle = searchAngle;
+          } else {
+            // Move further along spiral
+            searchAngle += angleIncrement;
+            searchDist += 2; // Slowly increase distance
+          }
+          steps++;
         }
-        attempts++;
       }
 
-      // If couldn't place without overlap, place it far away or just place it anyway (fallback)
+      // Fallback if spiral fails (unlikely)
       if (!placed) {
-        x = (Math.random() - 0.5) * MAP_SIZE * 1.5;
-        y = (Math.random() - 0.5) * MAP_SIZE * 1.5;
+        const fallbackAngle = Math.random() * Math.PI * 2;
+        const fallbackDist = MAP_SIZE / 2;
+        x = Math.cos(fallbackAngle) * fallbackDist;
+        y = Math.sin(fallbackAngle) * fallbackDist;
       }
 
       nodes.push({
         x,
         y,
         radius: visualRadius,
-        dominationRadius,
+        collisionRadius,
         company,
         color: getCompanyColor(company),
         installations,
@@ -240,7 +261,7 @@
   function generateStars() {
     stars = [];
     const count = 400;
-    const spread = MAP_SIZE * 1.5;
+    const spread = MAP_SIZE;
     for (let i = 0; i < count; i++) {
       stars.push({
         x: (Math.random() - 0.5) * spread * 2,
@@ -253,7 +274,10 @@
   }
 
   function loop(time: number) {
-    render(time);
+    // Only render if we have context
+    if (ctx) {
+      render(time);
+    }
     animationFrameId = requestAnimationFrame(loop);
   }
 
@@ -299,8 +323,8 @@
       const screenX = node.x * camera.z + camera.x;
       const screenY = node.y * camera.z + camera.y;
 
-      // Extended culling to include domination area
-      const maxDim = node.dominationRadius * camera.z;
+      // Culling
+      const maxDim = node.collisionRadius * camera.z * 2;
       if (
         screenX + maxDim < 0 ||
         screenX - maxDim > canvas.width ||
@@ -354,23 +378,9 @@
     const { radius, company, color, installations } = node;
     const size = radius * camera.z;
 
-    // Territory circle (Domination Radius) - Visible on hover or always faint?
-    // Let's make it visible on hover
-    if (isHovered) {
-      ctx.beginPath();
-      ctx.arc(x, y, node.dominationRadius * camera.z, 0, Math.PI * 2);
-      ctx.fillStyle = color.glow;
-      ctx.globalAlpha = 0.05;
-      ctx.fill();
-      ctx.strokeStyle = color.stroke;
-      ctx.globalAlpha = 0.1;
-      ctx.stroke();
-      ctx.globalAlpha = 1;
-    }
-
     // Installations (Factory Preview)
     if (installations && installations.length > 0) {
-      const installSize = Math.max(12, 18 * camera.z);
+      const installSize = Math.max(10, 14 * camera.z);
 
       // Draw connections first
       ctx.strokeStyle = color.stroke;
@@ -406,14 +416,13 @@
           iy - installSize / 2,
           installSize,
           installSize,
-          4 * camera.z
+          3 * camera.z
         );
         ctx.fill();
         ctx.stroke();
 
         // Icon
-        if (camera.z > 0.4) {
-          // LOD
+        if (camera.z > 0.5) {
           ctx.font = `${installSize * 0.6}px sans-serif`;
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
@@ -424,7 +433,7 @@
     }
 
     // Main HQ
-    ctx.shadowBlur = isHovered ? size * 0.8 : size * 0.4;
+    ctx.shadowBlur = isHovered ? size * 0.8 : size * 0.2;
     ctx.shadowColor = color.glow;
 
     ctx.beginPath();
@@ -445,7 +454,7 @@
     ctx.fillText("🏛️", x, y - size * 0.1);
 
     // Stats underneath
-    if (camera.z > 0.3) {
+    if (camera.z > 0.4) {
       const statsY = y + size * 0.35;
       ctx.font = `bold ${10 * camera.z}px sans-serif`;
       ctx.fillStyle = color.glow;
@@ -457,7 +466,7 @@
     }
 
     // Name Label
-    if (camera.z > 0.3 || isHovered) {
+    if (camera.z > 0.4 || isHovered) {
       ctx.shadowColor = "black";
       ctx.shadowBlur = 4;
       ctx.fillStyle = "#f8fafc";
@@ -472,7 +481,9 @@
 
   function handleMouseDown(e: MouseEvent) {
     isDragging = true;
+    startDragPos = { x: e.clientX, y: e.clientY };
     lastMouse = { x: e.clientX, y: e.clientY };
+    hasDragged = false;
   }
 
   function handleMouseMove(e: MouseEvent) {
@@ -483,33 +494,50 @@
     if (isDragging) {
       const dx = e.clientX - lastMouse.x;
       const dy = e.clientY - lastMouse.y;
+
+      // Calculate total drag distance to differentiate click vs drag
+      const totalDist = Math.sqrt(
+        Math.pow(e.clientX - startDragPos.x, 2) +
+          Math.pow(e.clientY - startDragPos.y, 2)
+      );
+      if (totalDist > dragThreshold) {
+        hasDragged = true;
+      }
+
       camera.x += dx;
       camera.y += dy;
       lastMouse = { x: e.clientX, y: e.clientY };
-    } else {
-      // Hover detection
-      let found: Company | null = null;
-      // Search in reverse draw order
-      for (let i = nodes.length - 1; i >= 0; i--) {
-        const node = nodes[i];
-        const screenX = node.x * camera.z + camera.x;
-        const screenY = node.y * camera.z + camera.y;
-        const hitR = node.radius * camera.z;
+    }
 
-        const dx = mx - screenX;
-        const dy = my - screenY;
-        if (dx * dx + dy * dy < hitR * hitR) {
-          found = node.company;
-          break;
-        }
+    // Always detect hover unless dragging vigorously
+    if (!hasDragged || !isDragging) {
+      checkHover(mx, my);
+    }
+  }
+
+  function checkHover(mx: number, my: number) {
+    let found: Company | null = null;
+    // Search in reverse draw order
+    for (let i = nodes.length - 1; i >= 0; i--) {
+      const node = nodes[i];
+      const screenX = node.x * camera.z + camera.x;
+      const screenY = node.y * camera.z + camera.y;
+      const hitR = node.radius * camera.z;
+
+      const dx = mx - screenX;
+      const dy = my - screenY;
+      if (dx * dx + dy * dy < hitR * hitR) {
+        found = node.company;
+        break;
       }
-      hoveredCompany = found;
-      if (canvas)
-        canvas.style.cursor = found
-          ? "pointer"
-          : isDragging
-            ? "grabbing"
-            : "grab";
+    }
+    hoveredCompany = found;
+    if (canvas) {
+      canvas.style.cursor = found
+        ? "pointer"
+        : isDragging
+          ? "grabbing"
+          : "grab";
     }
   }
 
@@ -518,7 +546,7 @@
   }
 
   function handleClick(e: MouseEvent) {
-    if (hoveredCompany) {
+    if (!hasDragged && hoveredCompany) {
       onSelectCompany(hoveredCompany);
     }
   }
@@ -527,18 +555,21 @@
     e.preventDefault();
     const zoomSensitivity = 0.001;
     const newZoom = Math.max(
-      0.1,
-      Math.min(3, camera.z - e.deltaY * zoomSensitivity)
+      0.2, // increased min zoom to avoid empty looking screen
+      Math.min(4, camera.z - e.deltaY * zoomSensitivity)
     );
 
-    // Zoom towards center for now
+    // Zoom towards cursor (not just center, bit more complex but better)
+    // Simplified: Zoom center for now to avoid complexity issues
     camera.z = newZoom;
   }
 
   function handleTouchStart(e: TouchEvent) {
     if (e.touches.length === 1) {
       isDragging = true;
+      startDragPos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
       lastMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      hasDragged = false;
     } else if (e.touches.length === 2) {
       isDragging = false;
       const dx = e.touches[0].clientX - e.touches[1].clientX;
@@ -552,6 +583,15 @@
     if (e.touches.length === 1 && isDragging) {
       const dx = e.touches[0].clientX - lastMouse.x;
       const dy = e.touches[0].clientY - lastMouse.y;
+
+      const totalDist = Math.sqrt(
+        Math.pow(e.touches[0].clientX - startDragPos.x, 2) +
+          Math.pow(e.touches[0].clientY - startDragPos.y, 2)
+      );
+      if (totalDist > dragThreshold) {
+        hasDragged = true;
+      }
+
       camera.x += dx;
       camera.y += dy;
       lastMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY };
@@ -561,7 +601,7 @@
       const dist = Math.sqrt(dx * dx + dy * dy);
       const delta = dist - lastTouchDistance;
       const zoomSensitivity = 0.005;
-      camera.z = Math.max(0.1, Math.min(3, camera.z + delta * zoomSensitivity));
+      camera.z = Math.max(0.2, Math.min(4, camera.z + delta * zoomSensitivity));
       lastTouchDistance = dist;
     }
   }
@@ -578,7 +618,13 @@
   on:wheel={handleWheel}
   on:touchstart={handleTouchStart}
   on:touchmove={handleTouchMove}
-  on:touchend={() => (isDragging = false)}
+  on:touchend={() => {
+    // Simulate click for touch if not dragged
+    if (!hasDragged && hoveredCompany) {
+      onSelectCompany(hoveredCompany);
+    }
+    isDragging = false;
+  }}
 ></canvas>
 
 <style>
