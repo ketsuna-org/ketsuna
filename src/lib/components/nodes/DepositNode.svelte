@@ -45,11 +45,14 @@
     loadData();
   });
 
-  import { lastProductionTick } from "$lib/services/productionHeartbeat";
+  import { graphRefreshStore } from "$lib/stores/graphRefreshStore";
 
-  // Periodic refresh via Heartbeat
+  // Periodic refresh via graphRefreshStore (unified heartbeat)
+  let lastRefreshTime: Date | null = null;
   $effect(() => {
-    if ($lastProductionTick > 0) {
+    const currentRefresh = $graphRefreshStore.lastRefresh;
+    if (currentRefresh && currentRefresh !== lastRefreshTime) {
+      lastRefreshTime = currentRefresh;
       // Reload only quantity when heartbeats
       pb.collection("deposits")
         .getOne(id, { fields: "quantity,ressource_id" })

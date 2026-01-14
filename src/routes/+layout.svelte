@@ -21,10 +21,8 @@
 
   let navHubOpen = $state(false);
 
-  import {
-    startProductionHeartbeat,
-    stopProductionHeartbeat,
-  } from "$lib/services/productionHeartbeat";
+  // Note: graphRefreshStore auto-starts when activeCompany is set (via its internal subscription)
+  // No need for explicit heartbeat start/stop here
 
   onMount(() => {
     let unsubscribe: (() => void) | undefined;
@@ -41,12 +39,8 @@
         // Sync Analytics User ID
         if (model?.id) {
           setAnalyticsUserId(model.id);
-          // Start heartbeat when logged in
-          startProductionHeartbeat();
         } else {
           setAnalyticsUserId(null);
-          // Stop heartbeat when logged out
-          stopProductionHeartbeat();
         }
 
         if (model && model.active_company) {
@@ -65,7 +59,6 @@
     })();
 
     return () => {
-      stopProductionHeartbeat();
       unsubscribe?.();
     };
   });

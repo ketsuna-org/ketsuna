@@ -344,7 +344,6 @@ export async function deleteEdge(edgeId: string): Promise<boolean> {
   }
 }
 
-// Unplace a node (remove from canvas, return to sidebar)
 export async function unplaceNode(
   type: 'machine' | 'deposit',
   id: string
@@ -362,3 +361,50 @@ export async function unplaceNode(
     return false;
   }
 }
+
+/**
+ * Lightweight node state update - fetches only quantities and states
+ * Used for periodic refresh to avoid reloading entire graph structure
+ */
+export interface NodeStateUpdate {
+  machines: Map<string, { quantity?: number; durability?: number }>;
+  deposits: Map<string, { quantity: number }>;
+}
+
+export async function fetchNodeStates(companyId: string): Promise<NodeStateUpdate> {
+  const result: NodeStateUpdate = {
+    machines: new Map(),
+    deposits: new Map(),
+  };
+
+  try {
+    // Fetch only placed machines with minimal fields
+    const machines = await pb.collection("machines").getFullList({
+      filter: `company = "${companyId}" && placed = true`,
+      fields: 'id,durability',
+    });
+
+    for (const machine of machines) {
+      result.machines.set(machine.id, {
+        durability: machine.durability,
+      });
+    }
+
+    // Fetch deposits with minimal fields
+    const deposits = await pb.collection("deposits").getFullList({
+      filter: `company = "${companyId}"`,
+      fields: 'id,quantity',
+    });
+
+    for (const deposit of deposits) {
+      result.deposits.set(deposit.id, {
+        quantity: deposit.quantity,
+      });
+    }
+  } catch (error) {
+    console.error('Failed to fetch node states:', error);
+  }
+
+  return result;
+}
+

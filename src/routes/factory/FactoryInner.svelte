@@ -26,6 +26,7 @@
     createEdge,
     deleteEdge,
     unplaceNode,
+    fetchNodeStates,
     NODE_DIMENSIONS,
     type FactoryNode,
   } from "$lib/services/factory";
@@ -80,7 +81,7 @@
     if (browser) {
       localStorage.setItem(
         "factory_low_quality_edges",
-        String(lowQualityEdges),
+        String(lowQualityEdges)
       );
     }
   }
@@ -88,7 +89,7 @@
   // Edge types: SimpleEdge for performance, PipeEdge for optional graphics
   // Note: Edges have type:'pipe' set in factory.ts, so we map 'pipe' to our component
   let edgeTypes: EdgeTypes = $derived(
-    (lowQualityEdges ? { pipe: SimpleEdge } : { pipe: PipeEdge }) as EdgeTypes,
+    (lowQualityEdges ? { pipe: SimpleEdge } : { pipe: PipeEdge }) as EdgeTypes
   );
 
   // State
@@ -122,17 +123,17 @@
 
   // Legacy single getters for backward compatibility / singular logic if needed
   let selectedNode = $derived(
-    selectedNodes.length === 1 ? selectedNodes[0] : null,
+    selectedNodes.length === 1 ? selectedNodes[0] : null
   );
   let selectedEdge = $derived(
-    selectedEdges.length === 1 ? selectedEdges[0] : null,
+    selectedEdges.length === 1 ? selectedEdges[0] : null
   );
 
   function handlePlacementSelect(
     type: "machine" | "deposit",
     id: string,
     machineId: string,
-    icon: string,
+    icon: string
   ) {
     placingSelection = { type, id, machineId, icon };
     showMobileSidebar = false; // Always close sidebar
@@ -177,7 +178,7 @@
       placingSelection.type,
       placingSelection.id,
       x,
-      y,
+      y
     );
 
     if (success) {
@@ -306,7 +307,7 @@
     const currentId = company?.id;
     if (currentId && currentId !== lastCompanyId) {
       console.log(
-        `[FACTORY] Company changed from ${lastCompanyId} to ${currentId}`,
+        `[FACTORY] Company changed from ${lastCompanyId} to ${currentId}`
       );
       lastCompanyId = currentId;
       hasInitiallyLoaded = false; // Reset so we fit view on new company
@@ -314,16 +315,21 @@
     }
   });
 
-  // Effect to reload data when graph refresh completes
+  // Effect to handle graph refresh - nodes update themselves via graphRefreshStore subscription
+  // We no longer need to reload ALL data on every tick - individual node components handle their updates
+  // This dramatically reduces API calls from O(N*M) to O(1) per tick
   let lastRefreshTime: Date | null = null;
   $effect(() => {
     const currentRefreshTime = $graphRefreshStore.lastRefresh;
 
-    // Only reload if we have a new refresh (not initial null)
+    // Only log refresh (node components handle their own updates)
     if (currentRefreshTime && currentRefreshTime !== lastRefreshTime) {
       lastRefreshTime = currentRefreshTime;
-      console.log("[FACTORY] Graph refresh detected, reloading factory data");
-      loadData();
+      console.log(
+        "[FACTORY] Graph refresh detected - nodes update individually"
+      );
+      // Note: Full loadData() intentionally NOT called here anymore
+      // DepositNode and MachineNode subscribe to graphRefreshStore and update themselves
     }
   });
 
@@ -394,7 +400,7 @@
       nodeType as "machine" | "deposit",
       nodeId,
       x,
-      y,
+      y
     );
     if (success) {
       // Close mobile sidebar on drop if open
@@ -479,9 +485,9 @@
             u.type as "machine" | "deposit" | "company" | "storage",
             u.id,
             u.x,
-            u.y,
-          ),
-        ),
+            u.y
+          )
+        )
       );
 
       // 4. Update local state
@@ -526,7 +532,7 @@
         (sourceNode.data.resourceId as string) ||
         "",
       connection.sourceHandle || undefined,
-      connection.targetHandle || undefined,
+      connection.targetHandle || undefined
     );
 
     if (success) {
@@ -599,7 +605,7 @@
     // Filter deletable nodes (exclude Zone, Company, Deposit)
     // Note: 'deletable' property is already set during loadData logic
     const nodesToDelete = selectedNodes.filter(
-      (n) => n.deletable || n.type === "machine" || n.type === "storage",
+      (n) => n.deletable || n.type === "machine" || n.type === "storage"
     );
 
     // Edges are always deletable
@@ -609,7 +615,7 @@
 
     if (
       confirm(
-        `Supprimer ${nodesToDelete.length} élément(s) et ${edgesToDelete.length} connexion(s) ?`,
+        `Supprimer ${nodesToDelete.length} élément(s) et ${edgesToDelete.length} connexion(s) ?`
       )
     ) {
       await deleteElements({
@@ -688,7 +694,7 @@
       console.log("Mobile Connection: Selecting source", node);
       if (node.type === "company") {
         notifications.error(
-          "Le Quartier Général ne peut pas être une source !",
+          "Le Quartier Général ne peut pas être une source !"
         );
         return;
       }
@@ -733,7 +739,7 @@
             targetNode.type as "machine" | "company" | "deposit",
             resourceId,
             undefined, // Mobile mode doesn't specify handles
-            undefined,
+            undefined
           );
 
           if (success) {
@@ -762,7 +768,7 @@
           } else {
             console.warn("Mobile Connection: createEdge returned false");
             notifications.error(
-              "Échec de la connexion. Vérifiez la distance ou la compatibilité.",
+              "Échec de la connexion. Vérifiez la distance ou la compatibilité."
             );
           }
         } catch (err: any) {
@@ -855,7 +861,7 @@
                     "machine",
                     group.ids[0],
                     group.machine_id,
-                    item?.icon || "⚙️",
+                    item?.icon || "⚙️"
                   )}
               >
                 <div class="item-icon">
@@ -896,7 +902,7 @@
                     "deposit",
                     deposit.id,
                     "",
-                    resourceItem?.icon || "⛏️",
+                    resourceItem?.icon || "⛏️"
                   )}
               >
                 <div class="item-icon deposit-icon">
@@ -1222,7 +1228,7 @@
           <p class="text-xs text-slate-400">
             {#if selectedNodes.length === 1 && selectedEdges.length === 0}
               {Math.round(selectedNodes[0].position.x)}, {Math.round(
-                selectedNodes[0].position.y,
+                selectedNodes[0].position.y
               )}
             {:else if selectedNodes.length === 0 && selectedEdges.length === 1}
               Transfert de ressources
