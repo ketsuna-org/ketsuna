@@ -59,8 +59,8 @@
   };
 
   // Custom edge types
-  // Graphics Quality Setting (persisted)
-  let lowQualityEdges = $state(true); // Default to low quality for performance
+  // Performance-first edge rendering (persisted); graphics mode is opt-in
+  let lowQualityEdges = $state(true);
 
   // Load setting from localStorage on mount
   import { onMount as onMountInternal } from "svelte";
@@ -80,15 +80,15 @@
     if (browser) {
       localStorage.setItem(
         "factory_low_quality_edges",
-        String(lowQualityEdges)
+        String(lowQualityEdges),
       );
     }
   }
 
-  // Edge types: SimpleEdge for low quality (animated + step path), PipeEdge for high quality
+  // Edge types: SimpleEdge for performance, PipeEdge for optional graphics
   // Note: Edges have type:'pipe' set in factory.ts, so we map 'pipe' to our component
   let edgeTypes: EdgeTypes = $derived(
-    (lowQualityEdges ? { pipe: SimpleEdge } : { pipe: PipeEdge }) as EdgeTypes
+    (lowQualityEdges ? { pipe: SimpleEdge } : { pipe: PipeEdge }) as EdgeTypes,
   );
 
   // State
@@ -122,17 +122,17 @@
 
   // Legacy single getters for backward compatibility / singular logic if needed
   let selectedNode = $derived(
-    selectedNodes.length === 1 ? selectedNodes[0] : null
+    selectedNodes.length === 1 ? selectedNodes[0] : null,
   );
   let selectedEdge = $derived(
-    selectedEdges.length === 1 ? selectedEdges[0] : null
+    selectedEdges.length === 1 ? selectedEdges[0] : null,
   );
 
   function handlePlacementSelect(
     type: "machine" | "deposit",
     id: string,
     machineId: string,
-    icon: string
+    icon: string,
   ) {
     placingSelection = { type, id, machineId, icon };
     showMobileSidebar = false; // Always close sidebar
@@ -177,7 +177,7 @@
       placingSelection.type,
       placingSelection.id,
       x,
-      y
+      y,
     );
 
     if (success) {
@@ -306,7 +306,7 @@
     const currentId = company?.id;
     if (currentId && currentId !== lastCompanyId) {
       console.log(
-        `[FACTORY] Company changed from ${lastCompanyId} to ${currentId}`
+        `[FACTORY] Company changed from ${lastCompanyId} to ${currentId}`,
       );
       lastCompanyId = currentId;
       hasInitiallyLoaded = false; // Reset so we fit view on new company
@@ -394,7 +394,7 @@
       nodeType as "machine" | "deposit",
       nodeId,
       x,
-      y
+      y,
     );
     if (success) {
       // Close mobile sidebar on drop if open
@@ -479,9 +479,9 @@
             u.type as "machine" | "deposit" | "company" | "storage",
             u.id,
             u.x,
-            u.y
-          )
-        )
+            u.y,
+          ),
+        ),
       );
 
       // 4. Update local state
@@ -526,7 +526,7 @@
         (sourceNode.data.resourceId as string) ||
         "",
       connection.sourceHandle || undefined,
-      connection.targetHandle || undefined
+      connection.targetHandle || undefined,
     );
 
     if (success) {
@@ -540,7 +540,25 @@
           (sourceNode.data.resourceId as string) ||
           "",
       });
-      await loadData();
+
+      // Update edges locally to avoid full reload
+      edges = [
+        ...edges,
+        {
+          id: success,
+          source: connection.source,
+          target: connection.target,
+          sourceHandle: connection.sourceHandle || undefined,
+          targetHandle: connection.targetHandle || undefined,
+          type: "pipe",
+          data: {
+            item:
+              (sourceNode.data.itemId as string) ||
+              (sourceNode.data.resourceId as string) ||
+              "",
+          },
+        },
+      ];
     }
   }
 
@@ -570,9 +588,9 @@
       await deleteEdge(edge.id);
     }
 
-    // Only reload if edges were deleted (to update connection state)
     if (deletedEdges.length > 0) {
-      await loadData();
+      const deletedIds = new Set(deletedEdges.map((e) => e.id));
+      edges = edges.filter((e) => !deletedIds.has(e.id));
     }
   }
 
@@ -581,7 +599,7 @@
     // Filter deletable nodes (exclude Zone, Company, Deposit)
     // Note: 'deletable' property is already set during loadData logic
     const nodesToDelete = selectedNodes.filter(
-      (n) => n.deletable || n.type === "machine" || n.type === "storage"
+      (n) => n.deletable || n.type === "machine" || n.type === "storage",
     );
 
     // Edges are always deletable
@@ -591,7 +609,7 @@
 
     if (
       confirm(
-        `Supprimer ${nodesToDelete.length} élément(s) et ${edgesToDelete.length} connexion(s) ?`
+        `Supprimer ${nodesToDelete.length} élément(s) et ${edgesToDelete.length} connexion(s) ?`,
       )
     ) {
       await deleteElements({
@@ -670,7 +688,7 @@
       console.log("Mobile Connection: Selecting source", node);
       if (node.type === "company") {
         notifications.error(
-          "Le Quartier Général ne peut pas être une source !"
+          "Le Quartier Général ne peut pas être une source !",
         );
         return;
       }
@@ -715,7 +733,7 @@
             targetNode.type as "machine" | "company" | "deposit",
             resourceId,
             undefined, // Mobile mode doesn't specify handles
-            undefined
+            undefined,
           );
 
           if (success) {
@@ -727,7 +745,16 @@
               resource_id: resourceId,
             });
 
-            await loadData();
+            edges = [
+              ...edges,
+              {
+                id: success,
+                source: sourceNode.id,
+                target: targetNode.id,
+                type: "pipe",
+                data: { item: resourceId },
+              },
+            ];
 
             notifications.success("Connexion établie !");
             connectionSourceId = null;
@@ -735,7 +762,7 @@
           } else {
             console.warn("Mobile Connection: createEdge returned false");
             notifications.error(
-              "Échec de la connexion. Vérifiez la distance ou la compatibilité."
+              "Échec de la connexion. Vérifiez la distance ou la compatibilité.",
             );
           }
         } catch (err: any) {
@@ -828,7 +855,7 @@
                     "machine",
                     group.ids[0],
                     group.machine_id,
-                    item?.icon || "⚙️"
+                    item?.icon || "⚙️",
                   )}
               >
                 <div class="item-icon">
@@ -869,7 +896,7 @@
                     "deposit",
                     deposit.id,
                     "",
-                    resourceItem?.icon || "⛏️"
+                    resourceItem?.icon || "⛏️",
                   )}
               >
                 <div class="item-icon deposit-icon">
@@ -965,8 +992,8 @@
             <span class="btn-icon">{lowQualityEdges ? "⚡" : "✨"}</span>
             <span class="btn-label"
               >{lowQualityEdges
-                ? "Graphismes: Rapide"
-                : "Graphismes: Haute Qualité"}</span
+                ? "Graphismes: Performance"
+                : "Graphismes: Mode Graphique"}</span
             >
           </button>
         </div>
@@ -1195,7 +1222,7 @@
           <p class="text-xs text-slate-400">
             {#if selectedNodes.length === 1 && selectedEdges.length === 0}
               {Math.round(selectedNodes[0].position.x)}, {Math.round(
-                selectedNodes[0].position.y
+                selectedNodes[0].position.y,
               )}
             {:else if selectedNodes.length === 0 && selectedEdges.length === 1}
               Transfert de ressources
