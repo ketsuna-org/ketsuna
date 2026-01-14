@@ -239,7 +239,50 @@
         );
       }
 
-      await loadInventory(1, false);
+      // Apply optimistic update without full refresh
+      const soldMap = new Map<string, number>();
+      res.itemsSold?.forEach((s) => {
+        soldMap.set(s.itemId, (soldMap.get(s.itemId) || 0) + s.quantity);
+      });
+
+      let removedCount = 0;
+      const nextInventory: InventoryItem[] = [];
+
+      for (const inv of inventory) {
+        const sameStorage =
+          (inv.linked_storage || "") === bulkSellGroup.storageId;
+        if (sameStorage) {
+          const soldQty = soldMap.get(inv.item_id) || 0;
+          if (soldQty > 0) {
+            const remaining = inv.quantity - soldQty;
+            if (remaining > 0) {
+              inv.quantity = remaining;
+              sellQuantities[inv.id] = Math.min(
+                sellQuantities[inv.id] || 1,
+                Math.floor(remaining),
+              );
+              nextInventory.push(inv);
+            } else {
+              removedCount += 1;
+              delete sellQuantities[inv.id];
+            }
+            soldMap.set(inv.item_id, 0);
+            continue;
+          }
+        }
+        nextInventory.push(inv);
+      }
+
+      inventory = nextInventory;
+      totalItems = Math.max(0, totalItems - removedCount);
+
+      if ($activeCompany) {
+        const updatedCompany = await pb
+          .collection("companies")
+          .getOne<Company>($activeCompany.id);
+        activeCompany.set(updatedCompany);
+      }
+
       closeBulkSell();
     } catch (err: any) {
       notifications.error(err?.message || "Erreur lors de la vente groupée");
