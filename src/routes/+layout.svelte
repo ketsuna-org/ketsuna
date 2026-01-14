@@ -6,7 +6,6 @@
   import pb from "$lib/pocketbase";
   import { currentUser, activeCompany } from "$lib/stores";
   import type { Company } from "$lib/pocketbase";
-  import { goto } from "$app/navigation";
   import NotificationCenter from "$lib/components/NotificationCenter.svelte";
   import NavigationHub from "$lib/components/NavigationHub.svelte";
   import NavFab from "$lib/components/NavFab.svelte";
@@ -27,42 +26,47 @@
     stopProductionHeartbeat,
   } from "$lib/services/productionHeartbeat";
 
-  onMount(async () => {
-    // Initialise Firebase/Analytics
-    await initFirebase();
+  onMount(() => {
+    let unsubscribe: (() => void) | undefined;
 
-    // Load static game data from backend API
-    loadGameData();
-    pb.authStore.onChange(async (token, model) => {
-      currentUser.set(model);
+    (async () => {
+      // Initialise Firebase/Analytics
+      await initFirebase();
 
-      // Sync Analytics User ID
-      if (model?.id) {
-        setAnalyticsUserId(model.id);
-        // Start heartbeat when logged in
-        startProductionHeartbeat();
-      } else {
-        setAnalyticsUserId(null);
-        // Stop heartbeat when logged out
-        stopProductionHeartbeat();
-      }
+      // Load static game data from backend API
+      loadGameData();
+      unsubscribe = pb.authStore.onChange(async (token, model) => {
+        currentUser.set(model);
 
-      if (model && model.active_company) {
-        try {
-          const company = await pb
-            .collection("companies")
-            .getOne<Company>(model.active_company);
-          activeCompany.set(company);
-        } catch (e) {
-          console.error("Failed to load active company", e);
+        // Sync Analytics User ID
+        if (model?.id) {
+          setAnalyticsUserId(model.id);
+          // Start heartbeat when logged in
+          startProductionHeartbeat();
+        } else {
+          setAnalyticsUserId(null);
+          // Stop heartbeat when logged out
+          stopProductionHeartbeat();
         }
-      } else {
-        activeCompany.set(null);
-      }
-    }, true);
+
+        if (model && model.active_company) {
+          try {
+            const company = await pb
+              .collection("companies")
+              .getOne<Company>(model.active_company);
+            activeCompany.set(company);
+          } catch (e) {
+            console.error("Failed to load active company", e);
+          }
+        } else {
+          activeCompany.set(null);
+        }
+      }, true);
+    })();
 
     return () => {
       stopProductionHeartbeat();
+      unsubscribe?.();
     };
   });
 </script>
