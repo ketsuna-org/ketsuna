@@ -1,4 +1,4 @@
-import pb from "$lib/pocketbase";
+import pb, { type InventoryItem } from "$lib/pocketbase";
 import { logAnalyticsEvent } from '$lib/firebase';
 
 /**
@@ -57,4 +57,36 @@ export async function sellInventoryBulk(
         itemsSold: Array<{ itemId: string; quantity: number; revenue: number; unitSellPrice: number }>;
         failures: Array<{ itemId: string; quantity: number; error: string }>;
     };
+}
+
+export interface InventoryStateResponse {
+    items: InventoryItem[];
+    page: number;
+    perPage: number;
+    totalItems: number;
+    totalPages: number;
+}
+
+/**
+ * Read-only inventory fetch, no graph recompute.
+ */
+export async function fetchInventoryState(params: {
+    page?: number;
+    perPage?: number;
+    filter?: string;
+    sort?: string;
+    expand?: string;
+}): Promise<InventoryStateResponse> {
+    const search = new URLSearchParams();
+    search.set("page", String(params.page ?? 1));
+    search.set("perPage", String(params.perPage ?? 20));
+    if (params.filter) search.set("filter", params.filter);
+    if (params.sort) search.set("sort", params.sort);
+    if (params.expand) search.set("expand", params.expand);
+
+    const res = await pb.send(`/api/inventory/state?${search.toString()}`, {
+        method: "GET",
+    });
+
+    return res as InventoryStateResponse;
 }

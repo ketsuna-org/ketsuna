@@ -3,7 +3,11 @@
   import pb from "$lib/pocketbase";
   import type { InventoryItem, Company } from "$lib/pocketbase";
   import { fade } from "svelte/transition";
-  import { sellItem, sellInventoryBulk } from "$lib/services/inventory";
+  import {
+    sellItem,
+    sellInventoryBulk,
+    fetchInventoryState,
+  } from "$lib/services/inventory";
   import { notifications } from "$lib/notifications";
   import { goto } from "$app/navigation";
   import FilterBar from "$lib/components/FilterBar.svelte";
@@ -85,11 +89,6 @@
 
     if (page === 1) {
       loading = true;
-      try {
-        await pb.send("/api/inventory/refresh", { method: "POST" });
-      } catch (e) {
-        console.warn("Failed to refresh inventory production", e);
-      }
     } else {
       loadingMore = true;
     }
@@ -97,14 +96,13 @@
     try {
       const filter = buildFilterString();
 
-      const result = await pb
-        .collection("inventory")
-        .getList<InventoryItem>(page, PER_PAGE, {
-          filter,
-          sort: "linked_storage,item_id", // Sort by storage first, then item
-          expand: "linked_storage",
-          requestKey: null,
-        });
+      const result = await fetchInventoryState({
+        page,
+        perPage: PER_PAGE,
+        filter,
+        sort: "linked_storage,item_id",
+        expand: "linked_storage",
+      });
 
       if (append) {
         inventory = [...inventory, ...result.items];

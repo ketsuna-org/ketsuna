@@ -1,6 +1,6 @@
 /**
  * Graph Refresh Store - Auto-refresh system for Graph Economy
- * Periodically calls /api/inventory/refresh to trigger lazy calculations
+ * Periodically calls /api/factory/process to trigger lazy calculations
  */
 
 import { writable, get } from 'svelte/store';
@@ -60,7 +60,7 @@ function createGraphRefreshStore() {
     update((s) => ({ ...s, isRefreshing: true, error: null }));
 
     try {
-      const response = await pb.send('/api/inventory/refresh', {
+      const response = await pb.send('/api/factory/process', {
         method: 'POST',
       });
 
