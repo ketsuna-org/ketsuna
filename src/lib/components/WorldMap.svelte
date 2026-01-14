@@ -22,27 +22,28 @@
   let lastMouse = { x: 0, y: 0 };
   let lastTouchDistance = 0;
 
-  // Physics State
-  type PhysicsNode = {
-    x: number;
-    y: number;
-    vx: number;
-    vy: number;
-    radius: number; // Visual radius
-    mass: number;
-    dominationRadius: number; // Physics collision radius
-    company: Company;
-  };
-  let nodes: PhysicsNode[] = [];
+  // Hover State
+  let hoveredCompany: Company | null = null;
+  let hoverTimer: any;
 
-  // Array of rendered nodes with screen positions for hit testing (derived from physics nodes)
-  type RenderNode = {
+  // Node Definition
+  type MapNode = {
     x: number;
     y: number;
-    radius: number;
+    radius: number; // Visual radius for the HQ
+    dominationRadius: number; // Territory radius
     company: Company;
+    color: { fill: string; stroke: string; glow: string };
+    installations: Array<{
+      x: number;
+      y: number;
+      icon: string;
+      color: string;
+      angle: number;
+      dist: number;
+    }>;
   };
-  let renderNodes: RenderNode[] = [];
+  let nodes: MapNode[] = [];
 
   // Background Stars
   type Star = {
@@ -50,16 +51,13 @@
     y: number;
     size: number;
     opacity: number;
-    depth: number; // 1 = near, 0.1 = far (moves slower)
+    depth: number;
   };
   let stars: Star[] = [];
 
   // Constants
-  const FRICTION = 0.9;
-  const GRAVITY = 0.005; // Pull to center
-  const REPULSION_STRENGTH = 0.5;
-  const CENTER_X = 0;
-  const CENTER_Y = 0;
+  const MAP_SIZE = 4000; // Virtual map size
+  const MIN_DIST = 300; // Minimum distance between HQs
 
   // Simple Seeded PRNG
   function mulberry32(a: number) {
@@ -76,7 +74,7 @@
     resizeCanvas();
     window.addEventListener("resize", resizeCanvas);
 
-    // Initial Layout Generation (Simple Spiral or Grid)
+    // Initial Layout Generation
     generateLayout();
     generateStars();
 
@@ -100,7 +98,7 @@
     if (canvas) {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
-      // Center camera initially
+      // Center camera initially if at 0,0
       if (camera.x === 0 && camera.y === 0) {
         camera.x = window.innerWidth / 2;
         camera.y = window.innerHeight / 2;
@@ -108,114 +106,153 @@
     }
   }
 
+  function getCompanyColor(company: Company): {
+    fill: string;
+    stroke: string;
+    glow: string;
+  } {
+    if (company.is_npc) {
+      return { fill: "#1e293b", stroke: "#3b82f6", glow: "#60a5fa" };
+    }
+    const balance = company.balance || 0;
+    if (balance > 1_000_000_000) {
+      return { fill: "#1c1917", stroke: "#fbbf24", glow: "#f59e0b" };
+    } else if (balance > 10_000_000) {
+      return { fill: "#1e1b4b", stroke: "#818cf8", glow: "#6366f1" };
+    } else if (balance > 100_000) {
+      return { fill: "#022c22", stroke: "#34d399", glow: "#10b981" };
+    } else {
+      return { fill: "#0f172a", stroke: "#94a3b8", glow: "#cbd5e1" };
+    }
+  }
+
   function generateLayout() {
     nodes = [];
+    if (!companies.length) return;
 
-    // Initialize nodes scattered around center
-    const spread = 800;
+    // Deterministic placement based on company ID hash or similar would be cool, but random is requested.
+    // We strive for semi-random but consistent-ish if the list order doesn't change much.
+    // Using a simpler approach: Place one by one, checking distance.
 
-    for (const company of companies) {
-      // Calculate radii first
+    // Sort by wealth/size so big companies get priority placement?
+    const sorted = [...companies].sort(
+      (a, b) => (b.balance || 0) - (a.balance || 0)
+    );
+
+    // Seeded random for consistency across reloads (optional, lets use Math.random for now as requested "random location")
+    // Use a fixed seed if we want it to persist per session? No, plain random is fine.
+
+    for (const company of sorted) {
       const baseRadius = 40;
       const wealthFactor = Math.log10((company.balance || 0) + 10) * 2;
       const empFactor = Math.log2((company.employee_count || 0) + 1) * 3;
       const visualRadius = Math.min(120, baseRadius + wealthFactor + empFactor);
-
-      // Domination Radius
-      // Each machine adds "space" around the company
       const machineCount = company.machine_count || 0;
-      // 1 machine = +2px push radius
-      const dominationRadius = visualRadius + machineCount * 2 + 20; // +20 default padding
+      const dominationRadius = visualRadius + machineCount * 4 + 50;
 
-      nodes.push({
-        x: (Math.random() - 0.5) * spread,
-        y: (Math.random() - 0.5) * spread,
-        vx: 0,
-        vy: 0,
-        radius: visualRadius,
-        mass: visualRadius, // Heavier nodes move less
-        dominationRadius: dominationRadius,
-        company: company,
-      });
-    }
-  }
+      // Pre-calculate installations for preview
+      const installations = [];
+      if (machineCount > 0) {
+        // Generate aesthetic positions for installations
+        const installCount = Math.min(machineCount, 24); // Cap for visual clarity
+        const extractorCount = Math.ceil(installCount * 0.4);
+        const processorCount = Math.ceil(installCount * 0.4);
+        const storageCount = installCount - extractorCount - processorCount;
 
-  function updatePhysics() {
-    // 1. Apply Forces
-    for (let i = 0; i < nodes.length; i++) {
-      const node = nodes[i];
+        const types = [
+          ...Array(extractorCount).fill({ icon: "⛏️", color: "#3b82f6" }),
+          ...Array(processorCount).fill({ icon: "🔥", color: "#f59e0b" }),
+          ...Array(storageCount).fill({ icon: "📦", color: "#10b981" }),
+        ];
 
-      // Gravity (Center Attraction)
-      const dx = CENTER_X - node.x;
-      const dy = CENTER_Y - node.y;
-      node.vx += dx * GRAVITY * (60 / node.mass); // Heavier objects pulled slower? No, normally same.
-      // Let's just make gravity constant scalar
-      node.vx += dx * 0.0005;
-      node.vy += dy * 0.0005;
+        // Use seed for consistent installation placement per company
+        let seed = 0;
+        for (let i = 0; i < company.id.length; i++)
+          seed += company.id.charCodeAt(i);
+        const rand = mulberry32(seed);
 
-      // Repulsion / Collision
-      for (let j = i + 1; j < nodes.length; j++) {
-        const other = nodes[j];
-        const dx = other.x - node.x;
-        const dy = other.y - node.y;
-        const distSq = dx * dx + dy * dy;
-        const dist = Math.sqrt(distSq);
+        for (let i = 0; i < installCount; i++) {
+          const angle = (i / installCount) * Math.PI * 2;
+          const distVar = 1 + (rand() - 0.5) * 0.3;
+          const dist = (visualRadius * 1.5 + 20) * distVar; // Distance from center
 
-        // Combined Domination Radius
-        const minDist = node.dominationRadius + other.dominationRadius;
-
-        if (dist < minDist && dist > 0) {
-          // Push apart!
-          // Force proportional to overlap
-          const overlap = minDist - dist;
-          const force = overlap * REPULSION_STRENGTH;
-
-          // Normalized direction
-          const nx = dx / dist;
-          const ny = dy / dist;
-
-          // Apply force inversely proportional to mass (f=ma -> a=f/m)
-          // Heavier companies push lighter ones more easily
-          const totalMass = node.mass + other.mass;
-          const m1Params = other.mass / totalMass;
-          const m2Params = node.mass / totalMass;
-
-          node.vx -= nx * force * m1Params;
-          node.vy -= ny * force * m1Params;
-
-          other.vx += nx * force * m2Params;
-          other.vy += ny * force * m2Params;
+          installations.push({
+            x: 0, // Computed at render
+            y: 0,
+            icon: types[i].icon,
+            color: types[i].color,
+            angle,
+            dist,
+          });
         }
       }
-    }
 
-    // 2. Integration
-    for (const node of nodes) {
-      node.x += node.vx;
-      node.y += node.vy;
-      node.vx *= FRICTION;
-      node.vy *= FRICTION;
+      // Find position
+      let x = 0,
+        y = 0;
+      let placed = false;
+      let attempts = 0;
+      const MAX_ATTEMPTS = 100;
+
+      while (!placed && attempts < MAX_ATTEMPTS) {
+        const angle = Math.random() * Math.PI * 2;
+        const dist = Math.sqrt(Math.random()) * (MAP_SIZE / 2); // Distribute more uniformly in area
+        x = Math.cos(angle) * dist;
+        y = Math.sin(angle) * dist;
+
+        // Check collisions
+        let collides = false;
+        for (const existing of nodes) {
+          const dx = x - existing.x;
+          const dy = y - existing.y;
+          const d = Math.sqrt(dx * dx + dy * dy);
+          // Ensure enough space between territory boundaries or at least HQs
+          if (d < existing.dominationRadius + dominationRadius) {
+            collides = true;
+            break;
+          }
+        }
+
+        if (!collides) {
+          placed = true;
+        }
+        attempts++;
+      }
+
+      // If couldn't place without overlap, place it far away or just place it anyway (fallback)
+      if (!placed) {
+        x = (Math.random() - 0.5) * MAP_SIZE * 1.5;
+        y = (Math.random() - 0.5) * MAP_SIZE * 1.5;
+      }
+
+      nodes.push({
+        x,
+        y,
+        radius: visualRadius,
+        dominationRadius,
+        company,
+        color: getCompanyColor(company),
+        installations,
+      });
     }
   }
 
   function generateStars() {
     stars = [];
-    const count = 300;
-    // We generate stars in a large area around 0,0
-    const spread = 5000;
+    const count = 400;
+    const spread = MAP_SIZE * 1.5;
     for (let i = 0; i < count; i++) {
       stars.push({
         x: (Math.random() - 0.5) * spread * 2,
         y: (Math.random() - 0.5) * spread * 2,
         size: Math.random() * 2 + 0.5,
         opacity: Math.random() * 0.8 + 0.2,
-        depth: Math.random() * 0.5 + 0.1, // 0.1 to 0.6
+        depth: Math.random() * 0.5 + 0.1,
       });
     }
   }
 
   function loop(time: number) {
-    updatePhysics(); // Run physics step
     render(time);
     animationFrameId = requestAnimationFrame(loop);
   }
@@ -226,8 +263,7 @@
     // Clear
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Background Gradient (Nebula effect base)
-    // Dark radial gradient for depth
+    // Background Gradient
     const grd = ctx.createRadialGradient(
       canvas.width / 2,
       canvas.height / 2,
@@ -236,208 +272,69 @@
       canvas.height / 2,
       canvas.width
     );
-    grd.addColorStop(0, "#0f172a"); // Slate 900
-    grd.addColorStop(1, "#020617"); // Slate 950
+    grd.addColorStop(0, "#0f172a");
+    grd.addColorStop(1, "#020617");
     ctx.fillStyle = grd;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Draw Stars (Parallax)
+    // Stars
     for (const star of stars) {
-      // Parallax position:
-      // We move the star opposite to camera movement, scaled by depth
-      // But we need to keep them 'looping' or just generate enough area
-      // For simple MVP, simple parallax transform
-      const screenX = star.x + camera.x * star.depth + canvas.width / 2;
-      // + canvas.width/2 to center 0,0 roughly if camera is 0,0
-      // Wait, camera.x is offset. If camera moves left (positive x in typical 2d engines, but here dragging mouse right increases camera.x means we move 'left' into the world?)
-      // Let's stick to: screen = world * zoom + offset
-      // For stars: screen = star.x + offset * depth
-
-      const sx = star.x + camera.x * star.depth;
-      const sy = star.y + camera.y * star.depth;
+      const sx = star.x + camera.x * star.depth + canvas.width / 2; // Parallax
+      const sy = star.y + camera.y * star.depth + canvas.height / 2;
 
       // Culling
       if (sx < 0 || sx > canvas.width || sy < 0 || sy > canvas.height) continue;
 
       ctx.beginPath();
-      ctx.arc(
-        sx,
-        sy,
-        star.size * Math.max(0.5, camera.z * 0.5),
-        0,
-        Math.PI * 2
-      );
-      // Stars don't zoom much
+      ctx.arc(sx, sy, star.size * Math.max(0.5, camera.z), 0, Math.PI * 2);
       ctx.fillStyle = `rgba(255, 255, 255, ${star.opacity})`;
       ctx.fill();
     }
 
-    // Background Grid
+    // Grid
     drawGrid();
 
-    renderNodes = [];
-
-    // Draw Nodes
+    // Nodes
     for (const node of nodes) {
-      const { x, y, radius: nodeRadius, company } = node;
+      const screenX = node.x * camera.z + camera.x;
+      const screenY = node.y * camera.z + camera.y;
 
-      // Apply Camera Transform
-      const screenX = x * camera.z + camera.x;
-      const screenY = y * camera.z + camera.y;
-
-      // Culling (Don't draw if outside screen)
-      const size = nodeRadius * camera.z;
-      const dominationSize = node.dominationRadius * camera.z;
-
+      // Extended culling to include domination area
+      const maxDim = node.dominationRadius * camera.z;
       if (
-        screenX + dominationSize < 0 ||
-        screenX - dominationSize > canvas.width ||
-        screenY + dominationSize < 0 ||
-        screenY - dominationSize > canvas.height
-      ) {
-        continue;
-      }
-
-      // Draw Node with Mini-Factory view
-      drawNode(ctx, screenX, screenY, size, dominationSize, company, time);
-
-      // Store for hit testing
-      renderNodes.push({
-        x: screenX,
-        y: screenY,
-        radius: dominationSize, // Use larger radius for easier clicking
-        company,
-      });
-    }
-
-    // Draw connections (after nodes logic? no, preferably before so lines are behind)
-    // Actually standard is lines behind.
-    // Let's do a quick pass for lines BEFORE drawing nodes
-
-    // NOTE: Loop restructure for layering:
-    // 1. Calc positions (Physics - Done)
-    // 2. Draw Lines
-    // 3. Draw Nodes
-
-    // Fixing the loop above to just calculate renderNodes first, then draw.
-    // But 'renderNodes' is cleared at start of render().
-    // We can just iterate 'nodes' twice.
-
-    // Pass 1: Lines
-    const MAX_LINE_DIST = 300;
-    ctx.lineWidth = 1 * camera.z;
-    ctx.strokeStyle = "#475569";
-
-    for (let i = 0; i < nodes.length; i++) {
-      const n1 = nodes[i];
-      const sx1 = n1.x * camera.z + camera.x;
-      const sy1 = n1.y * camera.z + camera.y;
-
-      // Screen cull somewhat?
-      if (
-        sx1 < -500 ||
-        sx1 > canvas.width + 500 ||
-        sy1 < -500 ||
-        sy1 > canvas.height + 500
+        screenX + maxDim < 0 ||
+        screenX - maxDim > canvas.width ||
+        screenY + maxDim < 0 ||
+        screenY - maxDim > canvas.height
       )
         continue;
 
-      for (let j = i + 1; j < nodes.length; j++) {
-        const n2 = nodes[j];
-        const dx = n1.x - n2.x; // World dist
-        const dy = n1.y - n2.y;
-        const distSq = dx * dx + dy * dy;
-
-        if (distSq < MAX_LINE_DIST * MAX_LINE_DIST) {
-          const sx2 = n2.x * camera.z + camera.x;
-          const sy2 = n2.y * camera.z + camera.y;
-
-          ctx.globalAlpha = 0.15 * (1 - Math.sqrt(distSq) / MAX_LINE_DIST); // Fade out
-          ctx.beginPath();
-          ctx.moveTo(sx1, sy1);
-          ctx.lineTo(sx2, sy2);
-          ctx.stroke();
-        }
-      }
+      drawNode(
+        ctx,
+        screenX,
+        screenY,
+        node,
+        time,
+        node.company === hoveredCompany
+      );
     }
-    ctx.globalAlpha = 1;
-
-    // Pass 2: Nodes
-    for (const node of nodes) {
-      const { x, y, radius: nodeRadius, company } = node;
-      const screenX = x * camera.z + camera.x;
-      const screenY = y * camera.z + camera.y;
-      const size = nodeRadius * camera.z;
-
-      if (
-        screenX + size < 0 ||
-        screenX - size > canvas.width ||
-        screenY + size < 0 ||
-        screenY - size > canvas.height
-      ) {
-        continue;
-      }
-
-      const dominationSize = node.dominationRadius * camera.z;
-      drawNode(ctx, screenX, screenY, size, dominationSize, company, time);
-
-      renderNodes.push({
-        x: screenX,
-        y: screenY,
-        radius: size,
-        company,
-      });
-    }
-  }
-
-  function getCompanyColor(company: Company): {
-    fill: string;
-    stroke: string;
-    glow: string;
-  } {
-    // NPC
-    if (company.is_npc) {
-      return { fill: "#1e293b", stroke: "#3b82f6", glow: "#60a5fa" };
-    }
-
-    // Wealth Tiers
-    const balance = company.balance || 0;
-
-    if (balance > 1_000_000_000) {
-      // Elite / Gold
-      return { fill: "#1c1917", stroke: "#fbbf24", glow: "#f59e0b" };
-    } else if (balance > 10_000_000) {
-      // Rich / Violet
-      return { fill: "#1e1b4b", stroke: "#818cf8", glow: "#6366f1" };
-    } else if (balance > 100_000) {
-      // Mid / Emerald
-      return { fill: "#022c22", stroke: "#34d399", glow: "#10b981" };
-    } else {
-      // Starter / Slate
-      return { fill: "#0f172a", stroke: "#94a3b8", glow: "#cbd5e1" };
-    }
-
-    // We could also mix in sector colors if we had a 'sector' field,
-    // but for now we stick to wealth as requested (Blue -> Gold).
   }
 
   function drawGrid() {
     if (!ctx) return;
-    ctx.strokeStyle = "#1e293b"; // slate-800
+    ctx.strokeStyle = "#1e293b";
     ctx.lineWidth = 1;
-    ctx.globalAlpha = 0.3;
+    ctx.globalAlpha = 0.2;
 
-    const gridSize = 100 * camera.z;
+    const gridSize = 150 * camera.z;
     const offsetX = camera.x % gridSize;
     const offsetY = camera.y % gridSize;
 
     ctx.beginPath();
-    // Vertical
     for (let x = offsetX; x < canvas.width; x += gridSize) {
       ctx.moveTo(x, 0);
       ctx.lineTo(x, canvas.height);
     }
-    // Horizontal
     for (let y = offsetY; y < canvas.height; y += gridSize) {
       ctx.moveTo(0, y);
       ctx.lineTo(canvas.width, y);
@@ -450,181 +347,125 @@
     ctx: CanvasRenderingContext2D,
     x: number,
     y: number,
-    r: number,
-    dominationR: number,
-    company: Company,
-    time: number
+    node: MapNode,
+    time: number,
+    isHovered: boolean
   ) {
-    const colors = getCompanyColor(company);
-    const machineCount = company.machine_count || 0;
-    const empCount = company.employee_count || 0;
+    const { radius, company, color, installations } = node;
+    const size = radius * camera.z;
 
-    // === MINI-FACTORY VIEW ===
-    // Draw installation grid around the company node
-    if (machineCount > 0) {
-      // Simulate breakdown: 40% extractors, 40% processors, 20% storage
-      const extractorCount = Math.ceil(machineCount * 0.4);
-      const processorCount = Math.ceil(machineCount * 0.4);
-      const storageCount = Math.max(
-        1,
-        machineCount - extractorCount - processorCount
-      );
+    // Territory circle (Domination Radius) - Visible on hover or always faint?
+    // Let's make it visible on hover
+    if (isHovered) {
+      ctx.beginPath();
+      ctx.arc(x, y, node.dominationRadius * camera.z, 0, Math.PI * 2);
+      ctx.fillStyle = color.glow;
+      ctx.globalAlpha = 0.05;
+      ctx.fill();
+      ctx.strokeStyle = color.stroke;
+      ctx.globalAlpha = 0.1;
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
 
-      // Installation icons with colors
-      const installations = [
-        ...Array(Math.min(extractorCount, 8)).fill({
-          icon: "⛏️",
-          color: "#3b82f6",
-        }), // Blue - Extractors
-        ...Array(Math.min(processorCount, 8)).fill({
-          icon: "🔥",
-          color: "#f59e0b",
-        }), // Orange - Processors
-        ...Array(Math.min(storageCount, 4)).fill({
-          icon: "📦",
-          color: "#10b981",
-        }), // Green - Storage
-      ];
+    // Installations (Factory Preview)
+    if (installations && installations.length > 0) {
+      const installSize = Math.max(12, 18 * camera.z);
 
-      // Draw installations in a circular pattern
-      const maxVisible = Math.min(installations.length, 12);
-      const installSize = Math.max(12, 20 * camera.z);
-      const installRadius = r + installSize + 10 * camera.z;
+      // Draw connections first
+      ctx.strokeStyle = color.stroke;
+      ctx.lineWidth = 1 * camera.z;
+      ctx.globalAlpha = isHovered ? 0.6 : 0.2;
 
-      // Initialize RNG with company ID for stable positions
-      let seed = 0;
-      for (let i = 0; i < company.id.length; i++)
-        seed += company.id.charCodeAt(i);
-      const rand = mulberry32(seed);
+      ctx.beginPath();
+      installations.forEach((inst) => {
+        // Slight rotation animation
+        const currentAngle = inst.angle + time * 0.0001;
+        const ix = x + Math.cos(currentAngle) * inst.dist * camera.z;
+        const iy = y + Math.sin(currentAngle) * inst.dist * camera.z;
+        ctx.moveTo(x, y);
+        ctx.lineTo(ix, iy);
+      });
+      ctx.stroke();
 
-      for (let i = 0; i < maxVisible; i++) {
-        const inst = installations[i];
-        const angle = (i / maxVisible) * Math.PI * 2 - Math.PI / 2;
+      // Draw icons
+      ctx.globalAlpha = 1;
+      installations.forEach((inst) => {
+        const currentAngle = inst.angle + time * 0.0001;
+        const ix = x + Math.cos(currentAngle) * inst.dist * camera.z;
+        const iy = y + Math.sin(currentAngle) * inst.dist * camera.z;
 
-        // Slight variation in distance
-        const distVar = 1 + (rand() - 0.5) * 0.2;
-        const ix = x + Math.cos(angle) * installRadius * distVar;
-        const iy = y + Math.sin(angle) * installRadius * distVar;
-
-        // Draw installation background (small rounded square)
-        const squareSize = installSize * 0.9;
+        // Background
         ctx.fillStyle = "#0f172a";
         ctx.strokeStyle = inst.color;
-        ctx.lineWidth = 2 * camera.z;
+        ctx.lineWidth = 1.5 * camera.z;
 
-        // Rounded rectangle
-        const cornerRadius = 4 * camera.z;
         ctx.beginPath();
         ctx.roundRect(
-          ix - squareSize / 2,
-          iy - squareSize / 2,
-          squareSize,
-          squareSize,
-          cornerRadius
+          ix - installSize / 2,
+          iy - installSize / 2,
+          installSize,
+          installSize,
+          4 * camera.z
         );
         ctx.fill();
         ctx.stroke();
 
-        // Draw icon
-        ctx.font = `${installSize * 0.6}px sans-serif`;
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(inst.icon, ix, iy);
-      }
-
-      // Draw connection lines from installations to center
-      ctx.strokeStyle = colors.stroke;
-      ctx.lineWidth = 1 * camera.z;
-      ctx.globalAlpha = 0.3;
-      for (let i = 0; i < maxVisible; i++) {
-        const angle = (i / maxVisible) * Math.PI * 2 - Math.PI / 2;
-        const ix = x + Math.cos(angle) * installRadius;
-        const iy = y + Math.sin(angle) * installRadius;
-
-        ctx.beginPath();
-        ctx.moveTo(x, y);
-        ctx.lineTo(ix, iy);
-        ctx.stroke();
-      }
-      ctx.globalAlpha = 1;
+        // Icon
+        if (camera.z > 0.4) {
+          // LOD
+          ctx.font = `${installSize * 0.6}px sans-serif`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillStyle = "#fff";
+          ctx.fillText(inst.icon, ix, iy);
+        }
+      });
     }
 
-    // === MAIN NODE (Company HQ) ===
-    // Glow Effect
-    ctx.shadowBlur = r * 0.5;
-    ctx.shadowColor = colors.glow;
+    // Main HQ
+    ctx.shadowBlur = isHovered ? size * 0.8 : size * 0.4;
+    ctx.shadowColor = color.glow;
 
-    // Circle Bg
     ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fillStyle = colors.fill;
+    ctx.arc(x, y, size, 0, Math.PI * 2);
+    ctx.fillStyle = color.fill;
     ctx.fill();
 
-    // Border
     ctx.shadowBlur = 0;
-    ctx.lineWidth = (2 + Math.log10((company.balance || 1) + 1)) * camera.z;
-    ctx.strokeStyle = colors.stroke;
+    ctx.lineWidth = (isHovered ? 4 : 2) * camera.z;
+    ctx.strokeStyle = color.stroke;
     ctx.stroke();
 
-    // HQ Icon
+    // Icon
     ctx.fillStyle = "#fff";
+    ctx.font = `${size * 0.5}px sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.font = `${r * 0.5}px sans-serif`;
-    ctx.fillText("🏛️", x, y - r * 0.1);
+    ctx.fillText("🏛️", x, y - size * 0.1);
 
-    // Stats Row (employees + machines)
-    const statsY = y + r * 0.35;
-    ctx.font = `bold ${9 * camera.z}px sans-serif`;
-    ctx.fillStyle = colors.glow;
-    ctx.fillText(`👥${empCount}  ⚙️${machineCount}`, x, statsY);
+    // Stats underneath
+    if (camera.z > 0.3) {
+      const statsY = y + size * 0.35;
+      ctx.font = `bold ${10 * camera.z}px sans-serif`;
+      ctx.fillStyle = color.glow;
+      ctx.fillText(
+        `👥${company.employee_count || 0}  ⚙️${company.machine_count || 0}`,
+        x,
+        statsY
+      );
+    }
 
-    // Company Name
-    ctx.shadowColor = "black";
-    ctx.shadowBlur = 4;
-    ctx.fillStyle = "#f8fafc";
-    ctx.font = `bold ${11 * camera.z}px sans-serif`;
-    ctx.fillText(company.name.slice(0, 14), x, y + r + 14 * camera.z);
-    ctx.shadowBlur = 0;
-
-    // Level Badge (top right)
-    const badgeR = r * 0.26;
-    const badgeX = x + r * 0.72;
-    const badgeY = y - r * 0.72;
-
-    ctx.beginPath();
-    ctx.arc(badgeX, badgeY, badgeR, 0, Math.PI * 2);
-    ctx.fillStyle = colors.stroke;
-    ctx.fill();
-
-    ctx.fillStyle = "#000";
-    ctx.font = `bold ${badgeR * 1.1}px sans-serif`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText(company.level.toString(), badgeX, badgeY);
-
-    // Wealth indicator (small bar under name)
-    const barWidth = r * 1.2;
-    const barHeight = 3 * camera.z;
-    const barY = y + r + 22 * camera.z;
-    const balance = company.balance || 0;
-    const wealthPercent = Math.min(1, Math.log10(balance + 1) / 10); // 0-1 scale
-
-    ctx.fillStyle = "#1e293b";
-    ctx.fillRect(x - barWidth / 2, barY, barWidth, barHeight);
-
-    // Gradient fill based on wealth
-    const wealthGrad = ctx.createLinearGradient(
-      x - barWidth / 2,
-      0,
-      x + barWidth / 2,
-      0
-    );
-    wealthGrad.addColorStop(0, "#10b981");
-    wealthGrad.addColorStop(0.5, "#f59e0b");
-    wealthGrad.addColorStop(1, "#ef4444");
-    ctx.fillStyle = wealthGrad;
-    ctx.fillRect(x - barWidth / 2, barY, barWidth * wealthPercent, barHeight);
+    // Name Label
+    if (camera.z > 0.3 || isHovered) {
+      ctx.shadowColor = "black";
+      ctx.shadowBlur = 4;
+      ctx.fillStyle = "#f8fafc";
+      ctx.font = `bold ${12 * camera.z}px sans-serif`;
+      const nameY = y + size + 16 * camera.z;
+      ctx.fillText(company.name, x, nameY);
+      ctx.shadowBlur = 0;
+    }
   }
 
   // --- Interaction Handlers ---
@@ -635,12 +476,40 @@
   }
 
   function handleMouseMove(e: MouseEvent) {
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
     if (isDragging) {
       const dx = e.clientX - lastMouse.x;
       const dy = e.clientY - lastMouse.y;
       camera.x += dx;
       camera.y += dy;
       lastMouse = { x: e.clientX, y: e.clientY };
+    } else {
+      // Hover detection
+      let found: Company | null = null;
+      // Search in reverse draw order
+      for (let i = nodes.length - 1; i >= 0; i--) {
+        const node = nodes[i];
+        const screenX = node.x * camera.z + camera.x;
+        const screenY = node.y * camera.z + camera.y;
+        const hitR = node.radius * camera.z;
+
+        const dx = mx - screenX;
+        const dy = my - screenY;
+        if (dx * dx + dy * dy < hitR * hitR) {
+          found = node.company;
+          break;
+        }
+      }
+      hoveredCompany = found;
+      if (canvas)
+        canvas.style.cursor = found
+          ? "pointer"
+          : isDragging
+            ? "grabbing"
+            : "grab";
     }
   }
 
@@ -649,20 +518,11 @@
   }
 
   function handleClick(e: MouseEvent) {
-    // Check for node hit
-    // We iterate in reverse to hit top-most first
-    for (let i = renderNodes.length - 1; i >= 0; i--) {
-      const node = renderNodes[i];
-      const dx = e.clientX - node.x;
-      const dy = e.clientY - node.y;
-      if (dx * dx + dy * dy < node.radius * node.radius) {
-        onSelectCompany(node.company);
-        return;
-      }
+    if (hoveredCompany) {
+      onSelectCompany(hoveredCompany);
     }
   }
 
-  // Zoom
   function handleWheel(e: WheelEvent) {
     e.preventDefault();
     const zoomSensitivity = 0.001;
@@ -671,20 +531,16 @@
       Math.min(3, camera.z - e.deltaY * zoomSensitivity)
     );
 
-    // Zoom towards mouse pointer logic would go here
-    // For MVP, just center zoom is easier or naive
-    // Naive zoom:
+    // Zoom towards center for now
     camera.z = newZoom;
   }
 
-  // Touch Support
   function handleTouchStart(e: TouchEvent) {
     if (e.touches.length === 1) {
       isDragging = true;
       lastMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY };
     } else if (e.touches.length === 2) {
       isDragging = false;
-      // Calculate initial distance
       const dx = e.touches[0].clientX - e.touches[1].clientX;
       const dy = e.touches[0].clientY - e.touches[1].clientY;
       lastTouchDistance = Math.sqrt(dx * dx + dy * dy);
@@ -692,7 +548,7 @@
   }
 
   function handleTouchMove(e: TouchEvent) {
-    e.preventDefault(); // Prevent scrolling page
+    e.preventDefault();
     if (e.touches.length === 1 && isDragging) {
       const dx = e.touches[0].clientX - lastMouse.x;
       const dy = e.touches[0].clientY - lastMouse.y;
@@ -703,10 +559,8 @@
       const dx = e.touches[0].clientX - e.touches[1].clientX;
       const dy = e.touches[0].clientY - e.touches[1].clientY;
       const dist = Math.sqrt(dx * dx + dy * dy);
-
       const delta = dist - lastTouchDistance;
       const zoomSensitivity = 0.005;
-
       camera.z = Math.max(0.1, Math.min(3, camera.z + delta * zoomSensitivity));
       lastTouchDistance = dist;
     }
@@ -715,7 +569,7 @@
 
 <canvas
   bind:this={canvas}
-  class="fixed inset-0 bg-slate-950 cursor-grab active:cursor-grabbing touch-none"
+  class="fixed inset-0 bg-slate-950 touch-none block"
   on:mousedown={handleMouseDown}
   on:mousemove={handleMouseMove}
   on:mouseup={handleMouseUp}
@@ -726,3 +580,7 @@
   on:touchmove={handleTouchMove}
   on:touchend={() => (isDragging = false)}
 ></canvas>
+
+<style>
+  /* No extra styles needed, managed by canvas */
+</style>

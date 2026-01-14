@@ -359,7 +359,7 @@
     <div
       class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6"
     >
-      <div class="flex items-center gap-4">
+      <div class="flex items-center gap-4 w-full md:w-auto">
         <h1
           class="text-3xl md:text-4xl font-black text-white tracking-tight flex items-center gap-3"
         >
@@ -385,7 +385,7 @@
       </div>
 
       <div
-        class="flex items-center gap-4 bg-slate-900/80 p-2 rounded-2xl border border-slate-800 shadow-lg backdrop-blur-sm"
+        class="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 bg-slate-900/80 p-2 rounded-2xl border border-slate-800 shadow-lg backdrop-blur-sm w-full md:w-auto"
       >
         {#if costPreview}
           <div
@@ -401,7 +401,7 @@
         {/if}
 
         <div
-          class="flex items-center gap-1 bg-slate-950 rounded-xl p-1 border border-slate-800"
+          class="flex items-center justify-center gap-1 bg-slate-950 rounded-xl p-1 border border-slate-800"
         >
           {#each [1, 5, 10, 25] as qty}
             <button
@@ -419,7 +419,7 @@
         <button
           onclick={handleHire}
           disabled={hiring}
-          class="bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-700 disabled:cursor-wait text-white font-bold py-2 px-5 rounded-xl transition-all shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/30 flex items-center gap-2"
+          class="bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-700 disabled:cursor-wait text-white font-bold py-2 px-5 rounded-xl transition-all shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/30 flex items-center justify-center gap-2"
         >
           {#if hiring}
             <span
@@ -435,7 +435,7 @@
         <!-- Bulk Dismissal Button -->
         <button
           onclick={openBulkDismissalModal}
-          class="bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 text-red-400 font-bold py-2 px-4 rounded-xl transition-all flex items-center gap-2"
+          class="bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 text-red-400 font-bold py-2 px-4 rounded-xl transition-all flex items-center justify-center gap-2"
         >
           <span>🗑️</span>
           <span class="hidden sm:inline">Licenciement en masse</span>
@@ -608,7 +608,7 @@
 <!-- Bulk Dismissal Modal -->
 {#if showBulkDismissalModal}
   <div
-    class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+    class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4"
     transition:fade
   >
     <div

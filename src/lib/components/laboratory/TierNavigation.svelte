@@ -133,6 +133,13 @@
     align-items: center;
     justify-content: center;
     gap: 0;
+    overflow-x: auto;
+    padding: 0.5rem;
+    scrollbar-width: none; /* Firefox */
+  }
+
+  .timeline::-webkit-scrollbar {
+    display: none; /* Chrome/Safari */
   }
 
   .tier-group {

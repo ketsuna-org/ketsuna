@@ -521,7 +521,7 @@
   @media (max-width: 768px) {
     .bottom-section {
       grid-template-columns: 1fr;
-      padding: 1rem;
+      padding: 1rem 0.5rem; /* Reduced horizontal padding for mobile */
     }
   }
 

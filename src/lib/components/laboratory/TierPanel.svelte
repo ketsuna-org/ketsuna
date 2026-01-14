@@ -355,6 +355,23 @@
     transition: all 0.2s;
   }
 
+  @media (max-width: 480px) {
+    .tech-item {
+      flex-direction: column;
+      align-items: flex-start;
+      text-align: left;
+    }
+
+    .tech-icon {
+      margin-bottom: 0.5rem;
+    }
+
+    .tech-status {
+      align-self: flex-start;
+      margin-top: 0.5rem;
+    }
+  }
+
   .tech-item:hover {
     background: rgba(51, 65, 85, 0.5);
     border-color: rgba(99, 102, 241, 0.3);
