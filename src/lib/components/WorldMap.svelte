@@ -138,10 +138,10 @@
 
     // Spiral Layout Parameters
     let angle = 0;
-    const angleIncrement = 0.5; // Controls how tight the spiral winds
-    const separation = 80; // Minimum distance between nodes, adjusting this scales the packing
+    const angleIncrement = 0.2; // Tighter spiral search
 
-    for (const company of sorted) {
+    for (let i = 0; i < sorted.length; i++) {
+      const company = sorted[i];
       const baseRadius = 40;
       // Much milder growth based on stats to keep things compact
       const wealthFactor = Math.log10((company.balance || 0) + 10) * 1.5;
@@ -169,20 +169,20 @@
 
         // Use seed for consistent installation placement per company
         let seed = 0;
-        for (let i = 0; i < company.id.length; i++)
-          seed += company.id.charCodeAt(i);
+        for (let j = 0; j < company.id.length; j++)
+          seed += company.id.charCodeAt(j);
         const rand = mulberry32(seed);
 
-        for (let i = 0; i < installCount; i++) {
-          const angle = (i / installCount) * Math.PI * 2;
+        for (let k = 0; k < installCount; k++) {
+          const angle = (k / installCount) * Math.PI * 2;
           const distVar = 1 + (rand() - 0.5) * 0.2;
           const dist = (visualRadius + 20) * distVar; // Closer orbit
 
           installations.push({
             x: 0,
             y: 0,
-            icon: types[i].icon,
-            color: types[i].color,
+            icon: types[k].icon,
+            color: types[k].color,
             angle,
             dist,
           });
@@ -202,10 +202,11 @@
       } else {
         // Search outward along a spiral
         let searchAngle = angle;
-        // Dynamic radius that grows as we spiral out
-        let searchDist = 100;
+        // Dynamic start radius: Don't start at 0 if we assume previous nodes took space
+        // Approximating area growth
+        let searchDist = 100 + Math.sqrt(i) * 50;
 
-        const maxSteps = 1000;
+        const maxSteps = 5000; // Increased steps to ensure placement
         let steps = 0;
 
         while (!placed && steps < maxSteps) {
@@ -232,7 +233,7 @@
           } else {
             // Move further along spiral
             searchAngle += angleIncrement;
-            searchDist += 2; // Slowly increase distance
+            searchDist += 1; // Slowly increase distance
           }
           steps++;
         }
@@ -240,6 +241,10 @@
 
       // Fallback if spiral fails (unlikely)
       if (!placed) {
+        console.warn(
+          "Failed to place company in spiral, falling back to random",
+          company.name
+        );
         const fallbackAngle = Math.random() * Math.PI * 2;
         const fallbackDist = MAP_SIZE / 2;
         x = Math.cos(fallbackAngle) * fallbackDist;
@@ -609,7 +614,7 @@
 
 <canvas
   bind:this={canvas}
-  class="fixed inset-0 bg-slate-950 touch-none block"
+  class="fixed inset-0 bg-slate-950 touch-none block z-[-1]"
   on:mousedown={handleMouseDown}
   on:mousemove={handleMouseMove}
   on:mouseup={handleMouseUp}
