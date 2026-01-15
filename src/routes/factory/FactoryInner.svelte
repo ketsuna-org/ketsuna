@@ -498,6 +498,13 @@
 
     // 3. Persistence - Update all moved nodes
     try {
+        // SECURITY: Block node movement in read-only mode (visit mode)
+        if (readOnly) {
+          console.warn("Node drag blocked: read-only mode");
+          await loadData(); // Reset positions
+          return;
+        }
+
       // TODO: In the future, use a batch update API for atomic operations
       // For now, parallel requests are acceptable for small selections
       await Promise.all(
@@ -599,6 +606,12 @@
   }
 
   async function onConnect(connection: Connection) {
+      // SECURITY: Block connections in read-only mode (visit mode)
+      if (readOnly) {
+        notifications.warning("Connexions interdites en mode visite");
+        return;
+      }
+
     if (!connection.source || !connection.target) return;
 
     const sourceNode = nodes.find((n) => n.id === connection.source);
@@ -671,6 +684,12 @@
     nodes: Node[];
     edges: Edge[];
   }) {
+      // SECURITY: Block deletions in read-only mode (visit mode)
+      if (readOnly) {
+        console.warn("Delete blocked: read-only mode");
+        return;
+      }
+
     // Handle node deletions (machines and storages can be "unplaced")
     for (const node of deletedNodes) {
       if (node.type === "machine" || node.type === "storage") {
@@ -698,6 +717,12 @@
 
   // Handle context actions
   async function handleDeleteSelection() {
+      // SECURITY: Block deletions in read-only mode (visit mode)
+      if (readOnly) {
+        notifications.warning("Suppression interdite en mode visite");
+        return;
+      }
+
     // Filter deletable nodes (exclude Zone, Company, Deposit)
     // Note: 'deletable' property is already set during loadData logic
     const nodesToDelete = selectedNodes.filter(
@@ -1395,7 +1420,7 @@
     onClose={() => (showMarket = false)}
   >
     <MarketView />
-  </Modal>
+    {#if (selectedNodes.length > 0 || selectedEdges.length > 0) && !readOnly}
 {/if}
 
 {#if showWorkshop}
