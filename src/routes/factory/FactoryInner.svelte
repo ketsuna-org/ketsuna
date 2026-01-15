@@ -530,6 +530,74 @@
     }
   }
 
+  /**
+   * Validate a connection between two nodes.
+   * Returns { valid: true } or { valid: false, error: string }
+   */
+  function validateConnection(
+    sourceNode: Node,
+    targetNode: Node,
+  ): { valid: true } | { valid: false; error: string } {
+    // Rule 1: Deposits cannot connect to companies
+    if (sourceNode.type === "deposit" && targetNode.type === "company") {
+      return {
+        valid: false,
+        error:
+          "Un gisement ne peut pas être relié directement au QG. Utilisez un extracteur.",
+      };
+    }
+
+    // Rule 2 & 3: Deposits can only connect to extractors of matching type
+    if (sourceNode.type === "deposit") {
+      // Get deposit resource type
+      const depositResourceId = sourceNode.data.resourceId as string;
+
+      // Check if target is a machine
+      if (targetNode.type !== "machine") {
+        return {
+          valid: false,
+          error: "Un gisement doit être relié à un extracteur.",
+        };
+      }
+
+      // Get machine definition to check if it's an extractor
+      const targetMachineItemId = targetNode.data.itemId as string;
+      const machineDef = getItem(targetMachineItemId);
+
+      if (!machineDef) {
+        return {
+          valid: false,
+          error: "Machine inconnue.",
+        };
+      }
+
+      // Check if the machine is an extractor (has product, no use_recipe)
+      const isExtractor = machineDef.product && !machineDef.use_recipe;
+
+      if (!isExtractor) {
+        return {
+          valid: false,
+          error:
+            "Un gisement ne peut être relié qu'à un extracteur, pas à une machine de transformation.",
+        };
+      }
+
+      // Rule 3: Check resource type compatibility
+      // machineProduct is guaranteed to exist because isExtractor = true
+      const machineProduct = machineDef.product!;
+      if (machineProduct !== depositResourceId) {
+        const depositItem = getItem(depositResourceId);
+        const expectedItem = getItem(machineProduct);
+        return {
+          valid: false,
+          error: `Incompatibilité de ressource : ce gisement contient "${depositItem?.name || depositResourceId}" mais l'extracteur produit "${expectedItem?.name || machineProduct}".`,
+        };
+      }
+    }
+
+    return { valid: true };
+  }
+
   async function onConnect(connection: Connection) {
     if (!connection.source || !connection.target) return;
 
@@ -537,6 +605,13 @@
     const targetNode = nodes.find((n) => n.id === connection.target);
 
     if (!sourceNode || !targetNode) return;
+
+    // Validate the connection
+    const validationResult = validateConnection(sourceNode, targetNode);
+    if (!validationResult.valid) {
+      notifications.error(validationResult.error);
+      return;
+    }
 
     // Constraint: Machine can only have ONE deposit input
     // Note: The backend hook (edge_hooks.go) now handles the replacement automatically.
@@ -739,6 +814,15 @@
       const targetNode = node;
 
       if (sourceNode && targetNode) {
+        // Validate the connection before attempting to create it
+        const validationResult = validateConnection(sourceNode, targetNode);
+        if (!validationResult.valid) {
+          notifications.error(validationResult.error);
+          connectionSourceId = null;
+          nodes = nodes.map((n) => ({ ...n, selected: false }));
+          return;
+        }
+
         const resourceId =
           (sourceNode.data.itemId as string) ||
           (sourceNode.data.resourceId as string) ||

@@ -139,12 +139,15 @@
           ? ` (Coût: ${formatCurrency(explorationCost)})`
           : " (Gratuit)";
       notifications.success(`Mission d'exploration lancée !${costMsg}`);
-      // Switch tab to active missions and refresh
+
+      // Reset selection BEFORE refreshing, so loadExplorers() can auto-select next available
+      selectedEmployee = null;
+      selectedResource = null;
+      distance = 10;
+
+      // Refresh data - loadExplorers() will auto-select the first available explorer
       await refreshData();
       activeTab = "active";
-      selectedEmployee = null; // Reset selection
-      selectedResource = null;
-      distance = 10; // Reset distance
     } catch (e: any) {
       console.error("Exploration error:", e);
       notifications.error(
