@@ -6,6 +6,7 @@
 
 import pb from '$lib/pocketbase';
 import { goto } from '$app/navigation';
+import { resolve } from '$app/paths';
 import { browser } from '$app/environment';
 import { notifications } from '$lib/notifications';
 
@@ -53,7 +54,7 @@ export function handleAuthFailure(reason: string = 'Session expirée'): void {
     notifications.warning(`${reason}. Veuillez vous reconnecter.`);
 
     // Redirect to login
-    goto('/login');
+    goto(resolve('/login'));
 }
 
 /**

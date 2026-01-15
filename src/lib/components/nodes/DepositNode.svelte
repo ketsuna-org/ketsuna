@@ -8,7 +8,13 @@
   } from "@xyflow/svelte";
   import GameIcon from "$lib/components/GameIcon.svelte";
   import pb from "$lib/pocketbase";
-  import { activeCompany } from "$lib/stores";
+
+  interface DepositRecord {
+    id: string;
+    quantity: number;
+    size?: number;
+    ressource_id?: string;
+  }
 
   type DepositNode = Node<
     {
@@ -23,17 +29,12 @@
 
   let { id, data, selected }: NodeProps<DepositNode> = $props();
 
-  let depositRecord = $state<any>(null);
+  let depositRecord = $state<DepositRecord | null>(null);
   let loading = $state(false);
-  let currentQuantity = $state(0);
-
-  // Initialize from data on mount
-  $effect(() => {
-    currentQuantity = data.quantity || 0;
-  });
+  let currentQuantity = $derived(data.quantity || 0);
 
   const quantityPercent = $derived(
-    currentQuantity ? Math.min(100, (currentQuantity / 10000) * 100) : 0
+    currentQuantity ? Math.min(100, (currentQuantity / 10000) * 100) : 0,
   );
 
   // Track if initial load is done

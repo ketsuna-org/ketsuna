@@ -3,7 +3,7 @@
    * ZoneNode - Parent subgroup node that defines the factory building zone.
    * All machines and deposits placed inside are children of this node.
    */
-  import { Handle, Position, type Node, type NodeProps } from "@xyflow/svelte";
+  import { type Node, type NodeProps } from "@xyflow/svelte";
 
   type ZoneNode = Node<
     {

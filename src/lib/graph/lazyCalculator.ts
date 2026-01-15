@@ -43,7 +43,7 @@ export function calculateProductionProgress(
   const elapsed = (now.getTime() - productionStartedAt.getTime()) / 1000;
 
   // Calculate theoretical cycles (matching server logic)
-  let timeBasedCycles = Math.floor(elapsed / cycleTime);
+  const timeBasedCycles = Math.floor(elapsed / cycleTime);
 
   // Server caps at 3 cycles per tick to prevent resource hogging
   const MAX_CYCLES_PER_TICK = 3;

@@ -1,12 +1,20 @@
 <script lang="ts">
-  import { onMount, onDestroy } from "svelte";
+  import { onMount } from "svelte";
   import { fade, scale } from "svelte/transition";
   import type { Employee } from "$lib/pocketbase";
   import pb from "$lib/pocketbase";
   import { activeCompany, refreshActiveCompany } from "$lib/stores";
   import { notifications } from "$lib/notifications";
-  import { getAllItems } from "$lib/data/game-static";
+  import { getAllItems, type Item } from "$lib/data/game-static";
   import GameIcon from "$lib/components/GameIcon.svelte";
+
+  interface Exploration {
+    id: string;
+    target_resource_id: string;
+    status: string;
+    end_time: string;
+    expand?: { employee?: { name: string } };
+  }
 
   let { onClose } = $props<{ onClose: () => void }>();
 
@@ -18,13 +26,10 @@
   let selectedEmployee = $state<string | null>(null);
   let selectedResource = $state<string | null>(null);
   let distance = $state<number>(10); // Distance in km (default 10)
-  let activeExplorations = $state<any[]>([]); // New state for active missions
+  let activeExplorations = $state<Exploration[]>([]);
 
   let loading = $state(true);
   let starting = $state(false);
-
-  // Intervals
-  let refreshInterval: any;
 
   // Distance pricing constants
   const FREE_DISTANCE_KM = 10;
@@ -50,7 +55,7 @@
 
   // Get only resources (Ressource Brute)
   const availableResources = getAllItems().filter(
-    (r: any) => r.type === "Ressource Brute",
+    (r: Item) => r.type === "Ressource Brute",
   );
 
   // Format currency helper
@@ -148,10 +153,11 @@
       // Refresh data - loadExplorers() will auto-select the first available explorer
       await refreshData();
       activeTab = "active";
-    } catch (e: any) {
+    } catch (e: unknown) {
+      const err = e as Error;
       console.error("Exploration error:", e);
       notifications.error(
-        e.message || "Erreur lors du lancement de la mission",
+        err.message || "Erreur lors du lancement de la mission",
       );
     } finally {
       starting = false;
@@ -166,9 +172,10 @@
       });
       notifications.success("Mission terminée !");
       await refreshData();
-    } catch (e: any) {
-      console.error("Acknowledge error:", e);
-      notifications.error(e.message || "Erreur lors de l'acquittement");
+    } catch (e: unknown) {
+      const err = e as Error;
+      console.error("Acknowledge error:", err);
+      notifications.error(err.message || "Erreur lors de l'acquittement");
     }
   }
 
@@ -275,7 +282,7 @@
             Ressource Cible
           </label>
           <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
-            {#each availableResources as res}
+            {#each availableResources as res (res.id)}
               <button
                 class="flex flex-col items-center justify-center p-3 rounded-xl border transition-all {selectedResource ===
                 res.id
@@ -321,7 +328,7 @@
               bind:value={selectedEmployee}
               class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-colors"
             >
-              {#each availableEmployees as emp}
+              {#each availableEmployees as emp (emp.id)}
                 <option value={emp.id}>
                   {emp.name} (Exploration: {emp.exploration_luck ?? 0})
                 </option>

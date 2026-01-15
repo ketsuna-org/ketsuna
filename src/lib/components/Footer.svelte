@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { resolve } from "$app/paths";
+
   const currentYear = new Date().getFullYear();
 </script>
 
@@ -21,16 +23,23 @@
       <h4 class="text-white font-semibold mb-4">Navigation</h4>
       <ul class="space-y-2 text-sm">
         <li>
-          <a href="/" class="hover:text-indigo-400 transition-colors">Accueil</a
+          <a
+            href={resolve("/")}
+            class="hover:text-indigo-400 transition-colors"
+            >Accueil</a
           >
         </li>
         <li>
-          <a href="/login" class="hover:text-indigo-400 transition-colors"
+          <a
+            href={resolve("/login")}
+            class="hover:text-indigo-400 transition-colors"
             >Connexion</a
           >
         </li>
         <li>
-          <a href="/wiki" class="hover:text-indigo-400 transition-colors"
+          <a
+            href={resolve("/wiki")}
+            class="hover:text-indigo-400 transition-colors"
             >Wiki & Guides</a
           >
         </li>
@@ -43,12 +52,14 @@
       <ul class="space-y-2 text-sm">
         <li>
           <a
-            href="/legal/privacy"
+            href={resolve("/legal/privacy")}
             class="hover:text-indigo-400 transition-colors">Confidentialité</a
           >
         </li>
         <li>
-          <a href="/legal/terms" class="hover:text-indigo-400 transition-colors"
+          <a
+            href={resolve("/legal/terms")}
+            class="hover:text-indigo-400 transition-colors"
             >Conditions d'utilisation</a
           >
         </li>

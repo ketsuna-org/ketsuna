@@ -8,7 +8,6 @@
   } from "@xyflow/svelte";
   import GameIcon from "$lib/components/GameIcon.svelte";
   import pb, { type Machine } from "$lib/pocketbase";
-  import { activeCompany } from "$lib/stores";
   import { gamedataStore } from "$lib/stores/gamedataStore";
   import { calculateProductionProgress } from "$lib/graph/lazyCalculator";
   import { getRecipe, getItem, getAllRecipes } from "$lib/data/game-static";
@@ -106,10 +105,14 @@
       }
 
       const result = calculateProductionProgress(
-        machineRecord as any,
-        machineDef as any,
+        machineRecord as unknown as Parameters<
+          typeof calculateProductionProgress
+        >[0],
+        machineDef as unknown as Parameters<
+          typeof calculateProductionProgress
+        >[1],
         [],
-        new Date(machineRecord.production_started_at)
+        new Date(machineRecord.production_started_at),
       );
 
       productionProgress = result.progressPercent;
@@ -207,7 +210,7 @@
                     >Entrées:</span
                   >
                   <div class="flex flex-wrap gap-1">
-                    {#each activeRecipe.inputs as input}
+                    {#each activeRecipe.inputs as input, i (i)}
                       {@const inputItem = getItem(input.item || input.item_id)}
                       <span
                         class="bg-slate-900 border border-slate-700 px-1.5 py-0.5 rounded text-[10px]"
@@ -228,7 +231,7 @@
                     class="bg-emerald-950/30 border border-emerald-900/50 text-emerald-300 px-1.5 py-0.5 rounded text-[10px]"
                   >
                     {activeRecipe.output_quantity}x {getItem(
-                      activeRecipe.output_item
+                      activeRecipe.output_item,
                     )?.name || activeRecipe.output_item}
                   </span>
                 </div>

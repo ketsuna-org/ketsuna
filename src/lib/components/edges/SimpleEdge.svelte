@@ -28,10 +28,6 @@
       borderRadius: 8,
     }),
   );
-
-  // Midpoint retained for potential future labels (kept lightweight)
-  let midX = $derived((sourceX + targetX) / 2);
-  let midY = $derived((sourceY + targetY) / 2);
 </script>
 
 <svg class="simple-edge-svg">

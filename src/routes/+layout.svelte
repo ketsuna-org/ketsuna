@@ -13,8 +13,10 @@
   import { loadGameData } from "$lib/data/game-static";
   import { initAuthGuard } from "$lib/authGuard";
   // Import stores to initialize them (they auto-start when imported)
-  import { gamedataStore } from "$lib/stores/gamedataStore";
-  import { graphRefreshStore } from "$lib/stores/graphRefreshStore";
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  import { gamedataStore } from \"$lib/stores/gamedataStore\";
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  import { graphRefreshStore } from \"$lib/stores/graphRefreshStore\";
 
   import { page } from "$app/stores";
 

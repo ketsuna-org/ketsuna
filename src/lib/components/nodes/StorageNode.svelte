@@ -7,7 +7,6 @@
     NodeToolbar,
   } from "@xyflow/svelte";
   import GameIcon from "$lib/components/GameIcon.svelte";
-  import { gamedataStore } from "$lib/stores/gamedataStore";
   import pb from "$lib/pocketbase";
   import type { InventoryItem } from "$lib/pocketbase";
 

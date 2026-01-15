@@ -41,8 +41,9 @@
     try {
       await levelUpCompany(company, upgradeCost);
       await refreshActiveCompany();
-    } catch (e: any) {
-      alert(e.message || "Erreur lors de l'amélioration");
+    } catch (e: unknown) {
+      const err = e as Error;
+      alert(err.message || "Erreur lors de l'amélioration");
     } finally {
       isUpgrading = false;
     }
@@ -137,7 +138,7 @@
               <div class="stat-label">NIVEAU</div>
               <div class="stat-value">{displayLevel}</div>
               <div class="level-bars">
-                {#each Array(5).fill(0) as _, i}
+                {#each Array(5) as _, i (i)}
                   <div class="level-bar" class:active={i < displayLevel}></div>
                 {/each}
               </div>

@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { page } from "$app/stores";
+  import { resolve } from "$app/paths";
   import { onMount, onDestroy } from "svelte";
-  import { fade, fly } from "svelte/transition";
+  import { fade } from "svelte/transition";
 
   // --- Game State (Runes) ---
   let recoveredData = $state(0);
@@ -171,7 +171,7 @@
 
     <div class="flex gap-4 justify-center">
       <a
-        href="/"
+        href={resolve("/")}
         class="px-8 py-3 rounded-lg bg-primary-600 hover:bg-primary-500 font-semibold transition-all shadow-lg hover:shadow-primary-500/30"
       >
         Retour à l'Accueil

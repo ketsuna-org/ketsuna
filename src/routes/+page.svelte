@@ -1,18 +1,15 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
+  import { resolve } from "$app/paths";
   import pb from "$lib/pocketbase";
   import { onMount } from "svelte";
-  import { fade, fly, scale } from "svelte/transition";
-  import { cubicOut, quintOut } from "svelte/easing";
+  import { fade, fly } from "svelte/transition";
 
-  let mounted = false;
   let introComplete = false;
   let portalScale = 1;
   let textOpacity = 1;
 
   onMount(() => {
-    mounted = true;
-
     // Portal Animation Sequence
     setTimeout(() => {
       // Start expanding the portal
@@ -27,9 +24,9 @@
 
   function startPlaying() {
     if (pb.authStore.isValid) {
-      goto("/factory");
+      goto(resolve("/factory"));
     } else {
-      goto("/login");
+      goto(resolve("/login"));
     }
   }
 
@@ -166,7 +163,7 @@
           </button>
 
           <a
-            href="/wiki"
+            href={resolve("/wiki")}
             class="px-8 py-4 text-slate-300 font-medium hover:text-white transition-colors border-b border-transparent hover:border-slate-500"
           >
             Explorer le Lore
@@ -355,7 +352,7 @@
         </div>
 
         <div class="grid md:grid-cols-3 gap-8">
-          {#each doctrines as doc}
+          {#each doctrines as doc (doc.name)}
             <div
               class="group relative bg-slate-900 border border-slate-800 rounded-3xl p-1 overflow-hidden hover:scale-105 transition-transform duration-300"
             >

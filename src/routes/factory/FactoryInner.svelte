@@ -1,6 +1,5 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import pb from "$lib/pocketbase";
   import { notifications } from "$lib/notifications";
   import MachineNode from "$lib/components/nodes/MachineNode.svelte";
   import DepositNode from "$lib/components/nodes/DepositNode.svelte";
@@ -21,24 +20,20 @@
     loadUnplacedMachines,
     loadUnplacedDeposits,
     getCanvasBounds,
-    checkCollision,
     updateNodePosition,
     placeNode,
     createEdge,
     deleteEdge,
     unplaceNode,
-    fetchNodeStates,
     NODE_DIMENSIONS,
     type FactoryNode,
   } from "$lib/services/factory";
   import { graphRefreshStore } from "$lib/stores/graphRefreshStore";
-  import { gamedataStore } from "$lib/stores/gamedataStore";
   import { machineRefreshStore } from "$lib/stores/machineRefreshStore";
   import {
     SvelteFlow,
     Background,
     Controls,
-    MiniMap,
     useSvelteFlow,
     type Connection,
     type Edge,
@@ -46,9 +41,30 @@
     type EdgeTypes,
   } from "@xyflow/svelte";
   import { logAnalyticsEvent } from "$lib/firebase";
+  import { browser } from "$app/environment";
+
+  interface Company {
+    id: string;
+    name?: string;
+    balance?: number;
+    level?: number;
+    location?: { lng?: number; lat?: number };
+  }
+
+  interface UnplacedMachine {
+    id: string;
+    machine_id: string;
+  }
+
+  interface UnplacedDeposit {
+    id: string;
+    ressource_id: string;
+    quantity: number;
+    size?: number;
+  }
 
   let { company, readOnly = false } = $props<{
-    company: any;
+    company: Company;
     readOnly?: boolean;
   }>();
 
@@ -64,10 +80,6 @@
   // Custom edge types
   // Performance-first edge rendering (persisted); graphics mode is opt-in
   let lowQualityEdges = $state(true);
-
-  // Load setting from localStorage on mount
-  import { onMount as onMountInternal } from "svelte";
-  import { browser } from "$app/environment";
 
   $effect(() => {
     if (browser) {
@@ -97,8 +109,8 @@
   // State
   let nodes = $state<Node[]>([]);
   let edges = $state<Edge[]>([]);
-  let unplacedMachines = $state<any[]>([]);
-  let unplacedDeposits = $state<any[]>([]);
+  let unplacedMachines = $state<UnplacedMachine[]>([]);
+  let unplacedDeposits = $state<UnplacedDeposit[]>([]);
   let showExploration = $state(false);
   let showMarket = $state(false);
   let showInventory = $state(false);
@@ -123,14 +135,6 @@
   // Derived Selection State (Multi-selection)
   let selectedNodes = $derived(nodes.filter((n) => n.selected === true));
   let selectedEdges = $derived(edges.filter((e) => e.selected === true));
-
-  // Legacy single getters for backward compatibility / singular logic if needed
-  let selectedNode = $derived(
-    selectedNodes.length === 1 ? selectedNodes[0] : null,
-  );
-  let selectedEdge = $derived(
-    selectedEdges.length === 1 ? selectedEdges[0] : null,
-  );
 
   function handlePlacementSelect(
     type: "machine" | "deposit",
@@ -193,32 +197,8 @@
   // Zone ID constant
   const ZONE_ID = "factory-zone";
 
-  // Derived Energy Calculation
-  let totalEnergy = $derived.by(() => {
-    let prod = 0;
-    let cons = 0;
-    for (const node of nodes) {
-      if (node.type === "machine") {
-        const item = getItem((node.data as any).itemId);
-        if (item) {
-          prod += item.produce_energy || 0;
-          cons += item.need_energy || 0;
-        }
-      }
-    }
-    return prod - cons;
-  });
-
-  function formatEnergy(val: number) {
-    const abs = Math.abs(val);
-    const sign = val < 0 ? "-" : "";
-    if (abs >= 1000) return sign + (abs / 1000).toFixed(1) + " MW";
-    return sign + abs.toLocaleString() + " kW";
-  }
-
   // Get the svelte flow instance (correct hook usage)
-  const { screenToFlowPosition, getNodes, fitView, deleteElements } =
-    useSvelteFlow();
+  const { screenToFlowPosition, fitView, deleteElements } = useSvelteFlow();
 
   let canvasBounds = $derived(getCanvasBounds(company?.level || 1));
 
@@ -498,12 +478,12 @@
 
     // 3. Persistence - Update all moved nodes
     try {
-        // SECURITY: Block node movement in read-only mode (visit mode)
-        if (readOnly) {
-          console.warn("Node drag blocked: read-only mode");
-          await loadData(); // Reset positions
-          return;
-        }
+      // SECURITY: Block node movement in read-only mode (visit mode)
+      if (readOnly) {
+        console.warn("Node drag blocked: read-only mode");
+        await loadData(); // Reset positions
+        return;
+      }
 
       // TODO: In the future, use a batch update API for atomic operations
       // For now, parallel requests are acceptable for small selections
@@ -606,11 +586,11 @@
   }
 
   async function onConnect(connection: Connection) {
-      // SECURITY: Block connections in read-only mode (visit mode)
-      if (readOnly) {
-        notifications.warning("Connexions interdites en mode visite");
-        return;
-      }
+    // SECURITY: Block connections in read-only mode (visit mode)
+    if (readOnly) {
+      notifications.warning("Connexions interdites en mode visite");
+      return;
+    }
 
     if (!connection.source || !connection.target) return;
 
@@ -684,11 +664,11 @@
     nodes: Node[];
     edges: Edge[];
   }) {
-      // SECURITY: Block deletions in read-only mode (visit mode)
-      if (readOnly) {
-        console.warn("Delete blocked: read-only mode");
-        return;
-      }
+    // SECURITY: Block deletions in read-only mode (visit mode)
+    if (readOnly) {
+      console.warn("Delete blocked: read-only mode");
+      return;
+    }
 
     // Handle node deletions (machines and storages can be "unplaced")
     for (const node of deletedNodes) {
@@ -717,11 +697,11 @@
 
   // Handle context actions
   async function handleDeleteSelection() {
-      // SECURITY: Block deletions in read-only mode (visit mode)
-      if (readOnly) {
-        notifications.warning("Suppression interdite en mode visite");
-        return;
-      }
+    // SECURITY: Block deletions in read-only mode (visit mode)
+    if (readOnly) {
+      notifications.warning("Suppression interdite en mode visite");
+      return;
+    }
 
     // Filter deletable nodes (exclude Zone, Company, Deposit)
     // Note: 'deletable' property is already set during loadData logic
@@ -749,19 +729,7 @@
     }
   }
 
-  function handleOpenNode(node: Node) {
-    // Future implementation: Open specific details/management modal for the node
-    // For now, simpler interaction or just placeholder
-    console.log("Open node", node);
-    // Example: If it's a machine, maybe show a quick status or config modal
-    alert(`Machine: ${node.data.label || "Details"}`);
-  }
-
-  function onNodeDrag(_event: {
-    targetNode: Node | null;
-    nodes: Node[];
-    event: MouseEvent | TouchEvent;
-  }) {
+  function onNodeDrag() {
     // Let Svelte Flow handle position updates via bind:nodes
     // No manual intervention needed during drag
   }
@@ -802,7 +770,6 @@
   }
 
   async function handleNodeClick({
-    event,
     node,
   }: {
     event: MouseEvent | TouchEvent;
@@ -977,7 +944,7 @@
         <div class="unplaced-section">
           <h3>Machines à placer</h3>
           <div class="unplaced-list">
-            {#each groupedUnplacedMachines as group}
+            {#each groupedUnplacedMachines as group (group.machine_id)}
               {@const item = getItem(group.machine_id)}
               <!-- svelte-ignore a11y_click_events_have_key_events -->
               <!-- svelte-ignore a11y_interactive_supports_focus -->
@@ -1018,7 +985,7 @@
         <div class="unplaced-section deposit-section">
           <h3>Gisements à placer</h3>
           <div class="unplaced-list">
-            {#each unplacedDeposits as deposit}
+            {#each unplacedDeposits as deposit (deposit.id)}
               {@const resourceItem = getItem(deposit.ressource_id)}
               <!-- svelte-ignore a11y_click_events_have_key_events -->
               <!-- svelte-ignore a11y_interactive_supports_focus -->
@@ -1420,7 +1387,7 @@
     onClose={() => (showMarket = false)}
   >
     <MarketView />
-    {#if (selectedNodes.length > 0 || selectedEdges.length > 0) && !readOnly}
+  </Modal>
 {/if}
 
 {#if showWorkshop}

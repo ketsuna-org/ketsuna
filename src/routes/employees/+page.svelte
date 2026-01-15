@@ -630,10 +630,13 @@
         <!-- Criteria Selectors -->
         <div class="grid grid-cols-3 gap-3">
           <div>
-            <label class="block text-xs font-bold text-slate-400 mb-1 uppercase"
+            <label
+              for="bulk-dismissal-stat"
+              class="block text-xs font-bold text-slate-400 mb-1 uppercase"
               >Statistique</label
             >
             <select
+              id="bulk-dismissal-stat"
               bind:value={bulkDismissalStat}
               class="w-full bg-slate-800 border border-slate-600 text-white rounded-lg p-2 text-sm"
             >
@@ -644,10 +647,13 @@
           </div>
 
           <div>
-            <label class="block text-xs font-bold text-slate-400 mb-1 uppercase"
+            <label
+              for="bulk-dismissal-operator"
+              class="block text-xs font-bold text-slate-400 mb-1 uppercase"
               >Opérateur</label
             >
             <select
+              id="bulk-dismissal-operator"
               bind:value={bulkDismissalOperator}
               class="w-full bg-slate-800 border border-slate-600 text-white rounded-lg p-2 text-sm"
             >
@@ -659,10 +665,13 @@
           </div>
 
           <div>
-            <label class="block text-xs font-bold text-slate-400 mb-1 uppercase"
+            <label
+              for="bulk-dismissal-threshold"
+              class="block text-xs font-bold text-slate-400 mb-1 uppercase"
               >Seuil</label
             >
             <input
+              id="bulk-dismissal-threshold"
               type="number"
               bind:value={bulkDismissalThreshold}
               class="w-full bg-slate-800 border border-slate-600 text-white rounded-lg p-2 text-sm"

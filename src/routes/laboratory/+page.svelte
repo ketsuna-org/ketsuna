@@ -39,7 +39,7 @@
   // Current view state from URL
   let currentCategory = $derived($page.url.searchParams.get("category"));
   let currentTier = $derived(
-    parseInt($page.url.searchParams.get("tier") || "1")
+    parseInt($page.url.searchParams.get("tier") || "1"),
   );
 
   // Categories with counts
@@ -59,7 +59,7 @@
 
   // Technologies for current category
   let categoryTechs = $derived(
-    technologies.filter((t) => t.category === currentCategory)
+    technologies.filter((t) => t.category === currentCategory),
   );
 
   // Tiers for current category
@@ -70,7 +70,7 @@
     ].sort((a, b) => a - b);
     return levels.map((level) => {
       const techsAtLevel = categoryTechs.filter(
-        (t) => (t.required_level || 1) === level
+        (t) => (t.required_level || 1) === level,
       );
       const allOwned = techsAtLevel.every((t) => t.isOwned);
       const someOwned = techsAtLevel.some((t) => t.isOwned);
@@ -85,12 +85,12 @@
 
   // Technologies for current tier
   let tierTechs = $derived(
-    categoryTechs.filter((t) => (t.required_level || 1) === currentTier)
+    categoryTechs.filter((t) => (t.required_level || 1) === currentTier),
   );
 
   // Current category data
   let currentCategoryData = $derived(
-    categories.find((c) => c.id === currentCategory)
+    categories.find((c) => c.id === currentCategory),
   );
 
   // Research in progress (can be multiple)
@@ -142,7 +142,7 @@
         } else {
           newTimes.set(
             research.id,
-            `${minutes}m ${seconds.toString().padStart(2, "0")}s`
+            `${minutes}m ${seconds.toString().padStart(2, "0")}s`,
           );
         }
       }
@@ -195,7 +195,7 @@
         const machineId = m.machine_id;
         machineCountMap.set(
           machineId,
-          (machineCountMap.get(machineId) || 0) + 1
+          (machineCountMap.get(machineId) || 0) + 1,
         );
       });
 
@@ -242,7 +242,12 @@
   <!-- Header -->
   <header class="page-header">
     {#if currentCategory}
-      <button type="button" class="back-btn" onclick={handleBack}>
+      <button
+        type="button"
+        class="back-btn"
+        onclick={handleBack}
+        aria-label="Go back"
+      >
         <svg
           width="20"
           height="20"

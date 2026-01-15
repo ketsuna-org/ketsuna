@@ -133,7 +133,7 @@
               </div>
             </div>
             <button
-              on:click={exitVisit}
+              onclick={exitVisit}
               class="bg-white/20 hover:bg-white/30 px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors"
             >
               ← Retour à mon usine

@@ -48,8 +48,8 @@
   }>({ income: 0, expenses: 0, net: 0 });
 
   // Chart references
-  let productionChartCanvas: HTMLCanvasElement;
-  let consumptionChartCanvas: HTMLCanvasElement;
+  let productionChartCanvas = $state<HTMLCanvasElement>();
+  let consumptionChartCanvas = $state<HTMLCanvasElement>();
   let productionChart: Chart | null = null;
   let consumptionChart: Chart | null = null;
 
