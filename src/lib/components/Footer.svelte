@@ -23,24 +23,20 @@
       <h4 class="text-white font-semibold mb-4">Navigation</h4>
       <ul class="space-y-2 text-sm">
         <li>
-          <a
-            href={resolve("/")}
-            class="hover:text-indigo-400 transition-colors"
+          <a href={resolve("/")} class="hover:text-indigo-400 transition-colors"
             >Accueil</a
           >
         </li>
         <li>
           <a
             href={resolve("/login")}
-            class="hover:text-indigo-400 transition-colors"
-            >Connexion</a
+            class="hover:text-indigo-400 transition-colors">Connexion</a
           >
         </li>
         <li>
           <a
             href={resolve("/wiki")}
-            class="hover:text-indigo-400 transition-colors"
-            >Wiki & Guides</a
+            class="hover:text-indigo-400 transition-colors">Wiki & Guides</a
           >
         </li>
       </ul>
