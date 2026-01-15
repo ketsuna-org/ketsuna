@@ -8,6 +8,15 @@
   } from "@xyflow/svelte";
   import GameIcon from "$lib/components/GameIcon.svelte";
   import pb from "$lib/pocketbase";
+  import { sellDeposit } from "$lib/services/factory";
+  import ConfirmationModal from "$lib/components/ConfirmationModal.svelte";
+  import { factoryReloadStore } from "$lib/stores/factoryReloadStore";
+  import { getContext } from "svelte";
+
+  // Get factory settings from context (readOnly mode)
+  const factorySettings = getContext<{ readOnly: boolean }>(
+    "factorySettings"
+  ) || { readOnly: false };
 
   interface DepositRecord {
     id: string;
@@ -27,14 +36,20 @@
     "deposit"
   >;
 
-  let { id, data, selected }: NodeProps<DepositNode> = $props();
+  interface Props extends NodeProps<DepositNode> {
+    onSold?: (id: string) => void;
+  }
+
+  let { id, data, selected, onSold }: Props = $props();
 
   let depositRecord = $state<DepositRecord | null>(null);
   let loading = $state(false);
+  let selling = $state(false);
+  let showSellConfirm = $state(false);
   let currentQuantity = $derived(data.quantity || 0);
 
   const quantityPercent = $derived(
-    currentQuantity ? Math.min(100, (currentQuantity / 10000) * 100) : 0,
+    currentQuantity ? Math.min(100, (currentQuantity / 10000) * 100) : 0
   );
 
   // Track if initial load is done
@@ -79,6 +94,26 @@
       console.error("Failed to load deposit data", e);
     } finally {
       loading = false;
+    }
+  }
+
+  function handleSellClick() {
+    if (selling) return;
+    showSellConfirm = true;
+  }
+
+  async function confirmSell() {
+    selling = true;
+    try {
+      const success = await sellDeposit(id);
+      if (success) {
+        onSold?.(id);
+        factoryReloadStore.triggerReload("deposit_sold");
+      }
+    } catch (e) {
+      console.error("Failed to sell deposit", e);
+    } finally {
+      selling = false;
     }
   }
 </script>
@@ -128,6 +163,23 @@
       {:else}
         <p class="text-xs text-red-400">Erreur chargement</p>
       {/if}
+
+      <!-- Sell Button (hidden in read-only mode) -->
+      {#if !factorySettings.readOnly}
+        <div class="pt-2 border-t border-slate-700/50 mt-2">
+          <button
+            class="w-full bg-red-900/50 hover:bg-red-800/70 border border-red-700/50 text-red-300 text-xs font-medium py-2 px-3 rounded-lg transition-colors flex items-center justify-center gap-2"
+            onclick={handleSellClick}
+            disabled={selling}
+          >
+            {#if selling}
+              <span class="animate-spin">⏳</span> Vente...
+            {:else}
+              <span>💰</span> Vendre pour 1 ₭
+            {/if}
+          </button>
+        </div>
+      {/if}
     </div>
   </NodeToolbar>
 
@@ -173,6 +225,16 @@
 
   <Handle type="source" position={Position.Right} class="handle" />
 </div>
+
+<ConfirmationModal
+  bind:isOpen={showSellConfirm}
+  title="Vendre ce gisement ?"
+  message="Vous allez vendre ce gisement pour <strong>1 ₭</strong>. Cette action est irréversible."
+  confirmLabel="Vendre"
+  cancelLabel="Annuler"
+  isDestructive={true}
+  onConfirm={confirmSell}
+/>
 
 <style>
   .deposit-node {

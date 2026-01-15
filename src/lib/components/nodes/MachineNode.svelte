@@ -11,6 +11,15 @@
   import { gamedataStore } from "$lib/stores/gamedataStore";
   import { calculateProductionProgress } from "$lib/graph/lazyCalculator";
   import { getRecipe, getItem, getAllRecipes } from "$lib/data/game-static";
+  import { sellMachine } from "$lib/services/factory";
+  import ConfirmationModal from "$lib/components/ConfirmationModal.svelte";
+  import { factoryReloadStore } from "$lib/stores/factoryReloadStore";
+  import { getContext } from "svelte";
+
+  // Get factory settings from context (readOnly mode)
+  const factorySettings = getContext<{ readOnly: boolean }>(
+    "factorySettings"
+  ) || { readOnly: false };
 
   type MachineNode = Node<
     {
@@ -22,12 +31,18 @@
     "machine"
   >;
 
-  let { id, data, selected }: NodeProps<MachineNode> = $props();
+  interface Props extends NodeProps<MachineNode> {
+    onSold?: (id: string) => void;
+  }
+
+  let { id, data, selected, onSold }: Props = $props();
 
   let machineRecord = $state<Machine | null>(null);
   let loading = $state(false);
   let productionProgress = $state(0);
   let savingRecipe = $state(false);
+  let selling = $state(false);
+  let showSellConfirm = $state(false);
 
   // Get machine definition from static data
   let machineDef = $derived.by(() => {
@@ -90,6 +105,26 @@
     }
   }
 
+  function handleSellClick() {
+    if (selling) return;
+    showSellConfirm = true;
+  }
+
+  async function confirmSell() {
+    selling = true;
+    try {
+      const success = await sellMachine(id);
+      if (success) {
+        onSold?.(id);
+        factoryReloadStore.triggerReload("machine_sold");
+      }
+    } catch (e) {
+      console.error("Failed to sell machine", e);
+    } finally {
+      selling = false;
+    }
+  }
+
   // Client-side Simulation Only:
   // We do NOT reload data from server automatically to avoid infinite loops.
   // The progress bar is calculated mathematically based on start time.
@@ -112,7 +147,7 @@
           typeof calculateProductionProgress
         >[1],
         [],
-        new Date(machineRecord.production_started_at),
+        new Date(machineRecord.production_started_at)
       );
 
       productionProgress = result.progressPercent;
@@ -231,7 +266,7 @@
                     class="bg-emerald-950/30 border border-emerald-900/50 text-emerald-300 px-1.5 py-0.5 rounded text-[10px]"
                   >
                     {activeRecipe.output_quantity}x {getItem(
-                      activeRecipe.output_item,
+                      activeRecipe.output_item
                     )?.name || activeRecipe.output_item}
                   </span>
                 </div>
@@ -243,6 +278,23 @@
         </div>
       {:else}
         <p class="text-xs text-red-400">Erreur chargement</p>
+      {/if}
+
+      <!-- Sell Button (hidden in read-only mode) -->
+      {#if !factorySettings.readOnly}
+        <div class="pt-2 border-t border-slate-700/50 mt-2">
+          <button
+            class="w-full bg-red-900/50 hover:bg-red-800/70 border border-red-700/50 text-red-300 text-xs font-medium py-2 px-3 rounded-lg transition-colors flex items-center justify-center gap-2"
+            onclick={handleSellClick}
+            disabled={selling}
+          >
+            {#if selling}
+              <span class="animate-spin">⏳</span> Vente...
+            {:else}
+              <span>💰</span> Vendre pour 1 ₭
+            {/if}
+          </button>
+        </div>
       {/if}
     </div>
   </NodeToolbar>
@@ -289,6 +341,16 @@
 
   <Handle type="source" position={Position.Right} class="handle source" />
 </div>
+
+<ConfirmationModal
+  bind:isOpen={showSellConfirm}
+  title="Vendre cette machine ?"
+  message="Vous allez vendre cette machine pour <strong>1 ₭</strong>. Cette action est irréversible."
+  confirmLabel="Vendre"
+  cancelLabel="Annuler"
+  isDestructive={true}
+  onConfirm={confirmSell}
+/>
 
 <style>
   .machine-node {

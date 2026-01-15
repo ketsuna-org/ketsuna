@@ -408,3 +408,34 @@ export async function fetchNodeStates(companyId: string): Promise<NodeStateUpdat
   return result;
 }
 
+// Sell a machine for 1$ (permanently removes it from the game)
+export async function sellMachine(machineId: string): Promise<boolean> {
+  try {
+    const response = await pb.send('/api/machines/sell', {
+      method: 'POST',
+      body: { machineId },
+    });
+    logAnalyticsEvent("factory_sell_machine", { machineId });
+    return response?.success === true;
+  } catch (error) {
+    console.error('Failed to sell machine:', error);
+    return false;
+  }
+}
+
+// Sell a deposit for 1$ (permanently removes it from the game)
+export async function sellDeposit(depositId: string): Promise<boolean> {
+  try {
+    const response = await pb.send('/api/deposits/sell', {
+      method: 'POST',
+      body: { depositId },
+    });
+    logAnalyticsEvent("factory_sell_deposit", { depositId });
+    return response?.success === true;
+  } catch (error) {
+    console.error('Failed to sell deposit:', error);
+    return false;
+  }
+}
+
+

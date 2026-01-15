@@ -9,6 +9,15 @@
   import GameIcon from "$lib/components/GameIcon.svelte";
   import pb from "$lib/pocketbase";
   import type { InventoryItem } from "$lib/pocketbase";
+  import { sellMachine } from "$lib/services/factory";
+  import ConfirmationModal from "$lib/components/ConfirmationModal.svelte";
+  import { factoryReloadStore } from "$lib/stores/factoryReloadStore";
+  import { getContext } from "svelte";
+
+  // Get factory settings from context (readOnly mode)
+  const factorySettings = getContext<{ readOnly: boolean }>(
+    "factorySettings"
+  ) || { readOnly: false };
 
   type StorageNode = Node<
     {
@@ -20,9 +29,15 @@
     "storage"
   >;
 
-  let { id, data, selected }: NodeProps<StorageNode> = $props();
+  interface Props extends NodeProps<StorageNode> {
+    onSold?: (id: string) => void;
+  }
+
+  let { id, data, selected, onSold }: Props = $props();
 
   let usedCapacity = $state(0);
+  let selling = $state(false);
+  let showSellConfirm = $state(false);
 
   async function loadStorageInventory() {
     try {
@@ -47,6 +62,26 @@
       loadStorageInventory();
     }
   });
+
+  function handleSellClick() {
+    if (selling) return;
+    showSellConfirm = true;
+  }
+
+  async function confirmSell() {
+    selling = true;
+    try {
+      const success = await sellMachine(id);
+      if (success) {
+        onSold?.(id);
+        factoryReloadStore.triggerReload("storage_sold");
+      }
+    } catch (e) {
+      console.error("Failed to sell storage", e);
+    } finally {
+      selling = false;
+    }
+  }
 </script>
 
 <div class="storage-node" title={data.name} class:selected>
@@ -91,6 +126,23 @@
           </div>
         </div>
       </div>
+
+      <!-- Sell Button (hidden in read-only mode) -->
+      {#if !factorySettings.readOnly}
+        <div class="pt-2 border-t border-slate-700/50 mt-2">
+          <button
+            class="w-full bg-red-900/50 hover:bg-red-800/70 border border-red-700/50 text-red-300 text-xs font-medium py-2 px-3 rounded-lg transition-colors flex items-center justify-center gap-2"
+            onclick={handleSellClick}
+            disabled={selling}
+          >
+            {#if selling}
+              <span class="animate-spin">⏳</span> Vente...
+            {:else}
+              <span>💰</span> Vendre pour 1 ₭
+            {/if}
+          </button>
+        </div>
+      {/if}
     </div>
   </NodeToolbar>
 
@@ -136,6 +188,16 @@
 
   <Handle type="source" position={Position.Right} class="handle source" />
 </div>
+
+<ConfirmationModal
+  bind:isOpen={showSellConfirm}
+  title="Vendre ce stockage ?"
+  message="Vous allez vendre ce stockage pour <strong>1 ₭</strong>. Cette action est irréversible."
+  confirmLabel="Vendre"
+  cancelLabel="Annuler"
+  isDestructive={true}
+  onConfirm={confirmSell}
+/>
 
 <style>
   .storage-node {

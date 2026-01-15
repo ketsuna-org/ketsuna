@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, setContext } from "svelte";
   import { notifications } from "$lib/notifications";
   import MachineNode from "$lib/components/nodes/MachineNode.svelte";
   import DepositNode from "$lib/components/nodes/DepositNode.svelte";
@@ -14,6 +14,7 @@
   import WorkshopView from "$lib/components/WorkshopView.svelte";
   import ChatView from "$lib/components/ChatView.svelte";
   import Modal from "$lib/components/Modal.svelte";
+  import ConfirmationModal from "$lib/components/ConfirmationModal.svelte";
   import { getItem } from "$lib/data/game-static";
   import {
     loadFactory,
@@ -30,6 +31,7 @@
   } from "$lib/services/factory";
   import { graphRefreshStore } from "$lib/stores/graphRefreshStore";
   import { machineRefreshStore } from "$lib/stores/machineRefreshStore";
+  import { factoryReloadStore } from "$lib/stores/factoryReloadStore";
   import {
     SvelteFlow,
     Background,
@@ -68,6 +70,14 @@
     readOnly?: boolean;
   }>();
 
+  // Share readOnly state with node components via context
+  // Using a getter to ensure the value is evaluated at access time
+  setContext("factorySettings", {
+    get readOnly() {
+      return readOnly;
+    },
+  });
+
   // Custom node types
   const nodeTypes = {
     machine: MachineNode,
@@ -95,7 +105,7 @@
     if (browser) {
       localStorage.setItem(
         "factory_low_quality_edges",
-        String(lowQualityEdges),
+        String(lowQualityEdges)
       );
     }
   }
@@ -103,7 +113,7 @@
   // Edge types: SimpleEdge for performance, PipeEdge for optional graphics
   // Note: Edges have type:'pipe' set in factory.ts, so we map 'pipe' to our component
   let edgeTypes: EdgeTypes = $derived(
-    (lowQualityEdges ? { pipe: SimpleEdge } : { pipe: PipeEdge }) as EdgeTypes,
+    (lowQualityEdges ? { pipe: SimpleEdge } : { pipe: PipeEdge }) as EdgeTypes
   );
 
   // State
@@ -132,6 +142,11 @@
   let isConnectionMode = $state(false);
   let connectionSourceId = $state<string | null>(null);
 
+  // Delete Confirmation Modal State
+  let showDeleteConfirm = $state(false);
+  let pendingDeleteNodes = $state<Node[]>([]);
+  let pendingDeleteEdges = $state<Edge[]>([]);
+
   // Derived Selection State (Multi-selection)
   let selectedNodes = $derived(nodes.filter((n) => n.selected === true));
   let selectedEdges = $derived(edges.filter((e) => e.selected === true));
@@ -140,7 +155,7 @@
     type: "machine" | "deposit",
     id: string,
     machineId: string,
-    icon: string,
+    icon: string
   ) {
     placingSelection = { type, id, machineId, icon };
     showMobileSidebar = false; // Always close sidebar
@@ -185,7 +200,7 @@
       placingSelection.type,
       placingSelection.id,
       x,
-      y,
+      y
     );
 
     if (success) {
@@ -228,6 +243,20 @@
 
   // Track if this is the initial load (for one-time fitView)
   let hasInitiallyLoaded = false;
+
+  // Listen for factory reload events (e.g., when a node is sold)
+  let lastFactoryReload: Date | null = null;
+  $effect(() => {
+    const reloadState = $factoryReloadStore;
+    if (
+      reloadState.lastReload &&
+      reloadState.lastReload !== lastFactoryReload
+    ) {
+      lastFactoryReload = reloadState.lastReload;
+      console.log("[FACTORY] Reloading due to:", reloadState.reason);
+      loadData();
+    }
+  });
 
   async function loadData() {
     if (!company?.id) return;
@@ -290,7 +319,7 @@
     const currentId = company?.id;
     if (currentId && currentId !== lastCompanyId) {
       console.log(
-        `[FACTORY] Company changed from ${lastCompanyId} to ${currentId}`,
+        `[FACTORY] Company changed from ${lastCompanyId} to ${currentId}`
       );
       lastCompanyId = currentId;
       hasInitiallyLoaded = false; // Reset so we fit view on new company
@@ -309,7 +338,7 @@
     if (currentRefreshTime && currentRefreshTime !== lastRefreshTime) {
       lastRefreshTime = currentRefreshTime;
       console.log(
-        "[FACTORY] Graph refresh detected - nodes update individually",
+        "[FACTORY] Graph refresh detected - nodes update individually"
       );
       // Note: Full loadData() intentionally NOT called here anymore
       // DepositNode and MachineNode subscribe to graphRefreshStore and update themselves
@@ -401,7 +430,7 @@
       nodeType as "machine" | "deposit",
       nodeId,
       x,
-      y,
+      y
     );
     if (success) {
       // Close mobile sidebar on drop if open
@@ -493,9 +522,9 @@
             u.type as "machine" | "deposit" | "company" | "storage",
             u.id,
             u.x,
-            u.y,
-          ),
-        ),
+            u.y
+          )
+        )
       );
 
       // 4. Update local state
@@ -523,7 +552,7 @@
    */
   function validateConnection(
     sourceNode: Node,
-    targetNode: Node,
+    targetNode: Node
   ): { valid: true } | { valid: false; error: string } {
     // Rule 1: Deposits cannot connect to companies
     if (sourceNode.type === "deposit" && targetNode.type === "company") {
@@ -621,7 +650,7 @@
         (sourceNode.data.resourceId as string) ||
         "",
       connection.sourceHandle || undefined,
-      connection.targetHandle || undefined,
+      connection.targetHandle || undefined
     );
 
     if (success) {
@@ -696,7 +725,7 @@
   }
 
   // Handle context actions
-  async function handleDeleteSelection() {
+  function handleDeleteSelection() {
     // SECURITY: Block deletions in read-only mode (visit mode)
     if (readOnly) {
       notifications.warning("Suppression interdite en mode visite");
@@ -706,7 +735,7 @@
     // Filter deletable nodes (exclude Zone, Company, Deposit)
     // Note: 'deletable' property is already set during loadData logic
     const nodesToDelete = selectedNodes.filter(
-      (n) => n.deletable || n.type === "machine" || n.type === "storage",
+      (n) => n.deletable || n.type === "machine" || n.type === "storage"
     );
 
     // Edges are always deletable
@@ -714,19 +743,23 @@
 
     if (nodesToDelete.length === 0 && edgesToDelete.length === 0) return;
 
-    if (
-      confirm(
-        `Supprimer ${nodesToDelete.length} élément(s) et ${edgesToDelete.length} connexion(s) ?`,
-      )
-    ) {
-      await deleteElements({
-        nodes: nodesToDelete,
-        edges: edgesToDelete,
-      });
-      // Clear selection after delete
-      nodes = nodes.map((n) => ({ ...n, selected: false }));
-      edges = edges.map((e) => ({ ...e, selected: false }));
-    }
+    // Store pending items and show confirmation modal
+    pendingDeleteNodes = nodesToDelete;
+    pendingDeleteEdges = edgesToDelete;
+    showDeleteConfirm = true;
+  }
+
+  async function confirmDeleteSelection() {
+    await deleteElements({
+      nodes: pendingDeleteNodes,
+      edges: pendingDeleteEdges,
+    });
+    // Clear selection after delete
+    nodes = nodes.map((n) => ({ ...n, selected: false }));
+    edges = edges.map((e) => ({ ...e, selected: false }));
+    // Clear pending
+    pendingDeleteNodes = [];
+    pendingDeleteEdges = [];
   }
 
   function onNodeDrag() {
@@ -782,7 +815,7 @@
       console.log("Mobile Connection: Selecting source", node);
       if (node.type === "company") {
         notifications.error(
-          "Le Quartier Général ne peut pas être une source !",
+          "Le Quartier Général ne peut pas être une source !"
         );
         return;
       }
@@ -836,7 +869,7 @@
             targetNode.type as "machine" | "company" | "deposit",
             resourceId,
             undefined, // Mobile mode doesn't specify handles
-            undefined,
+            undefined
           );
 
           if (success) {
@@ -865,7 +898,7 @@
           } else {
             console.warn("Mobile Connection: createEdge returned false");
             notifications.error(
-              "Échec de la connexion. Vérifiez la distance ou la compatibilité.",
+              "Échec de la connexion. Vérifiez la distance ou la compatibilité."
             );
           }
         } catch (err: any) {
@@ -958,7 +991,7 @@
                     "machine",
                     group.ids[0],
                     group.machine_id,
-                    item?.icon || "⚙️",
+                    item?.icon || "⚙️"
                   )}
               >
                 <div class="item-icon">
@@ -999,7 +1032,7 @@
                     "deposit",
                     deposit.id,
                     "",
-                    resourceItem?.icon || "⛏️",
+                    resourceItem?.icon || "⛏️"
                   )}
               >
                 <div class="item-icon deposit-icon">
@@ -1335,7 +1368,7 @@
           <p class="text-xs text-slate-400">
             {#if selectedNodes.length === 1 && selectedEdges.length === 0}
               {Math.round(selectedNodes[0].position.x)}, {Math.round(
-                selectedNodes[0].position.y,
+                selectedNodes[0].position.y
               )}
             {:else if selectedNodes.length === 0 && selectedEdges.length === 1}
               Transfert de ressources
@@ -1416,6 +1449,16 @@
     <ChatView />
   </Modal>
 {/if}
+
+<ConfirmationModal
+  bind:isOpen={showDeleteConfirm}
+  title="Supprimer la sélection ?"
+  message="Vous allez supprimer <strong>{pendingDeleteNodes.length}</strong> élément(s) et <strong>{pendingDeleteEdges.length}</strong> connexion(s)."
+  confirmLabel="Supprimer"
+  cancelLabel="Annuler"
+  isDestructive={true}
+  onConfirm={confirmDeleteSelection}
+/>
 
 <style>
   .loading-overlay {
