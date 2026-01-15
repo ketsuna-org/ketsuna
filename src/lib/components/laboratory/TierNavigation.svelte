@@ -32,6 +32,7 @@
     class="nav-btn"
     onclick={handlePrev}
     disabled={currentTier === 0}
+    aria-label="Tier précédent"
   >
     <svg
       width="16"
@@ -81,6 +82,7 @@
     class="nav-btn"
     onclick={handleNext}
     disabled={currentTier === tiers.length - 1}
+    aria-label="Tier suivant"
   >
     <svg
       width="16"

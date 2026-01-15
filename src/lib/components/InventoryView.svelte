@@ -553,7 +553,7 @@
                         : "cyan"}
 
                   <div
-                    class="group relative bg-[#1e293b] border border-[#334155] rounded-xl hover:border-{typeColor}-500/50 p-5 transition-all duration-300 hover:shadow-[0_0_20px_rgba(var(--{typeColor}-500),0.1)] flex flex-col overflow-hidden"
+                    class="group relative bg-[#1e293b] border border-[#334155] rounded-xl hover:border-{typeColor}-500/50 p-5 transition-all duration-300 hover:shadow-lg hover:shadow-slate-900/50 flex flex-col overflow-hidden"
                   >
                     <!-- Top accent -->
                     <div
@@ -718,14 +718,19 @@
 
   {#if bulkSellGroup}
     {@const summary = getGroupSummary(bulkSellGroup)}
+    <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
     <div
       transition:fade={{ duration: 150 }}
       class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
       onclick={(e) => {
         if (e.target === e.currentTarget && !bulkSelling) closeBulkSell();
       }}
+      onkeydown={(e) => {
+        if (e.key === "Escape" && !bulkSelling) closeBulkSell();
+      }}
       role="dialog"
       aria-modal="true"
+      tabindex="-1"
     >
       <div
         transition:fade={{ duration: 150 }}
