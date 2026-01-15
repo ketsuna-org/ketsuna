@@ -40,14 +40,13 @@
 
   // Bulk Dismissal State
   let showBulkDismissalModal = $state(false);
-  let bulkDismissalStat = $state<string>("mining");
+  let bulkDismissalStat = $state<string>("maintenance");
   let bulkDismissalOperator = $state<"<" | ">" | "<=" | ">=">("<");
   let bulkDismissalThreshold = $state(2);
   let bulkDismissalPreview = $state<Employee[]>([]);
   let bulkDismissalLoading = $state(false);
 
   const statOptions = [
-    { value: "mining", label: "Mining (0-10)" },
     { value: "maintenance", label: "Maintenance (0-10)" },
     { value: "exploration_luck", label: "Exploration Luck (0-10)" },
     { value: "energy", label: "Énergie (0-100)" },
@@ -120,7 +119,7 @@
 
   // Derived state from URL
   let showDeleteModal = $derived(
-    $page.url.searchParams.get("state") === "delete"
+    $page.url.searchParams.get("state") === "delete",
   );
   let deleteId = $derived($page.url.searchParams.get("id"));
   let employeeToDelete = $derived(employees.find((e) => e.id === deleteId));
@@ -138,7 +137,7 @@
       activeCompany.set(updated);
 
       notifications.success(
-        `${result.hiredCount} employé(s) recruté(s) pour ${result.totalCost}€`
+        `${result.hiredCount} employé(s) recruté(s) pour ${result.totalCost}€`,
       );
     } catch (e: any) {
       notifications.error(e.message);
@@ -191,7 +190,7 @@
   function closeBulkDismissalModal() {
     showBulkDismissalModal = false;
     bulkDismissalPreview = [];
-    bulkDismissalStat = "mining";
+    bulkDismissalStat = "maintenance";
     bulkDismissalOperator = "<";
     bulkDismissalThreshold = 2;
   }
@@ -278,7 +277,7 @@
         pb.collection("employees").getList<Employee>(page, PER_PAGE, {
           filter,
           sort: "-created",
-          expand: "deposit,exploration",
+          expand: "exploration",
           requestKey: null,
         }),
         page === 1

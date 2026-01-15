@@ -22,9 +22,10 @@
   let company = $derived(isOwnCompany ? $activeCompany : null);
 
   let isUpgrading = $state(false);
-  let displayLevel = $derived(data.level || company?.level || 1);
-  let displayBalance = $derived(data.balance ?? company?.balance ?? 0);
-  let displayName = $derived(data.name || company?.name || "SIÈGE SOCIAL");
+  let displayLevel = $derived(company?.level ?? data.level ?? 1);
+  // Prioritize store value (more fresh) over node data (may be stale)
+  let displayBalance = $derived(company?.balance ?? data.balance ?? 0);
+  let displayName = $derived(company?.name ?? data.name ?? "SIÈGE SOCIAL");
 
   let upgradeCost = $derived(Math.floor(1000 * Math.pow(displayLevel, 1.5)));
   let canUpgrade = $derived(isOwnCompany && displayBalance >= upgradeCost);

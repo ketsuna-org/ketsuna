@@ -36,7 +36,7 @@
   let explorationCost = $derived(
     distance > FREE_DISTANCE_KM
       ? (distance - FREE_DISTANCE_KM) * COST_PER_EXTRA_KM
-      : 0
+      : 0,
   );
 
   // Calculate expected resource range (based on size 1-10 at given distance)
@@ -45,12 +45,12 @@
 
   // Check if company can afford this exploration
   let canAfford = $derived(
-    $activeCompany ? $activeCompany.balance >= explorationCost : false
+    $activeCompany ? $activeCompany.balance >= explorationCost : false,
   );
 
   // Get only resources (Ressource Brute)
   const availableResources = getAllItems().filter(
-    (r: any) => r.type === "Ressource Brute"
+    (r: any) => r.type === "Ressource Brute",
   );
 
   // Format currency helper
@@ -76,8 +76,14 @@
         sort: "-exploration_luck",
       });
       availableEmployees = result;
-      if (availableEmployees.length > 0 && !selectedEmployee) {
-        selectedEmployee = availableEmployees[0].id;
+
+      // Auto-select first employee if current selection is null or no longer available
+      const currentSelectionValid =
+        selectedEmployee && result.some((e) => e.id === selectedEmployee);
+      if (result.length > 0 && !currentSelectionValid) {
+        selectedEmployee = result[0].id;
+      } else if (result.length === 0) {
+        selectedEmployee = null;
       }
     } catch (e) {
       console.error("Failed to load explorers", e);
@@ -142,7 +148,7 @@
     } catch (e: any) {
       console.error("Exploration error:", e);
       notifications.error(
-        e.message || "Erreur lors du lancement de la mission"
+        e.message || "Erreur lors du lancement de la mission",
       );
     } finally {
       starting = false;
@@ -378,7 +384,7 @@
             <span class="text-sm text-slate-400">Ressources attendues</span>
             <span class="font-mono text-indigo-300">
               {formatNumber(expectedMinResources)} - {formatNumber(
-                expectedMaxResources
+                expectedMaxResources,
               )}
             </span>
           </div>
@@ -391,7 +397,7 @@
               <span class="text-red-400">⚠️</span>
               <span class="text-xs text-red-300">
                 Fonds insuffisants. Solde actuel: {formatCurrency(
-                  $activeCompany?.balance ?? 0
+                  $activeCompany?.balance ?? 0,
                 )}
               </span>
             </div>
@@ -446,7 +452,7 @@
           <div class="space-y-3">
             {#each activeExplorations as mission (mission.id)}
               {@const resource = availableResources.find(
-                (r) => r.id === mission.target_resource_id
+                (r) => r.id === mission.target_resource_id,
               )}
               <div
                 class="bg-slate-800 border border-slate-700 rounded-xl p-4 flex flex-col gap-3"
@@ -472,7 +478,7 @@
                   <div class="text-right">
                     <span
                       class="text-[10px] uppercase tracking-wider font-bold px-2 py-1 rounded-full border {getStatusStyle(
-                        mission.status
+                        mission.status,
                       )}"
                     >
                       {mission.status}

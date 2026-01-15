@@ -8,7 +8,6 @@
   import type { Company } from "$lib/pocketbase";
   import FactoryInner from "./FactoryInner.svelte";
   import NotificationBell from "$lib/components/NotificationBell.svelte";
-  import GlobalChat from "$lib/components/GlobalChat.svelte";
   import CreateCompanyForm from "$lib/components/CreateCompanyForm.svelte";
   import UserMenu from "$lib/components/UserMenu.svelte";
   import { onMount } from "svelte";
@@ -154,11 +153,6 @@
         class:top-16={isVisitMode}
       >
         <NotificationBell />
-      </div>
-      <div
-        class="absolute bottom-6 left-1/2 -translate-x-1/2 pointer-events-auto"
-      >
-        <GlobalChat />
       </div>
     </div>
   </div>

@@ -13,6 +13,7 @@
   import MarketView from "$lib/components/MarketView.svelte";
   import InventoryView from "$lib/components/InventoryView.svelte";
   import WorkshopView from "$lib/components/WorkshopView.svelte";
+  import ChatView from "$lib/components/ChatView.svelte";
   import Modal from "$lib/components/Modal.svelte";
   import { getItem } from "$lib/data/game-static";
   import {
@@ -32,6 +33,7 @@
   } from "$lib/services/factory";
   import { graphRefreshStore } from "$lib/stores/graphRefreshStore";
   import { gamedataStore } from "$lib/stores/gamedataStore";
+  import { machineRefreshStore } from "$lib/stores/machineRefreshStore";
   import {
     SvelteFlow,
     Background,
@@ -81,7 +83,7 @@
     if (browser) {
       localStorage.setItem(
         "factory_low_quality_edges",
-        String(lowQualityEdges)
+        String(lowQualityEdges),
       );
     }
   }
@@ -89,7 +91,7 @@
   // Edge types: SimpleEdge for performance, PipeEdge for optional graphics
   // Note: Edges have type:'pipe' set in factory.ts, so we map 'pipe' to our component
   let edgeTypes: EdgeTypes = $derived(
-    (lowQualityEdges ? { pipe: SimpleEdge } : { pipe: PipeEdge }) as EdgeTypes
+    (lowQualityEdges ? { pipe: SimpleEdge } : { pipe: PipeEdge }) as EdgeTypes,
   );
 
   // State
@@ -101,6 +103,7 @@
   let showMarket = $state(false);
   let showInventory = $state(false);
   let showWorkshop = $state(false);
+  let showChat = $state(false);
   let showMobileSidebar = $state(false); // Mobile sidebar toggle
   let loading = $state(true);
 
@@ -123,17 +126,17 @@
 
   // Legacy single getters for backward compatibility / singular logic if needed
   let selectedNode = $derived(
-    selectedNodes.length === 1 ? selectedNodes[0] : null
+    selectedNodes.length === 1 ? selectedNodes[0] : null,
   );
   let selectedEdge = $derived(
-    selectedEdges.length === 1 ? selectedEdges[0] : null
+    selectedEdges.length === 1 ? selectedEdges[0] : null,
   );
 
   function handlePlacementSelect(
     type: "machine" | "deposit",
     id: string,
     machineId: string,
-    icon: string
+    icon: string,
   ) {
     placingSelection = { type, id, machineId, icon };
     showMobileSidebar = false; // Always close sidebar
@@ -178,7 +181,7 @@
       placingSelection.type,
       placingSelection.id,
       x,
-      y
+      y,
     );
 
     if (success) {
@@ -307,7 +310,7 @@
     const currentId = company?.id;
     if (currentId && currentId !== lastCompanyId) {
       console.log(
-        `[FACTORY] Company changed from ${lastCompanyId} to ${currentId}`
+        `[FACTORY] Company changed from ${lastCompanyId} to ${currentId}`,
       );
       lastCompanyId = currentId;
       hasInitiallyLoaded = false; // Reset so we fit view on new company
@@ -326,10 +329,28 @@
     if (currentRefreshTime && currentRefreshTime !== lastRefreshTime) {
       lastRefreshTime = currentRefreshTime;
       console.log(
-        "[FACTORY] Graph refresh detected - nodes update individually"
+        "[FACTORY] Graph refresh detected - nodes update individually",
       );
       // Note: Full loadData() intentionally NOT called here anymore
       // DepositNode and MachineNode subscribe to graphRefreshStore and update themselves
+    }
+  });
+
+  // Effect to handle machine refresh (after market purchases)
+  let lastMachineRefresh: Date | null = null;
+  $effect(() => {
+    const refreshEvent = $machineRefreshStore;
+    if (
+      refreshEvent &&
+      refreshEvent.timestamp !== lastMachineRefresh &&
+      company?.id
+    ) {
+      lastMachineRefresh = refreshEvent.timestamp;
+      console.log("[FACTORY] Machine refresh triggered:", refreshEvent.reason);
+      // Reload unplaced machines list
+      loadUnplacedMachines(company.id).then((machines) => {
+        unplacedMachines = machines;
+      });
     }
   });
 
@@ -400,7 +421,7 @@
       nodeType as "machine" | "deposit",
       nodeId,
       x,
-      y
+      y,
     );
     if (success) {
       // Close mobile sidebar on drop if open
@@ -485,9 +506,9 @@
             u.type as "machine" | "deposit" | "company" | "storage",
             u.id,
             u.x,
-            u.y
-          )
-        )
+            u.y,
+          ),
+        ),
       );
 
       // 4. Update local state
@@ -532,7 +553,7 @@
         (sourceNode.data.resourceId as string) ||
         "",
       connection.sourceHandle || undefined,
-      connection.targetHandle || undefined
+      connection.targetHandle || undefined,
     );
 
     if (success) {
@@ -605,7 +626,7 @@
     // Filter deletable nodes (exclude Zone, Company, Deposit)
     // Note: 'deletable' property is already set during loadData logic
     const nodesToDelete = selectedNodes.filter(
-      (n) => n.deletable || n.type === "machine" || n.type === "storage"
+      (n) => n.deletable || n.type === "machine" || n.type === "storage",
     );
 
     // Edges are always deletable
@@ -615,7 +636,7 @@
 
     if (
       confirm(
-        `Supprimer ${nodesToDelete.length} élément(s) et ${edgesToDelete.length} connexion(s) ?`
+        `Supprimer ${nodesToDelete.length} élément(s) et ${edgesToDelete.length} connexion(s) ?`,
       )
     ) {
       await deleteElements({
@@ -694,7 +715,7 @@
       console.log("Mobile Connection: Selecting source", node);
       if (node.type === "company") {
         notifications.error(
-          "Le Quartier Général ne peut pas être une source !"
+          "Le Quartier Général ne peut pas être une source !",
         );
         return;
       }
@@ -739,7 +760,7 @@
             targetNode.type as "machine" | "company" | "deposit",
             resourceId,
             undefined, // Mobile mode doesn't specify handles
-            undefined
+            undefined,
           );
 
           if (success) {
@@ -768,7 +789,7 @@
           } else {
             console.warn("Mobile Connection: createEdge returned false");
             notifications.error(
-              "Échec de la connexion. Vérifiez la distance ou la compatibilité."
+              "Échec de la connexion. Vérifiez la distance ou la compatibilité.",
             );
           }
         } catch (err: any) {
@@ -789,7 +810,7 @@
   <!-- Mobile Menu Toggle (hidden in readOnly mode) -->
   {#if !readOnly}
     <button
-      class="md:hidden fixed top-4 left-4 z-50 bg-[#1e293b] text-white p-3 rounded-xl border border-[#334155] shadow-lg"
+      class="md:hidden fixed top-4 left-4 z-[110] bg-[#1e293b] text-white p-3 rounded-xl border border-[#334155] shadow-lg"
       onclick={() => (showMobileSidebar = !showMobileSidebar)}
     >
       <svg
@@ -824,7 +845,7 @@
     <div
       class="
     toolbar
-    {showMobileSidebar ? 'flex fixed inset-0 w-full h-full z-50' : 'hidden'}
+    {showMobileSidebar ? 'flex fixed inset-0 w-full h-full z-[100]' : 'hidden'}
     md:flex md:static md:w-75 md:h-auto flex-col gap-8 p-6
   "
     >
@@ -861,7 +882,7 @@
                     "machine",
                     group.ids[0],
                     group.machine_id,
-                    item?.icon || "⚙️"
+                    item?.icon || "⚙️",
                   )}
               >
                 <div class="item-icon">
@@ -902,7 +923,7 @@
                     "deposit",
                     deposit.id,
                     "",
-                    resourceItem?.icon || "⛏️"
+                    resourceItem?.icon || "⛏️",
                   )}
               >
                 <div class="item-icon deposit-icon">
@@ -949,6 +970,16 @@
           >
             <span class="btn-icon">💰</span>
             <span class="btn-label">Marché</span>
+          </button>
+          <button
+            class="action-btn chat full-width"
+            onclick={() => {
+              showChat = true;
+              showMobileSidebar = false;
+            }}
+          >
+            <span class="btn-icon">💬</span>
+            <span class="btn-label">Messagerie</span>
           </button>
           <button
             class="action-btn workshop full-width"
@@ -1228,7 +1259,7 @@
           <p class="text-xs text-slate-400">
             {#if selectedNodes.length === 1 && selectedEdges.length === 0}
               {Math.round(selectedNodes[0].position.x)}, {Math.round(
-                selectedNodes[0].position.y
+                selectedNodes[0].position.y,
               )}
             {:else if selectedNodes.length === 0 && selectedEdges.length === 1}
               Transfert de ressources
@@ -1298,6 +1329,15 @@
     onClose={() => (showInventory = false)}
   >
     <InventoryView />
+  </Modal>
+{/if}
+
+{#if showChat}
+  <Modal
+    title="<span class='text-2xl'>💬</span> Messagerie Générale"
+    onClose={() => (showChat = false)}
+  >
+    <ChatView />
   </Modal>
 {/if}
 
@@ -1754,11 +1794,19 @@
       0 8px 16px rgba(0, 0, 0, 0.4);
   }
 
+  .action-btn.chat {
+    background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
+    box-shadow:
+      0 4px 0 #312e81,
+      0 8px 16px rgba(0, 0, 0, 0.4);
+  }
+
   /* Hover light effect for buttons */
   .action-btn.exploration:hover,
   .action-btn.market:hover,
   .action-btn.workshop:hover,
-  .action-btn.inventory:hover {
+  .action-btn.inventory:hover,
+  .action-btn.chat:hover {
     box-shadow:
       0 6px 0 rgba(0, 0, 0, 0.2),
       0 12px 20px rgba(0, 0, 0, 0.4);

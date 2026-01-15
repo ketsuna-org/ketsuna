@@ -10,6 +10,7 @@
   import type { Company } from "$lib/pocketbase";
   import FilterBar from "$lib/components/FilterBar.svelte";
   import InfiniteScroll from "$lib/components/InfiniteScroll.svelte";
+  import { machineRefreshStore } from "$lib/stores/machineRefreshStore";
 
   const PER_PAGE = 16;
 
@@ -131,7 +132,7 @@
       const quantity = getQuantity(item.id);
       await buyItem(activeCompanyId, item, quantity);
       notifications.success(
-        `${quantity}x ${item.name} achetée${quantity > 1 ? "s" : ""} !`
+        `${quantity}x ${item.name} achetée${quantity > 1 ? "s" : ""} !`,
       );
       quantities[item.id] = 1;
       await loadMarketItems(1, false);
@@ -140,6 +141,8 @@
         .collection("companies")
         .getOne<Company>(activeCompanyId, { requestKey: null });
       activeCompany.set(updated);
+      // Trigger machines list refresh for FactoryInner
+      machineRefreshStore.refresh("purchase");
     } catch (err: any) {
       error = err.message;
       notifications.error(`Erreur: ${err.message}`);
@@ -510,7 +513,7 @@
                 <span class="text-xs text-indigo-400 font-medium">Total</span>
                 <span class="text-sm font-mono font-bold text-indigo-300"
                   >{formatCurrency(
-                    item.base_price * getQuantity(item.id)
+                    item.base_price * getQuantity(item.id),
                   )}</span
                 >
               </div>

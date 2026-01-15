@@ -219,27 +219,30 @@
   .global-chat {
     pointer-events: auto;
     position: relative;
-    z-index: 50;
+    z-index: 90;
     display: flex;
     flex-direction: column;
-    align-items: center; /* Center button and window */
+    align-items: flex-end; /* Align to right */
   }
 
   .chat-toggle-btn {
-    width: 48px;
-    height: 48px;
-    background: #3b82f6;
+    width: 44px;
+    height: 44px;
+    background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
     color: white;
     border-radius: 50%;
     border: none;
-    box-shadow: 0 4px 10px rgba(59, 130, 246, 0.4);
+    box-shadow:
+      0 4px 12px rgba(59, 130, 246, 0.4),
+      0 2px 0 #2563eb;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     transition:
       transform 0.2s,
-      background 0.2s;
+      background 0.2s,
+      box-shadow 0.2s;
   }
 
   .chat-toggle-btn:hover {
@@ -264,8 +267,7 @@
     overflow: hidden;
     position: absolute; /* Float */
     bottom: 60px; /* Above button */
-    left: 50%;
-    transform: translateX(-50%); /* Center perfectly */
+    right: 0; /* Align to right edge */
   }
 
   .header {

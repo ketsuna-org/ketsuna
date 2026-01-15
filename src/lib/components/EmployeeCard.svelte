@@ -107,14 +107,7 @@
       <span class="text-[10px] text-slate-500 font-bold uppercase"
         >Affectation</span
       >
-      {#if employee.deposit}
-        <div
-          class="flex items-center gap-1.5 text-cyan-300 bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20"
-        >
-          <span class="text-xs">⛏️</span>
-          <span class="text-xs font-bold truncate max-w-24">Gisement</span>
-        </div>
-      {:else if employee.exploration}
+      {#if employee.exploration}
         <div
           class="flex items-center gap-1.5 text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20"
         >

@@ -11,6 +11,7 @@
   import NavFab from "$lib/components/NavFab.svelte";
   import Footer from "$lib/components/Footer.svelte";
   import { loadGameData } from "$lib/data/game-static";
+  import { initAuthGuard } from "$lib/authGuard";
   // Import stores to initialize them (they auto-start when imported)
   import { gamedataStore } from "$lib/stores/gamedataStore";
   import { graphRefreshStore } from "$lib/stores/graphRefreshStore";
@@ -33,6 +34,10 @@
 
       // Load static game data from backend API
       loadGameData();
+
+      // Initialize auth guard for 401/token expiry handling
+      initAuthGuard();
+
       unsubscribe = pb.authStore.onChange(async (token, model) => {
         currentUser.set(model);
 
