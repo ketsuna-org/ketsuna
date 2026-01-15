@@ -6,6 +6,7 @@
   import { activeCompany, refreshActiveCompany } from "$lib/stores";
   import { notifications } from "$lib/notifications";
   import { getAllItems } from "$lib/data/game-static";
+  import GameIcon from "$lib/components/GameIcon.svelte";
 
   let { onClose } = $props<{ onClose: () => void }>();
 
@@ -273,7 +274,13 @@
                   : 'bg-slate-900/50 border-slate-700 text-slate-400 hover:border-slate-600 hover:text-slate-200'}"
                 onclick={() => (selectedResource = res.id)}
               >
-                <span class="text-2xl mb-1">{res.icon || "📦"}</span>
+                <span class="text-2xl mb-1"
+                  ><GameIcon
+                    icon={res.icon || "📦"}
+                    size={32}
+                    alt={res.name}
+                  /></span
+                >
                 <span class="text-xs font-bold text-center">{res.name}</span>
               </button>
             {/each}
@@ -446,9 +453,13 @@
               >
                 <div class="flex items-center gap-4">
                   <div
-                    class="w-12 h-12 bg-slate-900 rounded-lg flex items-center justify-center text-2xl border border-slate-700/50"
+                    class="w-12 h-12 bg-slate-900 rounded-lg flex items-center justify-center border border-slate-700/50"
                   >
-                    {resource?.icon || "📦"}
+                    <GameIcon
+                      icon={resource?.icon || "📦"}
+                      size={32}
+                      alt={resource?.name || "Resource"}
+                    />
                   </div>
                   <div class="flex-1 min-w-0">
                     <h4 class="font-bold text-white text-sm truncate">

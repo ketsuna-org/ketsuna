@@ -6,6 +6,7 @@
     type NodeProps,
     NodeToolbar,
   } from "@xyflow/svelte";
+  import GameIcon from "$lib/components/GameIcon.svelte";
   import pb from "$lib/pocketbase";
   import { activeCompany } from "$lib/stores";
 
@@ -148,7 +149,11 @@
 
         <div class="content-wrapper">
           <div class="icon-display">
-            <span class="icon">{data.icon}</span>
+            {#if data.icon?.startsWith("/")}
+              <GameIcon icon={data.icon} size={32} alt={data.name} />
+            {:else}
+              <GameIcon icon={data.icon} size={24} alt={data.name} />
+            {/if}
           </div>
 
           <div class="info-panel">
