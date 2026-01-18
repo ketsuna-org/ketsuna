@@ -67,27 +67,34 @@
 
     try {
       const formData = new FormData();
+      let hasChanges = false;
 
       // Only add changed fields
       if (username !== user.username) {
         formData.append("username", username);
-      }
-
-      if (email !== user.email) {
-        formData.append("email", email);
+        hasChanges = true;
       }
 
       if (avatarFile) {
         formData.append("avatar", avatarFile);
+        hasChanges = true;
       }
 
-      await pb.collection("users").update(user.id, formData);
+      if (hasChanges) {
+        await pb.collection("users").update(user.id, formData);
 
-      // Refresh user data
-      const updatedUser = await pb.collection("users").getOne(user.id);
-      currentUser.set(updatedUser);
+        // Refresh user data
+        const updatedUser = await pb.collection("users").getOne(user.id);
+        currentUser.set(updatedUser);
 
-      notifications.success("Profil mis à jour avec succès");
+        notifications.success("Profil mis à jour avec succès");
+      }
+
+      if (email !== user.email) {
+        await pb.collection("users").requestEmailChange(email);
+        notifications.success("Demande de changement d'email envoyée");
+      }
+
       onClose();
     } catch (err: any) {
       error = err.message || "Erreur lors de la mise à jour du profil";
