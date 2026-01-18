@@ -7,10 +7,12 @@
   import pb from "$lib/pocketbase";
   import type { Company } from "$lib/pocketbase";
   import FactoryInner from "./FactoryInner.svelte";
+  import FactoryKonva from "./FactoryKonva.svelte";
   import NotificationBell from "$lib/components/NotificationBell.svelte";
   import CreateCompanyForm from "$lib/components/CreateCompanyForm.svelte";
   import UserMenu from "$lib/components/UserMenu.svelte";
   import { onMount } from "svelte";
+  import { USE_KONVA_CANVAS } from "$lib/config";
 
   // Visit mode state
   let visitCompanyId = $derived($page.url.searchParams.get("visit"));
@@ -109,9 +111,15 @@
   </div>
 {:else}
   <div class="factory-container">
-    <SvelteFlowProvider>
-      <FactoryInner {company} readOnly={!!visitCompanyId} />
-    </SvelteFlowProvider>
+    {#if USE_KONVA_CANVAS}
+      <!-- Canvas-based rendering with svelte-konva -->
+      <FactoryKonva {company} readOnly={!!visitCompanyId} />
+    {:else}
+      <!-- DOM-based rendering with Svelte Flow -->
+      <SvelteFlowProvider>
+        <FactoryInner {company} readOnly={!!visitCompanyId} />
+      </SvelteFlowProvider>
+    {/if}
 
     <div class="ui-overlay pointer-events-none fixed inset-0 z-50">
       <!-- Visit Banner -->

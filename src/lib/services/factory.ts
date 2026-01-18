@@ -23,6 +23,15 @@ export interface FactoryNode {
     width?: number;
     height?: number;
     level?: number;
+    // Deposit-specific
+    size?: number;
+    // Machine-specific
+    progress?: number;
+    // Storage-specific
+    capacity?: number;
+    used?: number;
+    // Company-specific
+    balance?: number;
   };
   // Measured dimensions from Svelte Flow
   measured?: { width: number; height: number };
@@ -169,11 +178,11 @@ export async function loadFactory(companyId: string): Promise<{
 
     for (const deposit of deposits) {
       const location = deposit.location;
-      
+
       // Skip deposits without valid location (they show in "Gisements à placer")
-      if (!location || typeof location !== 'object' || 
-          (location.lng === undefined && location.lat === undefined) ||
-          Object.keys(location).length === 0) {
+      if (!location || typeof location !== 'object' ||
+        (location.lng === undefined && location.lat === undefined) ||
+        Object.keys(location).length === 0) {
         continue;
       }
 
@@ -241,7 +250,7 @@ export async function loadUnplacedDeposits(companyId: string): Promise<unknown[]
     const allDeposits = await pb.collection("deposits").getFullList({
       filter: `company = "${companyId}" && quantity > 0`,
     });
-    
+
     // Filter those with no location (null, empty, or invalid)
     const unplaced = allDeposits.filter(deposit => {
       const loc = deposit.location;
@@ -290,11 +299,11 @@ export async function updateNodePosition(
 ): Promise<boolean> {
   try {
     // Map storage to machines collection
-    const collection = 
-      type === 'machine' || type === 'storage' ? 'machines' : 
-      type === 'deposit' ? 'deposits' : 
-      'companies';
-    
+    const collection =
+      type === 'machine' || type === 'storage' ? 'machines' :
+        type === 'deposit' ? 'deposits' :
+          'companies';
+
     await pb.collection(collection).update(id, {
       location: { lng: x, lat: y },
     });

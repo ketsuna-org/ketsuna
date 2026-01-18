@@ -40,8 +40,10 @@
 		"chart.js": "^4.5.1",
 		"firebase": "^12.7.0",
 		"gray-matter": "^4.0.3",
+		"konva": "^10.2.0",
 		"marked": "^17.0.1",
 		"pocketbase": "^0.26.5",
+		"svelte-konva": "^1.0.1",
 		"svelte-sitemap": "^2.7.1"
 	}
 }
