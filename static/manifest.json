@@ -1,11 +1,11 @@
 {
-  "name": "Ketsuna: Iron Symphony",
+  "name": "Ketsuna Organisation",
   "short_name": "Ketsuna",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0f172a",
-  "theme_color": "#0f172a",
-  "description": "Idle Tech Tycoon Game",
+  "background_color": "#0b1b2b",
+  "theme_color": "#0f2533",
+  "description": "Official home of the Ketsuna Team and Bot-Creator.",
   "icons": [
     {
       "src": "/android-chrome-192x192.png",

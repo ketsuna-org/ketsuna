@@ -1,38 +1,68 @@
-# sv
+# Ketsuna Organisation
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+Welcome to the official home of the Ketsuna Team.
 
-## Creating a project
+We are a development group dedicated to building powerful, user-friendly tools for communities.
+Our primary focus right now is our flagship application: Bot-Creator.
 
-If you're seeing this, you've probably already done this step. Congrats!
+## Our Projects
+
+### Bot-Creator (Active)
+
+Bot-Creator is our main project and current priority.
+It is a comprehensive, feature-rich platform designed to help users build, customize, and host Discord bots effortlessly.
+
+- Visual Builder: Create complex commands, actions, and workflows without writing complex code.
+- Cross-Platform: Built with Flutter/Dart for mobile, web, and desktop.
+- Feature Packed: Manage roles, webhooks, UI components, and moderation from one intuitive interface.
+
+### Ketsuna (Incubating)
+
+Our namesake project, Ketsuna, is currently in planning and incubation.
+It does not have a public purpose yet, but exciting ideas are in progress behind the scenes.
+
+## What You Will Find Here
+
+- Core source code for the Bot-Creator app and its runners.
+- Shared libraries and APIs across our ecosystem.
+- Community discussions and issue trackers.
+
+## Getting Involved
+
+- Report Bugs: Open an issue in the relevant repository.
+- Suggest Features: Start a discussion with your idea.
+- Contribute Code: Pull requests are welcome. Read CONTRIBUTING.md (when available) before starting.
+
+## Connect With Us
+
+- Bot-Creator Website: https://bot-creator.fr
+- Ketsuna Website: https://ketsuna.com
+- Discord Community: https://discord.gg/gyEGNBUZdA
+
+"Empowering communities with better tools." - The Ketsuna Team
+
+## Local Development
+
+Install dependencies:
 
 ```sh
-# create a new project in the current directory
-npx sv create
-
-# create a new project in my-app
-npx sv create my-app
+npm install
 ```
 
-## Developing
-
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+Start development server:
 
 ```sh
 npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
 ```
 
-## Building
+Run checks:
 
-To create a production version of your app:
+```sh
+npm run check
+```
+
+Build for production:
 
 ```sh
 npm run build
 ```
-
-You can preview the production build with `npm run preview`.
-
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.

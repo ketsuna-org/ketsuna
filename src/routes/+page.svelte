@@ -1,422 +1,351 @@
-<script lang="ts">
-  import { goto } from "$app/navigation";
-  import { resolve } from "$app/paths";
-  import pb from "$lib/pocketbase";
-  import { onMount } from "svelte";
-  import { fade, fly } from "svelte/transition";
-
-  let introComplete = false;
-  let portalScale = 1;
-  let textOpacity = 1;
-
-  onMount(() => {
-    // Portal Animation Sequence
-    setTimeout(() => {
-      // Start expanding the portal
-      portalScale = 50;
-      textOpacity = 0;
-    }, 2000);
-
-    setTimeout(() => {
-      introComplete = true;
-    }, 3500);
-  });
-
-  function startPlaying() {
-    if (pb.authStore.isValid) {
-      goto(resolve("/factory"));
-    } else {
-      goto(resolve("/login"));
-    }
-  }
-
-  const doctrines = [
-    {
-      name: "Le Marionnettiste",
-      role: "Spécialisation Bourse",
-      description:
-        "Le vrai pouvoir réside dans la valeur perçue. Créez des krachs boursiers pour ruiner les armées adverses.",
-      icon: "📈",
-      color: "from-emerald-500 to-teal-400",
-    },
-    {
-      name: "Le Baron de la Matière",
-      role: "Monopole Ressources",
-      description:
-        "Celui qui contrôle le pétrole contrôle l'univers. Imposez votre 'Taxe Impériale' au monde entier.",
-      icon: "🛢️",
-      color: "from-amber-500 to-orange-400",
-    },
-    {
-      name: "L'Architecte",
-      role: "Machines & Composants",
-      description:
-        "Transformez la boue en miracle technologique. Vous êtes le marchand d'armes ultime.",
-      icon: "⚙️",
-      color: "from-indigo-500 to-purple-400",
-    },
-  ];
-</script>
-
 <svelte:head>
-  <title>Ketsuna: L'Âge du Capital Absolu</title>
+  <title>Ketsuna Organisation | Empowering communities with better tools.</title>
+  <meta
+    name="description"
+    content="Official home of the Ketsuna Team. Discover Bot-Creator, our flagship platform for building and hosting Discord bots, and follow Ketsuna's incubation journey."
+  />
+  <meta property="og:title" content="Ketsuna Organisation" />
+  <meta
+    property="og:description"
+    content="Bot-Creator is our active flagship project. Ketsuna is currently in incubation."
+  />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://ketsuna.com" />
 </svelte:head>
 
-<div
-  class="min-h-screen bg-black text-slate-200 font-sans selection:bg-indigo-500/30 overflow-x-hidden"
->
-  <!-- INTRO PORTAL SEQUENCE -->
-  {#if !introComplete}
-    <div
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black overflow-hidden pointer-events-none"
-      out:fade={{ duration: 1000 }}
-    >
-      <!-- The Portal -->
-      <div
-        class="relative rounded-full aspect-square bg-white shadow-[0_0_100px_rgba(255,255,255,0.8)] transition-transform duration-[1500ms] ease-[cubic-bezier(0.7,0,0.3,1)]"
-        style="width: 20px; transform: scale({portalScale});"
-      >
-        <div
-          class="absolute inset-0 bg-linear-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-full animate-spin-slow opacity-80 blur-md"
-        ></div>
-      </div>
+<main class="page">
+  <div class="bg-glow bg-glow-a" aria-hidden="true"></div>
+  <div class="bg-glow bg-glow-b" aria-hidden="true"></div>
 
-      <!-- Intro Text -->
-      <div
-        class="absolute inset-0 flex flex-col items-center justify-center text-white mix-blend-difference transition-opacity duration-500"
-        style="opacity: {textOpacity};"
-      >
-        <div
-          class="text-xs font-mono uppercase tracking-[0.3em] mb-4 text-slate-400"
-        >
-          Connexion en cours
-        </div>
-        <h1 class="text-4xl font-black tracking-tighter">
-          SECTEUR <span class="text-indigo-500">OMNI</span>
-        </h1>
-      </div>
-    </div>
-  {/if}
+  <section class="hero container">
+    <p class="eyebrow">Ketsuna Team</p>
+    <h1>Welcome to the Ketsuna Organisation</h1>
+    <p class="lead">
+      We build powerful, user-friendly tools for communities. Our current priority is
+      <strong>Bot-Creator</strong>, a comprehensive platform to build, customize, and host Discord bots
+      with confidence.
+    </p>
+    <p class="motto">"Empowering communities with better tools."</p>
+  </section>
 
-  <!-- MAIN CONTENT -->
-  {#if introComplete}
-    <!-- Background Elements -->
-    <div class="fixed inset-0 pointer-events-none">
-      <div
-        class="absolute inset-0 bg-[url('/grid.svg')] opacity-[0.05] bg-center [mask-image:linear-gradient(to_bottom,transparent,black)]"
-      ></div>
-      <div
-        class="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-900/20 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2"
-      ></div>
-      <div
-        class="absolute bottom-0 left-0 w-[500px] h-[500px] bg-rose-900/10 rounded-full blur-[120px] translate-y-1/2 -translate-x-1/2"
-      ></div>
-    </div>
+  <section class="projects container">
+    <h2>Our Projects</h2>
 
-    <!-- Hero Section -->
-    <section
-      class="relative min-h-screen flex flex-col items-center justify-center px-4 pt-20"
-    >
-      <div
-        class="text-center max-w-4xl mx-auto z-10"
-        in:fade={{ duration: 1000, delay: 200 }}
-      >
-        <div
-          class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-slate-800 bg-slate-950/50 backdrop-blur-sm text-xs font-mono text-indigo-400 mb-8"
-        >
-          <span class="relative flex h-2 w-2">
-            <span
-              class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"
-            ></span>
-            <span
-              class="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"
-            ></span>
-          </span>
-          SYSTÈME OPÉRATIONNEL
-        </div>
-
-        <h1
-          class="text-6xl md:text-8xl lg:text-9xl font-black text-white mb-6 leading-none tracking-tight"
-        >
-          CAPITAL<br />
-          <span
-            class="bg-linear-to-r from-indigo-400 via-purple-400 to-rose-400 bg-clip-text text-transparent"
-            >ABSOLU</span
-          >
-        </h1>
-
-        <p
-          class="text-xl md:text-2xl text-slate-400 mb-12 max-w-2xl mx-auto leading-relaxed"
-        >
-          "Ici, la paix est une perte de temps et la guerre une opportunité de
-          marché."
-        </p>
-
-        <div
-          class="flex flex-col sm:flex-row gap-6 justify-center items-center"
-        >
-          <button
-            onclick={startPlaying}
-            class="group relative px-8 py-4 bg-white text-black font-bold text-lg rounded-full shadow-[0_0_20px_rgba(255,255,255,0.3)] hover:shadow-[0_0_40px_rgba(255,255,255,0.5)] transition-all duration-300 hover:scale-105 active:scale-95"
-          >
-            Rejoindre le Marché
-          </button>
-
-          <a
-            href={resolve("/wiki")}
-            class="px-8 py-4 text-slate-300 font-medium hover:text-white transition-colors border-b border-transparent hover:border-slate-500"
-          >
-            Explorer le Lore
-          </a>
-        </div>
-      </div>
-
-      <!-- Scroll Indicator -->
-      <div
-        class="absolute bottom-10 left-1/2 -translate-x-1/2 animate-bounce text-slate-600"
-      >
-        ↓
-      </div>
-    </section>
-
-    <!-- Context: The Fall -->
-    <section class="py-32 px-4 relative z-10">
-      <div class="max-w-6xl mx-auto grid md:grid-cols-2 gap-16 items-center">
-        <div in:fly={{ x: -50, duration: 1000, delay: 200 }}>
-          <h2 class="text-4xl md:text-5xl font-bold text-white mb-6">
-            La Chute des Nations
-          </h2>
-          <div class="h-1 w-20 bg-rose-500 mb-8"></div>
-          <p class="text-lg text-slate-300 leading-relaxed mb-6">
-            Il n'y a plus de pays. Il n'y a plus de gouvernements. Après
-            l'épuisement des ressources terrestres, l'humanité s'est tournée
-            vers les étoiles.
-          </p>
-          <p class="text-lg text-slate-300 leading-relaxed">
-            Dans cette ruée vers l'or galactique, seules les méga-corporations
-            ont survécu. Aujourd'hui, l'univers est un immense marché libre
-            dérégulé : le <strong class="text-white">Secteur Omni</strong>.
-          </p>
-        </div>
-        <div
-          class="relative aspect-video rounded-2xl overflow-hidden shadow-2xl border border-slate-800 bg-slate-900 group"
-        >
-          <div
-            class="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1614728853975-69c960c7704e?q=80&w=1000&auto=format&fit=crop')] bg-cover bg-center opacity-40 group-hover:scale-110 transition-transform duration-700"
-          ></div>
-          <div
-            class="absolute inset-0 bg-linear-to-t from-black via-transparent to-transparent"
-          ></div>
-          <div class="absolute bottom-6 left-6 right-6">
-            <div class="text-xs font-mono text-rose-400 mb-2">
-              ARCHIVE #2094
-            </div>
-            <div class="text-xl font-bold text-white">
-              L'effondrement du dernier État
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- The Graal: Neutron Star -->
-    <section
-      class="py-32 px-4 bg-slate-950 border-y border-slate-900 relative overflow-hidden"
-    >
-      <div
-        class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-indigo-500/5 rounded-full blur-[100px]"
-      ></div>
-
-      <div class="max-w-4xl mx-auto text-center relative z-10">
-        <div
-          class="inline-block px-3 py-1 rounded bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-bold uppercase tracking-widest mb-8"
-        >
-          Objectif Ultime
-        </div>
-
-        <h2 class="text-5xl md:text-7xl font-black text-white mb-8">
-          L'Étoile "Zéro"
-        </h2>
-
-        <p class="text-2xl text-slate-300 mb-12">
-          La Singularité Économique. Celui qui la contrôle, contrôle
-          l'Omniscience.
-        </p>
-
-        <div class="grid md:grid-cols-3 gap-8 text-left">
-          <div
-            class="p-6 bg-black/40 border border-slate-800 rounded-xl backdrop-blur-sm hover:border-indigo-500/30 transition-colors"
-          >
-            <div class="text-4xl mb-4">🌌</div>
-            <h3 class="text-xl font-bold text-white mb-2">
-              Données Quantiques
-            </h3>
-            <p class="text-slate-400 text-sm">
-              Contient la totalité des données de l'univers compressées dans sa
-              matière.
-            </p>
-          </div>
-          <div
-            class="p-6 bg-black/40 border border-slate-800 rounded-xl backdrop-blur-sm hover:border-indigo-500/30 transition-colors"
-          >
-            <div class="text-4xl mb-4">⚡</div>
-            <h3 class="text-xl font-bold text-white mb-2">Fin de la R&D</h3>
-            <p class="text-slate-400 text-sm">
-              Toutes les technologies possibles sont instantanément débloquées.
-            </p>
-          </div>
-          <div
-            class="p-6 bg-black/40 border border-slate-800 rounded-xl backdrop-blur-sm hover:border-indigo-500/30 transition-colors"
-          >
-            <div class="text-4xl mb-4">👁️</div>
-            <h3 class="text-xl font-bold text-white mb-2">Monopole Éternel</h3>
-            <p class="text-slate-400 text-sm">
-              Plus d'incertitude. Domination totale du marché.
-            </p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Philosophy -->
-    <section class="py-32 px-4 relative">
-      <div class="max-w-5xl mx-auto">
-        <div class="text-center mb-20">
-          <h2 class="text-4xl font-bold text-white mb-4">
-            Philosophie du Secteur
-          </h2>
-          <div class="text-rose-500 font-mono text-xl">
-            "L'Autre est l'Ennemi"
-          </div>
-        </div>
-
-        <div class="grid md:grid-cols-2 gap-4">
-          <div
-            class="p-8 bg-slate-900 rounded-3xl border border-slate-800 flex flex-col justify-center"
-          >
-            <h3 class="text-2xl font-bold text-white mb-4">
-              L'Argent, c'est le Sang
-            </h3>
-            <p class="text-slate-400 leading-relaxed">
-              Sans liquidités, vos usines s'arrêtent. Si vos usines s'arrêtent,
-              vos défenses tombent. Si vos défenses tombent, vous êtes rayé de
-              la carte.
-            </p>
-          </div>
-          <div class="space-y-4">
-            <div
-              class="p-6 bg-slate-900/50 rounded-2xl border border-slate-800 hover:bg-slate-800 transition-colors"
-            >
-              <div class="text-indigo-400 font-bold mb-2">La Connaissance</div>
-              <p class="text-slate-400 text-sm">
-                L'espionnage industriel est vital. Savoir, c'est pouvoir.
-              </p>
-            </div>
-            <div
-              class="p-6 bg-slate-900/50 rounded-2xl border border-slate-800 hover:bg-slate-800 transition-colors"
-            >
-              <div class="text-indigo-400 font-bold mb-2">Les Contrats</div>
-              <p class="text-slate-400 text-sm">
-                Faits pour être rompus dès que la pénalité est inférieure au
-                profit.
-              </p>
-            </div>
-            <div
-              class="p-6 bg-slate-900/50 rounded-2xl border border-slate-800 hover:bg-slate-800 transition-colors"
-            >
-              <div class="text-indigo-400 font-bold mb-2">L'Automatisation</div>
-              <p class="text-slate-400 text-sm">
-                Une ligne de production a plus de valeur qu'une ville humaine.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Doctrines / Ascension -->
-    <section class="py-32 px-4 border-t border-slate-900 bg-slate-950/50">
-      <div class="max-w-7xl mx-auto">
-        <div class="text-center mb-16">
-          <div
-            class="text-indigo-400 text-sm font-bold uppercase tracking-widest mb-4"
-          >
-            Le Tournant Fatidique
-          </div>
-          <h2 class="text-4xl md:text-5xl font-black text-white">
-            L'Ascension
-          </h2>
-          <p class="text-slate-500 mt-4">
-            Choisissez votre Doctrine de Domination.
-          </p>
-        </div>
-
-        <div class="grid md:grid-cols-3 gap-8">
-          {#each doctrines as doc (doc.name)}
-            <div
-              class="group relative bg-slate-900 border border-slate-800 rounded-3xl p-1 overflow-hidden hover:scale-105 transition-transform duration-300"
-            >
-              <!-- Gradient Border Effect -->
-              <div
-                class={`absolute inset-0 bg-linear-to-br ${doc.color} opacity-0 group-hover:opacity-100 transition-opacity duration-500`}
-              ></div>
-
-              <div
-                class="relative bg-slate-950 rounded-[22px] p-8 h-full flex flex-col"
-              >
-                <div
-                  class="text-5xl mb-6 bg-slate-900 w-20 h-20 rounded-2xl flex items-center justify-center shadow-inner"
-                >
-                  {doc.icon}
-                </div>
-                <h3 class="text-2xl font-bold text-white mb-2">{doc.name}</h3>
-                <div
-                  class={`text-sm font-bold bg-clip-text text-transparent bg-linear-to-r ${doc.color} mb-4`}
-                >
-                  {doc.role}
-                </div>
-                <p class="text-slate-400 leading-relaxed text-sm">
-                  {doc.description}
-                </p>
-              </div>
-            </div>
-          {/each}
-        </div>
-
-        <div class="mt-20 text-center">
-          <button
-            onclick={startPlaying}
-            class="px-12 py-5 bg-white text-black font-bold text-xl rounded-full hover:bg-slate-200 transition-colors shadow-[0_0_30px_rgba(255,255,255,0.2)]"
-          >
-            PRENDRE LE CONTRÔLE
-          </button>
-        </div>
-      </div>
-    </section>
-
-    <!-- Footer -->
-    <footer
-      class="py-12 border-t border-slate-900 text-center text-slate-600 text-sm"
-    >
+    <article class="card card-featured">
+      <header>
+        <p class="badge">Active</p>
+        <h3>Bot-Creator</h3>
+      </header>
       <p>
-        &copy; 2054 Secteur Omni. Aucune reproduction autorisée sans licence
-        corporatiste.
+        Bot-Creator is our flagship application: a feature-rich experience that helps users create,
+        configure, and operate Discord bots without friction.
       </p>
-    </footer>
-  {/if}
-</div>
+      <ul>
+        <li><strong>Visual Builder:</strong> craft commands, actions, and workflows without complex code.</li>
+        <li><strong>Cross-Platform:</strong> built with Flutter/Dart for mobile, web, and desktop.</li>
+        <li>
+          <strong>Feature Packed:</strong> manage roles, webhooks, UI elements, and moderation from one
+          intuitive interface.
+        </li>
+      </ul>
+      <a class="button" href="https://bot-creator.fr" target="_blank" rel="noreferrer">Visit bot-creator.fr</a>
+    </article>
+
+    <article class="card">
+      <header>
+        <p class="badge badge-soft">Incubating</p>
+        <h3>Ketsuna</h3>
+      </header>
+      <p>
+        Our namesake project is in planning and incubation. It does not yet have a public purpose,
+        but we are exploring exciting ideas behind the scenes.
+      </p>
+      <p>Stay tuned for upcoming announcements.</p>
+    </article>
+  </section>
+
+  <section class="container grid-two">
+    <article class="card">
+      <h2>What You Will Find Here</h2>
+      <ul>
+        <li>Core source code for Bot-Creator and its runners.</li>
+        <li>Shared libraries and APIs used across our ecosystem.</li>
+        <li>Community discussion areas and issue trackers.</li>
+      </ul>
+    </article>
+
+    <article class="card">
+      <h2>Getting Involved</h2>
+      <ul>
+        <li><strong>Report Bugs:</strong> open an issue in the relevant repository.</li>
+        <li><strong>Suggest Features:</strong> start a discussion with your idea.</li>
+        <li><strong>Contribute Code:</strong> submit a pull request after reading CONTRIBUTING.md when available.</li>
+      </ul>
+    </article>
+  </section>
+
+  <section class="container contact card">
+    <h2>Connect With Us</h2>
+    <ul class="links">
+      <li><a href="https://bot-creator.fr" target="_blank" rel="noreferrer">Bot-Creator Website</a></li>
+      <li><a href="https://ketsuna.com" target="_blank" rel="noreferrer">Ketsuna Website</a></li>
+      <li>
+        <a href="https://discord.gg/gyEGNBUZdA" target="_blank" rel="noreferrer">Discord Community</a>
+      </li>
+    </ul>
+  </section>
+</main>
 
 <style>
-  /* Custom animations via Tailwind config usually, but here for specific one-offs */
-  @keyframes spin-slow {
-    from {
-      transform: rotate(0deg);
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Syne:wght@600;700;800&display=swap');
+
+  :global(body) {
+    margin: 0;
+    font-family: 'Space Grotesk', sans-serif;
+    color: #f5f7ff;
+    background:
+      radial-gradient(1200px 700px at 10% 10%, #20446f 0%, rgba(32, 68, 111, 0) 70%),
+      radial-gradient(1000px 700px at 90% 20%, #005844 0%, rgba(0, 88, 68, 0) 70%),
+      linear-gradient(160deg, #07111f 0%, #0f1f2f 45%, #142b2d 100%);
+    min-height: 100vh;
+  }
+
+  :global(*) {
+    box-sizing: border-box;
+  }
+
+  .page {
+    position: relative;
+    overflow: clip;
+    padding: 3rem 1.25rem 4rem;
+  }
+
+  .container {
+    width: min(1080px, 100%);
+    margin: 0 auto;
+  }
+
+  .bg-glow {
+    position: absolute;
+    border-radius: 999px;
+    filter: blur(55px);
+    opacity: 0.25;
+    pointer-events: none;
+  }
+
+  .bg-glow-a {
+    width: 26rem;
+    height: 26rem;
+    background: #1fd7a2;
+    top: -8rem;
+    left: -6rem;
+    animation: drift-a 16s ease-in-out infinite;
+  }
+
+  .bg-glow-b {
+    width: 30rem;
+    height: 30rem;
+    background: #4f9cfb;
+    right: -8rem;
+    top: 8rem;
+    animation: drift-b 18s ease-in-out infinite;
+  }
+
+  .hero {
+    position: relative;
+    z-index: 1;
+    padding: 1rem 0 2rem;
+    animation: rise 650ms ease both;
+  }
+
+  .eyebrow {
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    font-weight: 700;
+    font-size: 0.78rem;
+    color: #8dc6ff;
+    margin: 0 0 0.6rem;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: 'Syne', sans-serif;
+    line-height: 1.1;
+    margin: 0;
+  }
+
+  h1 {
+    font-size: clamp(2rem, 5vw, 3.8rem);
+    max-width: 14ch;
+  }
+
+  h2 {
+    font-size: clamp(1.45rem, 2.5vw, 2rem);
+    margin-bottom: 1rem;
+  }
+
+  h3 {
+    font-size: clamp(1.25rem, 2vw, 1.75rem);
+  }
+
+  .lead {
+    margin: 1rem 0 0;
+    max-width: 75ch;
+    color: #d7e5ff;
+    font-size: clamp(1rem, 2vw, 1.18rem);
+    line-height: 1.7;
+  }
+
+  .motto {
+    margin-top: 1.2rem;
+    color: #8ad6d4;
+    font-style: italic;
+    font-weight: 500;
+  }
+
+  .projects {
+    margin-top: 2rem;
+    display: grid;
+    gap: 1rem;
+  }
+
+  .card {
+    position: relative;
+    z-index: 1;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(139, 192, 255, 0.25);
+    background: linear-gradient(180deg, rgba(17, 38, 64, 0.75), rgba(12, 24, 45, 0.7));
+    border-radius: 1.1rem;
+    padding: 1.15rem;
+    animation: rise 750ms ease both;
+  }
+
+  .card-featured {
+    border-color: rgba(47, 223, 177, 0.45);
+    background:
+      linear-gradient(160deg, rgba(15, 56, 58, 0.76), rgba(7, 30, 53, 0.72)),
+      radial-gradient(100% 140% at 100% 0%, rgba(49, 212, 173, 0.28), rgba(0, 0, 0, 0));
+  }
+
+  .badge {
+    margin: 0 0 0.6rem;
+    display: inline-block;
+    padding: 0.35rem 0.6rem;
+    border-radius: 999px;
+    background: rgba(47, 223, 177, 0.25);
+    color: #98f1cf;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.72rem;
+    font-weight: 700;
+  }
+
+  .badge-soft {
+    background: rgba(140, 176, 224, 0.23);
+    color: #b2d5ff;
+  }
+
+  ul {
+    margin: 0.9rem 0 0;
+    padding-left: 1.1rem;
+    line-height: 1.65;
+    color: #d9e6ff;
+  }
+
+  li + li {
+    margin-top: 0.45rem;
+  }
+
+  p {
+    line-height: 1.65;
+    color: #d9e6ff;
+    margin: 0.75rem 0 0;
+  }
+
+  .button {
+    margin-top: 1rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    font-weight: 700;
+    color: #042634;
+    background: linear-gradient(135deg, #70f2cf, #56d4ff);
+    padding: 0.66rem 1rem;
+    border-radius: 0.7rem;
+    box-shadow: 0 8px 22px rgba(40, 171, 226, 0.24);
+    transition: transform 180ms ease, box-shadow 180ms ease;
+  }
+
+  .button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 24px rgba(40, 171, 226, 0.32);
+  }
+
+  .grid-two {
+    margin-top: 1rem;
+    display: grid;
+    gap: 1rem;
+  }
+
+  .contact {
+    margin-top: 1rem;
+  }
+
+  .links {
+    list-style: none;
+    padding: 0;
+    margin: 0.4rem 0 0;
+  }
+
+  .links a {
+    color: #9ad8ff;
+    text-underline-offset: 0.2rem;
+  }
+
+  @media (min-width: 820px) {
+    .projects {
+      grid-template-columns: 1.25fr 1fr;
     }
-    to {
-      transform: rotate(360deg);
+
+    .grid-two {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .page {
+      padding-top: 4rem;
     }
   }
-  .animate-spin-slow {
-    animation: spin-slow 10s linear infinite;
+
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes drift-a {
+    0%,
+    100% {
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+    50% {
+      transform: translate3d(1.2rem, 1rem, 0) scale(1.06);
+    }
+  }
+
+  @keyframes drift-b {
+    0%,
+    100% {
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+    50% {
+      transform: translate3d(-1rem, 1.1rem, 0) scale(1.04);
+    }
   }
 </style>
