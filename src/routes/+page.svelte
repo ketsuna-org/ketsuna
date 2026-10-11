@@ -1,351 +1,323 @@
+<script lang="ts">
+	import { mission, cells, links } from '$lib/content/hive';
+</script>
+
 <svelte:head>
-  <title>Ketsuna Organisation | Empowering communities with better tools.</title>
-  <meta
-    name="description"
-    content="Official home of the Ketsuna Team. Discover Bot-Creator, our flagship platform for building and hosting Discord bots, and follow Ketsuna's incubation journey."
-  />
-  <meta property="og:title" content="Ketsuna Organisation" />
-  <meta
-    property="og:description"
-    content="Bot-Creator is our active flagship project. Ketsuna is currently in incubation."
-  />
-  <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://ketsuna.com" />
+	<title>Ketsuna | La ruche des outils ouverts pour les communautés</title>
+	<meta name="description" content={mission.statement} />
+	<meta property="og:title" content="Ketsuna, la ruche" />
+	<meta property="og:description" content={mission.headline} />
+	<meta property="og:type" content="website" />
+	<meta property="og:url" content="https://ketsuna.com" />
 </svelte:head>
 
-<main class="page">
-  <div class="bg-glow bg-glow-a" aria-hidden="true"></div>
-  <div class="bg-glow bg-glow-b" aria-hidden="true"></div>
+<header class="nav">
+	<div class="container nav-inner">
+		<a class="brand" href="/">Ketsuna</a>
+		<nav aria-label="Navigation principale">
+			<a href="#mission">Mission</a>
+			<a href="#projets">Projets</a>
+		</nav>
+	</div>
+</header>
 
-  <section class="hero container">
-    <p class="eyebrow">Ketsuna Team</p>
-    <h1>Welcome to the Ketsuna Organisation</h1>
-    <p class="lead">
-      We build powerful, user-friendly tools for communities. Our current priority is
-      <strong>Bot-Creator</strong>, a comprehensive platform to build, customize, and host Discord bots
-      with confidence.
-    </p>
-    <p class="motto">"Empowering communities with better tools."</p>
-  </section>
+<main>
+	<section class="hero container">
+		<p class="eyebrow">{mission.eyebrow}</p>
+		<h1>{mission.headline}</h1>
+		<p class="lead">{mission.statement}</p>
+		<div class="actions">
+			<a class="button" href="#projets">Découvrir les projets</a>
+			<a class="button ghost" href="https://discord.gg/gyEGNBUZdA" target="_blank" rel="noreferrer"
+				>Rejoindre la communauté</a
+			>
+		</div>
+	</section>
 
-  <section class="projects container">
-    <h2>Our Projects</h2>
+	<section id="mission" class="container section">
+		<h2>Notre mission</h2>
+		<div class="grid three">
+			{#each mission.principles as p, i}
+				<article class="card">
+					<p class="num">0{i + 1}</p>
+					<h3>{p.title}</h3>
+					<p>{p.text}</p>
+				</article>
+			{/each}
+		</div>
+	</section>
 
-    <article class="card card-featured">
-      <header>
-        <p class="badge">Active</p>
-        <h3>Bot-Creator</h3>
-      </header>
-      <p>
-        Bot-Creator is our flagship application: a feature-rich experience that helps users create,
-        configure, and operate Discord bots without friction.
-      </p>
-      <ul>
-        <li><strong>Visual Builder:</strong> craft commands, actions, and workflows without complex code.</li>
-        <li><strong>Cross-Platform:</strong> built with Flutter/Dart for mobile, web, and desktop.</li>
-        <li>
-          <strong>Feature Packed:</strong> manage roles, webhooks, UI elements, and moderation from one
-          intuitive interface.
-        </li>
-      </ul>
-      <a class="button" href="https://bot-creator.fr" target="_blank" rel="noreferrer">Visit bot-creator.fr</a>
-    </article>
-
-    <article class="card">
-      <header>
-        <p class="badge badge-soft">Incubating</p>
-        <h3>Ketsuna</h3>
-      </header>
-      <p>
-        Our namesake project is in planning and incubation. It does not yet have a public purpose,
-        but we are exploring exciting ideas behind the scenes.
-      </p>
-      <p>Stay tuned for upcoming announcements.</p>
-    </article>
-  </section>
-
-  <section class="container grid-two">
-    <article class="card">
-      <h2>What You Will Find Here</h2>
-      <ul>
-        <li>Core source code for Bot-Creator and its runners.</li>
-        <li>Shared libraries and APIs used across our ecosystem.</li>
-        <li>Community discussion areas and issue trackers.</li>
-      </ul>
-    </article>
-
-    <article class="card">
-      <h2>Getting Involved</h2>
-      <ul>
-        <li><strong>Report Bugs:</strong> open an issue in the relevant repository.</li>
-        <li><strong>Suggest Features:</strong> start a discussion with your idea.</li>
-        <li><strong>Contribute Code:</strong> submit a pull request after reading CONTRIBUTING.md when available.</li>
-      </ul>
-    </article>
-  </section>
-
-  <section class="container contact card">
-    <h2>Connect With Us</h2>
-    <ul class="links">
-      <li><a href="https://bot-creator.fr" target="_blank" rel="noreferrer">Bot-Creator Website</a></li>
-      <li><a href="https://ketsuna.com" target="_blank" rel="noreferrer">Ketsuna Website</a></li>
-      <li>
-        <a href="https://discord.gg/gyEGNBUZdA" target="_blank" rel="noreferrer">Discord Community</a>
-      </li>
-    </ul>
-  </section>
+	<section id="projets" class="container section">
+		<h2>Les cellules de la ruche</h2>
+		<div class="grid two">
+			{#each cells as c}
+				<article class="card cell">
+					<header>
+						<span class="tag">{c.tag}</span>
+						<span class="status">{c.status}</span>
+					</header>
+					<h3>{c.name}</h3>
+					<p>{c.description}</p>
+					<a class="link" href={c.href} target="_blank" rel="noreferrer">{c.cta} →</a>
+				</article>
+			{/each}
+		</div>
+	</section>
 </main>
 
+<footer class="container footer">
+	<p>© {new Date().getFullYear()} Ketsuna</p>
+	<ul>
+		{#each links as l}
+			<li><a href={l.href} target="_blank" rel="noreferrer">{l.label}</a></li>
+		{/each}
+	</ul>
+</footer>
+
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Syne:wght@600;700;800&display=swap');
+	@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap');
 
-  :global(body) {
-    margin: 0;
-    font-family: 'Space Grotesk', sans-serif;
-    color: #f5f7ff;
-    background:
-      radial-gradient(1200px 700px at 10% 10%, #20446f 0%, rgba(32, 68, 111, 0) 70%),
-      radial-gradient(1000px 700px at 90% 20%, #005844 0%, rgba(0, 88, 68, 0) 70%),
-      linear-gradient(160deg, #07111f 0%, #0f1f2f 45%, #142b2d 100%);
-    min-height: 100vh;
-  }
+	:global(:root) {
+		--bg: #0f1214;
+		--surface: #171b1e;
+		--border: #262c30;
+		--text: #e8edef;
+		--muted: #9aa5ab;
+		--jade: #2fd49b;
+	}
 
-  :global(*) {
-    box-sizing: border-box;
-  }
+	:global(*) {
+		box-sizing: border-box;
+	}
 
-  .page {
-    position: relative;
-    overflow: clip;
-    padding: 3rem 1.25rem 4rem;
-  }
+	:global(html) {
+		scroll-behavior: smooth;
+	}
 
-  .container {
-    width: min(1080px, 100%);
-    margin: 0 auto;
-  }
+	:global(body) {
+		margin: 0;
+		font-family: 'Space Grotesk', system-ui, sans-serif;
+		color: var(--text);
+		background: var(--bg);
+		min-height: 100vh;
+		line-height: 1.6;
+	}
 
-  .bg-glow {
-    position: absolute;
-    border-radius: 999px;
-    filter: blur(55px);
-    opacity: 0.25;
-    pointer-events: none;
-  }
+	a {
+		color: inherit;
+	}
 
-  .bg-glow-a {
-    width: 26rem;
-    height: 26rem;
-    background: #1fd7a2;
-    top: -8rem;
-    left: -6rem;
-    animation: drift-a 16s ease-in-out infinite;
-  }
+	.container {
+		width: min(1080px, 100%);
+		margin: 0 auto;
+		padding-inline: 1.25rem;
+	}
 
-  .bg-glow-b {
-    width: 30rem;
-    height: 30rem;
-    background: #4f9cfb;
-    right: -8rem;
-    top: 8rem;
-    animation: drift-b 18s ease-in-out infinite;
-  }
+	.nav {
+		position: sticky;
+		top: 0;
+		z-index: 10;
+		background: rgba(15, 18, 20, 0.85);
+		backdrop-filter: blur(8px);
+		border-bottom: 1px solid var(--border);
+	}
 
-  .hero {
-    position: relative;
-    z-index: 1;
-    padding: 1rem 0 2rem;
-    animation: rise 650ms ease both;
-  }
+	.nav-inner {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		height: 3.5rem;
+	}
 
-  .eyebrow {
-    text-transform: uppercase;
-    letter-spacing: 0.16em;
-    font-weight: 700;
-    font-size: 0.78rem;
-    color: #8dc6ff;
-    margin: 0 0 0.6rem;
-  }
+	.brand {
+		font-weight: 700;
+		text-decoration: none;
+		color: var(--jade);
+		letter-spacing: 0.04em;
+	}
 
-  h1,
-  h2,
-  h3 {
-    font-family: 'Syne', sans-serif;
-    line-height: 1.1;
-    margin: 0;
-  }
+	nav a {
+		margin-left: 1.5rem;
+		color: var(--muted);
+		text-decoration: none;
+	}
 
-  h1 {
-    font-size: clamp(2rem, 5vw, 3.8rem);
-    max-width: 14ch;
-  }
+	nav a:hover {
+		color: var(--text);
+	}
 
-  h2 {
-    font-size: clamp(1.45rem, 2.5vw, 2rem);
-    margin-bottom: 1rem;
-  }
+	.hero {
+		padding-block: clamp(3.5rem, 9vw, 7rem) 3rem;
+	}
 
-  h3 {
-    font-size: clamp(1.25rem, 2vw, 1.75rem);
-  }
+	.eyebrow {
+		margin: 0 0 1rem;
+		text-transform: uppercase;
+		letter-spacing: 0.16em;
+		font-size: 0.78rem;
+		font-weight: 700;
+		color: var(--jade);
+	}
 
-  .lead {
-    margin: 1rem 0 0;
-    max-width: 75ch;
-    color: #d7e5ff;
-    font-size: clamp(1rem, 2vw, 1.18rem);
-    line-height: 1.7;
-  }
+	h1,
+	h2,
+	h3 {
+		line-height: 1.15;
+		margin: 0;
+	}
 
-  .motto {
-    margin-top: 1.2rem;
-    color: #8ad6d4;
-    font-style: italic;
-    font-weight: 500;
-  }
+	h1 {
+		font-size: clamp(2rem, 5vw, 3.5rem);
+		max-width: 20ch;
+	}
 
-  .projects {
-    margin-top: 2rem;
-    display: grid;
-    gap: 1rem;
-  }
+	h2 {
+		font-size: clamp(1.5rem, 3vw, 2rem);
+		margin-bottom: 1.5rem;
+	}
 
-  .card {
-    position: relative;
-    z-index: 1;
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(139, 192, 255, 0.25);
-    background: linear-gradient(180deg, rgba(17, 38, 64, 0.75), rgba(12, 24, 45, 0.7));
-    border-radius: 1.1rem;
-    padding: 1.15rem;
-    animation: rise 750ms ease both;
-  }
+	h3 {
+		font-size: 1.25rem;
+		margin-bottom: 0.5rem;
+	}
 
-  .card-featured {
-    border-color: rgba(47, 223, 177, 0.45);
-    background:
-      linear-gradient(160deg, rgba(15, 56, 58, 0.76), rgba(7, 30, 53, 0.72)),
-      radial-gradient(100% 140% at 100% 0%, rgba(49, 212, 173, 0.28), rgba(0, 0, 0, 0));
-  }
+	.lead {
+		margin: 1.5rem 0 0;
+		max-width: 62ch;
+		color: var(--muted);
+		font-size: 1.15rem;
+	}
 
-  .badge {
-    margin: 0 0 0.6rem;
-    display: inline-block;
-    padding: 0.35rem 0.6rem;
-    border-radius: 999px;
-    background: rgba(47, 223, 177, 0.25);
-    color: #98f1cf;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    font-size: 0.72rem;
-    font-weight: 700;
-  }
+	.actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.75rem;
+		margin-top: 2rem;
+	}
 
-  .badge-soft {
-    background: rgba(140, 176, 224, 0.23);
-    color: #b2d5ff;
-  }
+	.button {
+		display: inline-block;
+		padding: 0.7rem 1.2rem;
+		border-radius: 0.5rem;
+		background: var(--jade);
+		color: #06231a;
+		font-weight: 700;
+		text-decoration: none;
+		border: 1px solid var(--jade);
+	}
 
-  ul {
-    margin: 0.9rem 0 0;
-    padding-left: 1.1rem;
-    line-height: 1.65;
-    color: #d9e6ff;
-  }
+	.button.ghost {
+		background: transparent;
+		color: var(--text);
+		border-color: var(--border);
+	}
 
-  li + li {
-    margin-top: 0.45rem;
-  }
+	.button:hover {
+		filter: brightness(1.1);
+	}
 
-  p {
-    line-height: 1.65;
-    color: #d9e6ff;
-    margin: 0.75rem 0 0;
-  }
+	.section {
+		padding-block: 2.5rem;
+	}
 
-  .button {
-    margin-top: 1rem;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    text-decoration: none;
-    font-weight: 700;
-    color: #042634;
-    background: linear-gradient(135deg, #70f2cf, #56d4ff);
-    padding: 0.66rem 1rem;
-    border-radius: 0.7rem;
-    box-shadow: 0 8px 22px rgba(40, 171, 226, 0.24);
-    transition: transform 180ms ease, box-shadow 180ms ease;
-  }
+	.grid {
+		display: grid;
+		gap: 1rem;
+	}
 
-  .button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 12px 24px rgba(40, 171, 226, 0.32);
-  }
+	.grid.three {
+		grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+	}
 
-  .grid-two {
-    margin-top: 1rem;
-    display: grid;
-    gap: 1rem;
-  }
+	.grid.two {
+		grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+	}
 
-  .contact {
-    margin-top: 1rem;
-  }
+	.card {
+		background: var(--surface);
+		border: 1px solid var(--border);
+		border-radius: 0.75rem;
+		padding: 1.5rem;
+	}
 
-  .links {
-    list-style: none;
-    padding: 0;
-    margin: 0.4rem 0 0;
-  }
+	.card p {
+		margin: 0;
+		color: var(--muted);
+	}
 
-  .links a {
-    color: #9ad8ff;
-    text-underline-offset: 0.2rem;
-  }
+	.num {
+		color: var(--jade) !important;
+		font-weight: 700;
+		margin-bottom: 0.5rem !important;
+	}
 
-  @media (min-width: 820px) {
-    .projects {
-      grid-template-columns: 1.25fr 1fr;
-    }
+	.cell {
+		display: flex;
+		flex-direction: column;
+		gap: 0.25rem;
+	}
 
-    .grid-two {
-      grid-template-columns: 1fr 1fr;
-    }
+	.cell:hover {
+		border-color: var(--jade);
+	}
 
-    .page {
-      padding-top: 4rem;
-    }
-  }
+	.cell header {
+		display: flex;
+		justify-content: space-between;
+		font-size: 0.78rem;
+		text-transform: uppercase;
+		letter-spacing: 0.1em;
+		margin-bottom: 0.75rem;
+	}
 
-  @keyframes rise {
-    from {
-      opacity: 0;
-      transform: translateY(20px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
+	.tag {
+		color: var(--jade);
+	}
 
-  @keyframes drift-a {
-    0%,
-    100% {
-      transform: translate3d(0, 0, 0) scale(1);
-    }
-    50% {
-      transform: translate3d(1.2rem, 1rem, 0) scale(1.06);
-    }
-  }
+	.status {
+		color: var(--muted);
+	}
 
-  @keyframes drift-b {
-    0%,
-    100% {
-      transform: translate3d(0, 0, 0) scale(1);
-    }
-    50% {
-      transform: translate3d(-1rem, 1.1rem, 0) scale(1.04);
-    }
-  }
+	.link {
+		margin-top: auto;
+		padding-top: 1rem;
+		color: var(--jade);
+		font-weight: 700;
+		text-decoration: none;
+	}
+
+	.link:hover {
+		text-decoration: underline;
+	}
+
+	.footer {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: space-between;
+		gap: 1rem;
+		padding-block: 2.5rem;
+		margin-top: 2rem;
+		border-top: 1px solid var(--border);
+		color: var(--muted);
+	}
+
+	.footer p {
+		margin: 0;
+	}
+
+	.footer ul {
+		display: flex;
+		gap: 1.25rem;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.footer a {
+		text-decoration: none;
+	}
+
+	.footer a:hover {
+		color: var(--text);
+	}
 </style>
