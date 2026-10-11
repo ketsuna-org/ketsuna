@@ -24,6 +24,7 @@
 		"@tailwindcss/typography": "^0.5.19",
 		"@tailwindcss/vite": "^4.1.17",
 		"@types/node": "^22",
+		"@types/three": "^0.170.0",
 		"eslint": "^9.39.1",
 		"eslint-plugin-svelte": "^3.13.1",
 		"globals": "^16.5.0",
@@ -42,6 +43,7 @@
 		"gray-matter": "^4.0.3",
 		"marked": "^17.0.1",
 		"pocketbase": "^0.26.5",
-		"svelte-sitemap": "^2.7.1"
+		"svelte-sitemap": "^2.7.1",
+		"three": "^0.170.0"
 	}
 }

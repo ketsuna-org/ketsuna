@@ -1,5 +1,56 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { mission, cells, links } from '$lib/content/hive';
+	import HiveWorld from '$lib/HiveWorld.svelte';
+
+	let mode = $state<'classic' | '3d'>('classic');
+	let webgl = $state(false);
+
+	function hasWebGL() {
+		try {
+			const c = document.createElement('canvas');
+			return !!(c.getContext('webgl2') || c.getContext('webgl'));
+		} catch {
+			return false;
+		}
+	}
+
+	// 3D par défaut seulement sur un appareil capable : écran large, pointeur précis,
+	// pas de « réduire les animations », CPU/mémoire corrects, WebGL disponible.
+	function isCapable() {
+		const nav = navigator as Navigator & { deviceMemory?: number; connection?: { saveData?: boolean } };
+		return (
+			webgl &&
+			window.innerWidth >= 900 &&
+			matchMedia('(pointer: fine)').matches &&
+			!matchMedia('(prefers-reduced-motion: reduce)').matches &&
+			(nav.hardwareConcurrency ?? 8) >= 4 &&
+			(nav.deviceMemory ?? 8) >= 4 &&
+			!nav.connection?.saveData
+		);
+	}
+
+	function setMode(m: 'classic' | '3d') {
+		mode = m;
+		try {
+			localStorage.setItem('ketsuna-mode', m);
+		} catch {
+			/* stockage indisponible */
+		}
+	}
+
+	onMount(() => {
+		webgl = hasWebGL();
+		let saved: string | null = null;
+		try {
+			saved = localStorage.getItem('ketsuna-mode');
+		} catch {
+			/* ignore */
+		}
+		if (saved === 'classic') mode = 'classic';
+		else if (saved === '3d' && webgl) mode = '3d';
+		else if (isCapable()) mode = '3d';
+	});
 </script>
 
 <svelte:head>
@@ -11,12 +62,17 @@
 	<meta property="og:url" content="https://ketsuna.com" />
 </svelte:head>
 
+{#if mode === '3d'}
+	<HiveWorld onexit={() => setMode('classic')} />
+{/if}
+
 <header class="nav">
 	<div class="container nav-inner">
 		<a class="brand" href="/">Ketsuna</a>
 		<nav aria-label="Navigation principale">
 			<a href="#mission">Mission</a>
 			<a href="#projets">Projets</a>
+			{#if webgl}<button class="mode" onclick={() => setMode('3d')}>Explorer en 3D</button>{/if}
 		</nav>
 	</div>
 </header>
@@ -37,7 +93,7 @@
 	<section id="mission" class="container section">
 		<h2>Notre mission</h2>
 		<div class="grid three">
-			{#each mission.principles as p, i}
+			{#each mission.principles as p, i (p.title)}
 				<article class="card">
 					<p class="num">0{i + 1}</p>
 					<h3>{p.title}</h3>
@@ -50,7 +106,7 @@
 	<section id="projets" class="container section">
 		<h2>Les cellules de la ruche</h2>
 		<div class="grid two">
-			{#each cells as c}
+			{#each cells as c (c.name)}
 				<article class="card cell">
 					<header>
 						<span class="tag">{c.tag}</span>
@@ -68,7 +124,7 @@
 <footer class="container footer">
 	<p>© {new Date().getFullYear()} Ketsuna</p>
 	<ul>
-		{#each links as l}
+		{#each links as l (l.label)}
 			<li><a href={l.href} target="_blank" rel="noreferrer">{l.label}</a></li>
 		{/each}
 	</ul>
@@ -142,8 +198,29 @@
 		text-decoration: none;
 	}
 
+	.mode {
+		margin-left: 1.5rem;
+		font: inherit;
+		color: var(--jade);
+		background: none;
+		border: 1px solid var(--jade);
+		border-radius: 0.5rem;
+		padding: 0.25rem 0.7rem;
+		cursor: pointer;
+	}
+
 	nav a:hover {
 		color: var(--text);
+	}
+
+	@media (max-width: 520px) {
+		nav a {
+			display: none;
+		}
+
+		.mode {
+			margin-left: 0;
+		}
 	}
 
 	.hero {
