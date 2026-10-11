@@ -3,8 +3,6 @@
 	import type * as THREE from 'three';
 	import { mission, cells } from '$lib/content/hive';
 
-	let { onexit }: { onexit: () => void } = $props();
-
 	// Station 0 = la mission (vue d'ensemble), 1..n = les cellules.
 	let station = $state(0);
 	let ready = $state(false);
@@ -24,7 +22,6 @@
 	function onKey(e: KeyboardEvent) {
 		if (e.key === 'ArrowRight' || e.key === 'ArrowDown') next();
 		else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') prev();
-		else if (e.key === 'Escape') onexit();
 	}
 
 	onMount(() => {
@@ -37,7 +34,14 @@
 			if (disposed) return;
 
 			const JADE = 0x2fd49b;
-			const renderer = new T.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+			let renderer: THREE.WebGLRenderer;
+			try {
+				renderer = new T.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+			} catch {
+				// Sans WebGL : fond uni, le panneau et la navigation restent utilisables.
+				ready = true;
+				return;
+			}
 			renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
 			renderer.setClearColor(0x0b0e10);
 			// eslint-disable-next-line svelte/no-dom-manipulating
@@ -377,9 +381,6 @@
 	const current = $derived(station === 0 ? null : cells[station - 1]);
 </script>
 
-<svelte:head>
-	<title>Ketsuna | Explorez la ruche</title>
-</svelte:head>
 <svelte:window onkeydown={onKey} />
 
 <div class="world" role="region" aria-label="Exploration 3D de la ruche Ketsuna">
@@ -398,7 +399,6 @@
 
 	<header class="top">
 		<a class="brand" href="/">Ketsuna</a>
-		<button class="ghost" onclick={onexit}>Version classique</button>
 	</header>
 
 	<section class="panel" aria-live="polite">
@@ -477,24 +477,11 @@
 		text-decoration: none;
 	}
 
-	.ghost,
 	.controls button,
 	.pin {
 		font: inherit;
 		color: inherit;
 		cursor: pointer;
-	}
-
-	.ghost {
-		background: rgba(23, 27, 30, 0.7);
-		border: 1px solid #262c30;
-		border-radius: 0.5rem;
-		padding: 0.45rem 0.9rem;
-		backdrop-filter: blur(6px);
-	}
-
-	.ghost:hover {
-		border-color: #2fd49b;
 	}
 
 	.pin {
@@ -519,6 +506,8 @@
 		bottom: 5.5rem;
 		width: min(27rem, calc(100% - 2.5rem));
 		padding: 1.25rem 1.5rem;
+		max-height: 55vh;
+		overflow-y: auto;
 		border-radius: 0.9rem;
 		background: rgba(18, 22, 25, 0.78);
 		border: 1px solid #262c30;
